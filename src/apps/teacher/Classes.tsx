@@ -337,15 +337,15 @@ const TeacherClasses: React.FC<Props> = ({ activeTab, activeSubNav }) => {
                                         <td className="py-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
-                                                    {enrollment.expand?.student_id?.name?.charAt(0) || 'S'}
+                                                    {enrollment.expand?.student?.name?.charAt(0) || 'S'}
                                                 </div>
                                                 <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
-                                                    {enrollment.expand?.student_id?.name || 'Unknown Student'}
+                                                    {enrollment.expand?.student?.name || 'Unknown Student'}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="py-3 text-sm text-gray-500 dark:text-gray-400">
-                                            {enrollment.expand?.student_id?.email}
+                                            {enrollment.expand?.student?.email}
                                         </td>
                                         <td className="py-3 text-right">
                                             <Button variant="ghost" size="sm" icon="ChatBubbleLeftIcon">Message</Button>
@@ -436,11 +436,11 @@ const TeacherClasses: React.FC<Props> = ({ activeTab, activeSubNav }) => {
                                         <td className="py-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
-                                                    {enrollment.expand?.student_id?.name?.charAt(0) || 'S'}
+                                                    {enrollment.expand?.student?.name?.charAt(0) || 'S'}
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-gray-800 dark:text-gray-200 text-sm">
-                                                        {enrollment.expand?.student_id?.name || 'Unknown Student'}
+                                                        {enrollment.expand?.student?.name || 'Unknown Student'}
                                                     </div>
                                                 </div>
                                             </div>

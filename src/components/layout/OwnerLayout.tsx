@@ -152,50 +152,12 @@ const OwnerLayout: React.FC = () => {
 
       // Key ensures motion animation when module / tab changes
       const key = `${activeModule || 'unknown'}-${activeTab || 'root'}-${activeSubNav || 'base'}`;
+      const isDashboard = activeModule === 'dashboard';
 
       return (
         <ErrorBoundary>
-          <div className="flex h-full w-full flex-col bg-gradient-to-b from-slate-950/60 via-slate-950/75 to-black/90 dark:from-black/70 dark:via-slate-900/90 dark:to-black border-l border-white/5 backdrop-blur-md">
-            {/* Module header / breadcrumb */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-black/30 px-4 py-3 sm:px-6 sm:py-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-400/80 dark:text-white/40">
-                  Owner Workspace
-                </p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h1 className="text-lg sm:text-xl font-semibold text-white">
-                    {moduleTitle}
-                  </h1>
-                  {(activeTab || activeSubNav) && (
-                    <span className="text-xs sm:text-sm text-gray-400 dark:text-white/60">
-                      /
-                      {activeTab && (
-                        <span className="ml-1">
-                          {formatLabel(activeTab)}
-                        </span>
-                      )}
-                      {activeSubNav && (
-                        <span className="ml-1 text-gray-400/80">
-                          / {formatLabel(activeSubNav)}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-[11px] text-gray-300/80 dark:text-white/70">
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                  </span>
-                  <span className="uppercase tracking-[0.22em]">
-                    Live session
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="flex h-full w-full flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900">
+            {/* Module header / breadcrumb removed to save vertical space */}
 
             {/* Module content */}
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -210,7 +172,10 @@ const OwnerLayout: React.FC = () => {
                   <motion.div
                     key={key}
                     // Scroll on mobile and desktop (internal scroll)
-                    className="h-full w-full px-4 py-4 sm:px-6 sm:py-5 overflow-y-auto gyn-scroll"
+                    // Dashboard needs to be fixed height (no scroll) for the bento grid to work
+                    className={`h-full w-full px-4 py-4 sm:px-6 sm:py-5 flex flex-col ${
+                      isDashboard ? 'overflow-hidden' : 'overflow-y-auto gyn-scroll'
+                    }`}
                     variants={moduleVariants}
                     initial="initial"
                     animate="animate"

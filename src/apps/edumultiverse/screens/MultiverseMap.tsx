@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { multiverseService } from '../services/multiverseService';
-import { Universe } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { multiverseService } from '../services/multiverseService';
+import { Universe } from '../types/gamification';
+import { LoadingScreen } from '../../../components/shared/LoadingScreen';
+import { Icon } from '../../../components/shared/ui/CommonUI';
 
 export const MultiverseMap: React.FC = () => {
     const [universes, setUniverses] = useState<Universe[]>([]);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -14,95 +17,123 @@ export const MultiverseMap: React.FC = () => {
 
     const loadUniverses = async () => {
         try {
-            // In a real app, we'd fetch from API. For now, if empty, use mock data for demo
             const data = await multiverseService.getUniverses();
-            if (data.length === 0) {
-                setUniverses(MOCK_UNIVERSES);
-            } else {
-                setUniverses(data);
-            }
+            setUniverses(data);
         } catch (e) {
             console.error("Failed to load universes", e);
-            setUniverses(MOCK_UNIVERSES);
+        } finally {
+            setLoading(false);
         }
     };
 
+    if (loading) return <LoadingScreen />;
+
     return (
-        <div className="min-h-screen bg-slate-900 text-white p-8 font-sans">
-            <header className="mb-12 text-center">
-                <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-500 mb-4">
+        <div className="min-h-screen bg-slate-900 text-white p-8 font-sans overflow-hidden relative">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-900 pointer-events-none"></div>
+
+            <header className="mb-12 text-center relative z-10">
+                <motion.h1
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 mb-4 drop-shadow-lg"
+                >
                     MULTIVERSE MAP
-                </h1>
-                <p className="text-slate-400 text-lg">Select a reality to explore</p>
+                </motion.h1>
+                <p className="text-slate-400 text-lg font-medium tracking-wide">Select a reality to explore</p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto mb-12">
-                {universes.map((universe) => (
-                    <UniverseCard 
-                        key={universe.id} 
-                        universe={universe} 
-                        onClick={() => navigate(`/apps/edumultiverse/universe/${universe.id}`)}
-                    />
-                ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto mb-12 relative z-10">
+                {universes.length > 0 ? (
+                    universes.map((universe, index) => (
+                        <UniverseCard
+                            key={universe.id}
+                            universe={universe}
+                            index={index}
+                            onClick={() => navigate(`/apps/edumultiverse/universe/${universe.id}`)}
+                        />
+                    ))
+                ) : (
+                    <div className="col-span-full text-center py-20">
+                        <Icon name="CubeTransparent" className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                        <h3 className="text-xl text-slate-500">No Universes Discovered Yet</h3>
+                        <p className="text-slate-600">Check back later for new realities.</p>
+                    </div>
+                )}
             </div>
 
-            <div className="max-w-7xl mx-auto">
-                <h2 className="text-2xl font-bold mb-6 border-b border-slate-700 pb-2">SPECIAL ANOMALIES</h2>
+            <div className="max-w-7xl mx-auto relative z-10">
+                <h2 className="text-2xl font-bold mb-6 border-b border-slate-700 pb-2 flex items-center gap-2">
+                    <Icon name="LightningBolt" className="w-6 h-6 text-yellow-400" />
+                    SPECIAL ANOMALIES
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div 
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/apps/edumultiverse/glitch-hunter')}
-                        className="bg-green-900/20 border border-green-500/30 p-6 rounded-xl cursor-pointer hover:bg-green-900/40 transition-colors group"
+                        className="bg-green-900/20 border border-green-500/30 p-6 rounded-xl cursor-pointer hover:bg-green-900/40 transition-all group relative overflow-hidden"
                     >
-                        <h3 className="text-xl font-bold text-green-400 mb-2 group-hover:translate-x-2 transition-transform">
-                            👾 GLITCH HUNTER
+                        <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-xl font-bold text-green-400 mb-2 group-hover:translate-x-2 transition-transform flex items-center gap-2">
+                            <Icon name="Code" className="w-5 h-5" />
+                            GLITCH HUNTER
                         </h3>
-                        <p className="text-slate-400">Reality is fracturing. Find and fix the errors in the database before they spread.</p>
-                    </div>
+                        <p className="text-slate-400 text-sm">Reality is fracturing. Find and fix the errors in the database before they spread.</p>
+                    </motion.div>
 
-                    <div 
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/apps/edumultiverse/time-loop')}
-                        className="bg-indigo-900/20 border border-indigo-500/30 p-6 rounded-xl cursor-pointer hover:bg-indigo-900/40 transition-colors group"
+                        className="bg-indigo-900/20 border border-indigo-500/30 p-6 rounded-xl cursor-pointer hover:bg-indigo-900/40 transition-all group relative overflow-hidden"
                     >
-                        <h3 className="text-xl font-bold text-indigo-400 mb-2 group-hover:translate-x-2 transition-transform">
-                            ⏳ TIME LOOP
+                        <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-xl font-bold text-indigo-400 mb-2 group-hover:translate-x-2 transition-transform flex items-center gap-2">
+                            <Icon name="Clock" className="w-5 h-5" />
+                            TIME LOOP
                         </h3>
-                        <p className="text-slate-400">Trapped in a temporal anomaly. Master the concept to break the cycle.</p>
-                    </div>
+                        <p className="text-slate-400 text-sm">Trapped in a temporal anomaly. Master the concept to break the cycle.</p>
+                    </motion.div>
                 </div>
             </div>
         </div>
     );
 };
 
-const UniverseCard: React.FC<{ universe: Universe; onClick: () => void }> = ({ universe, onClick }) => {
+const UniverseCard: React.FC<{ universe: Universe; index: number; onClick: () => void }> = ({ universe, index, onClick }) => {
     return (
-        <motion.div 
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
             whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(168, 85, 247, 0.4)" }}
             whileTap={{ scale: 0.95 }}
-            className="bg-slate-800 rounded-2xl p-6 border border-slate-700 cursor-pointer relative overflow-hidden group"
+            className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 cursor-pointer relative overflow-hidden group"
             onClick={onClick}
         >
-            <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <span className="text-6xl">{universe.icon}</span>
+            <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity transform group-hover:rotate-12 duration-500">
+                <span className="text-6xl filter grayscale group-hover:grayscale-0 transition-all">{universe.icon}</span>
             </div>
-            
+
             <div className="relative z-10">
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-4 ${
-                    universe.type === 'SchoolClass' ? 'bg-blue-900 text-blue-300' : 'bg-emerald-900 text-emerald-300'
-                }`}>
-                    {universe.type === 'SchoolClass' ? 'CLASS REALITY' : 'SOLO TRACK'}
+                <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold mb-4 uppercase tracking-wider ${universe.type === 'SchoolClass' ? 'bg-blue-900/50 text-blue-300 border border-blue-500/30' : 'bg-emerald-900/50 text-emerald-300 border border-emerald-500/30'
+                    }`}>
+                    {universe.type === 'SchoolClass' ? 'Class Reality' : 'Solo Track'}
                 </span>
-                
-                <h3 className="text-2xl font-bold mb-2">{universe.name}</h3>
-                <p className="text-slate-400 mb-6">{universe.description}</p>
-                
-                <div className="flex items-center justify-between mt-4">
-                    <div className="flex space-x-2">
-                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                        <span className="text-xs text-slate-500">TIMELINES STABLE</span>
+
+                <h3 className="text-2xl font-bold mb-2 text-white group-hover:text-cyan-300 transition-colors">{universe.name}</h3>
+                <p className="text-slate-400 mb-6 text-sm line-clamp-2">{universe.description}</p>
+
+                <div className="flex items-center justify-between mt-4 border-t border-slate-700 pt-4">
+                    <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">Online</span>
                     </div>
-                    <span className="text-cyan-400 text-sm font-bold group-hover:translate-x-1 transition-transform">
-                        ENTER &rarr;
+                    <span className="text-cyan-400 text-xs font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                        ENTER <Icon name="ArrowRight" className="w-3 h-3" />
                     </span>
                 </div>
             </div>
@@ -110,38 +141,3 @@ const UniverseCard: React.FC<{ universe: Universe; onClick: () => void }> = ({ u
     );
 };
 
-// Mock Data for Fallback
-const MOCK_UNIVERSES: Universe[] = [
-    {
-        id: 'math-101',
-        name: 'Quantum Mathematics',
-        subject: 'Math',
-        type: 'SchoolClass',
-        description: 'Master the language of the cosmos through algebra and geometry.',
-        icon: '📐'
-    },
-    {
-        id: 'sci-bio',
-        name: 'Bio-Genesis Realm',
-        subject: 'Biology',
-        type: 'SchoolClass',
-        description: 'Explore the building blocks of life and evolution.',
-        icon: '🧬'
-    },
-    {
-        id: 'hist-anc',
-        name: 'Chronos History',
-        subject: 'History',
-        type: 'SoloTrack',
-        description: 'Travel back to ancient civilizations and fix the timeline.',
-        icon: '⏳'
-    },
-    {
-        id: 'lit-fict',
-        name: 'Narrative Nexus',
-        subject: 'Literature',
-        type: 'SchoolClass',
-        description: 'Weave stories and analyze texts from across dimensions.',
-        icon: '📚'
-    }
-];

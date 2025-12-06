@@ -62,6 +62,10 @@ export interface OwnerDashboardData {
     revenueHistory: ChartDataPoint[];
     tenantGrowth: ChartDataPoint[];
     recentActivity: AuditLog[];
+    // New Data
+    topVisitedPages: { label: string; value: number; color: string; subLabel?: string }[];
+    topUserAccess: { label: string; value: number; color: string }[];
+    expensesByCategory: { label: string; value: number; color: string; percentage: number }[];
 }
 
 class OwnerService {
@@ -77,8 +81,39 @@ class OwnerService {
         let revenueHistory: ChartDataPoint[] = [];
         let tenantGrowth: ChartDataPoint[] = [];
         let combinedActivity: AuditLog[] = [];
+        let topVisitedPages: any[] = [];
+        let topUserAccess: any[] = [];
+        let expensesByCategory: any[] = [];
 
         try {
+            // --- New Analytics Fetching ---
+            try {
+                const pages = await this.getTopVisitedPages();
+                topVisitedPages = pages.map(p => ({
+                    label: p.path,
+                    value: p.visitors,
+                    color: p.category === 'Social' ? '#3b82f6' : p.category === 'Internal' ? '#06b6d4' : '#8b5cf6',
+                    subLabel: p.category
+                }));
+
+                const sources = await this.getTopUserAccess();
+                topUserAccess = sources.map(s => ({
+                    label: s.source,
+                    value: s.visitors,
+                    color: s.color || '#cbd5e1'
+                }));
+
+                const expenses = await this.getExpensesByCategory();
+                expensesByCategory = expenses.map(e => ({
+                    label: e.category,
+                    value: e.amount,
+                    color: e.color || '#cbd5e1',
+                    percentage: e.percentage || 0
+                }));
+            } catch (e) {
+                console.error("Error fetching analytics data:", e);
+            }
+
             // 1. Tenant Metrics
             try {
                 const activeTenantsResult = await pb.collection('tenants').getList(1, 1, {
@@ -290,7 +325,10 @@ class OwnerService {
                 alerts: alerts,
                 revenueHistory: revenueHistory,
                 tenantGrowth: tenantGrowth,
-                recentActivity: combinedActivity
+                recentActivity: combinedActivity,
+                topVisitedPages: topVisitedPages,
+                topUserAccess: topUserAccess,
+                expensesByCategory: expensesByCategory
             };
 
         } catch (err) {
@@ -332,6 +370,20 @@ class OwnerService {
 
     async updateSubscriptionPlan(id: string, data: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> {
         return await pb.collection('subscription_plans').update<SubscriptionPlan>(id, data);
+    }
+
+    // --- Analytics & Finance ---
+
+    async getTopVisitedPages(): Promise<RecordModel[]> {
+        return await pb.collection('analytics_pages').getFullList({ sort: '-visitors' });
+    }
+
+    async getTopUserAccess(): Promise<RecordModel[]> {
+        return await pb.collection('analytics_sources').getFullList({ sort: '-visitors' });
+    }
+
+    async getExpensesByCategory(): Promise<RecordModel[]> {
+        return await pb.collection('finance_expenses').getFullList({ sort: '-amount' });
     }
 }
 

@@ -76,12 +76,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
   const currentSubNavItems = config[activeModule]?.subnav[activeTab] || [];
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden font-sans text-gray-600 relative bg-gray-50">
+    <div className="h-screen w-screen flex flex-col overflow-hidden font-sans text-slate-900 relative bg-white">
       
-      {/* Background Texture */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none bg-cyber-grid mix-blend-multiply"></div>
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent pointer-events-none"></div>
-
       {!network.online && (
         <div className="bg-red-500 text-white text-xs font-bold text-center py-1 absolute top-0 left-0 right-0 z-50 animate-slideInDown shadow-md flex items-center justify-center gap-2">
             <Icon name="WifiIcon" className="w-3 h-3" />
@@ -112,16 +108,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
                     />
                 )}
 
-                <main className="flex-1 flex flex-col relative px-1 md:px-2 transition-all duration-300 min-h-0 overflow-hidden">
-                    {/* Main Glass Frame - HDM Style */}
-                    <div className="flex-1 bg-white/40 backdrop-blur-xl border border-white/40 rounded-2xl shadow-sm relative overflow-hidden flex flex-col ring-1 ring-white/20 min-h-0">
-                         <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none"></div>
-                         {/* Subtle Scanline Overlay */}
-                         <div className="absolute inset-0 bg-hud-scanline opacity-[0.02] pointer-events-none mix-blend-multiply"></div>
-                         
-                         <div className="flex-1 overflow-hidden p-2 relative z-10 flex flex-col min-h-0">
-                            {renderContent(activeModule, activeTab, activeSubNav)}
-                         </div>
+                <main className="flex-1 flex flex-col relative px-0 md:px-0 transition-all duration-300 min-h-0 overflow-hidden">
+                    {/* Clean Content Area */}
+                    <div className="flex-1 overflow-hidden relative z-10 flex flex-col min-h-0">
+                        {renderContent(activeModule, activeTab, activeSubNav)}
                     </div>
                 </main>
             </div>

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChartDataPoint } from '../../../services/ownerService';
 
 interface SimpleLineChartProps {
@@ -7,124 +8,162 @@ interface SimpleLineChartProps {
     height?: number | string;
 }
 
-export const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, color = '#00F0FF', height = 200 }) => {
+export const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, color = '#10B981', height = 200 }) => {
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const [mouseX, setMouseX] = useState<number>(0);
+
     if (!data || data.length === 0) return null;
 
-    const maxValue = Math.max(...data.map(d => Number(d.value) || 0));
-    const minValue = Math.min(...data.map(d => Number(d.value) || 0));
-    const range = maxValue - minValue || 1;
-    
-    // Calculate coordinates
-    const coords = data.map((d, i) => {
-        const val = Number(d.value) || 0;
-        const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
-        const y = range > 0 ? 100 - ((val - minValue) / range) * 80 - 10 : 50; // Keep some padding
-        return { x, y, val, label: d.label };
-    });
+    // Memoize calculations
+    const { coords, pathD, areaD } = useMemo(() => {
+        const maxValue = Math.max(...data.map(d => Number(d.value) || 0));
+        const minValue = Math.min(...data.map(d => Number(d.value) || 0));
+        const range = maxValue - minValue || 1;
 
-    // Generate smooth path (Simple Cubic Bezier)
-    const generatePath = (points: {x: number, y: number}[]) => {
-        if (points.length === 0) return '';
-        if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-        
-        let d = `M ${points[0].x},${points[0].y}`;
-        
-        for (let i = 0; i < points.length - 1; i++) {
-            const p0 = points[i];
-            const p1 = points[i + 1];
-            
-            const cp1x = p0.x + (p1.x - p0.x) / 2;
-            const cp1y = p0.y;
-            const cp2x = p0.x + (p1.x - p0.x) / 2;
-            const cp2y = p1.y;
-            
-            d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p1.x},${p1.y}`;
+        const coords = data.map((d, i) => {
+            const val = Number(d.value) || 0;
+            const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
+            // Add 10% padding top/bottom
+            const y = range > 0 ? 90 - ((val - minValue) / range) * 80 : 50;
+            return { x, y, val, label: d.label };
+        });
+
+        const generatePath = (points: { x: number, y: number }[]) => {
+            if (points.length === 0) return '';
+            if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+            let d = `M ${points[0].x},${points[0].y}`;
+            for (let i = 0; i < points.length - 1; i++) {
+                const p0 = points[i];
+                const p1 = points[i + 1];
+                const cp1x = p0.x + (p1.x - p0.x) / 2;
+                const cp1y = p0.y;
+                const cp2x = p0.x + (p1.x - p0.x) / 2;
+                const cp2y = p1.y;
+                d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p1.x},${p1.y}`;
+            }
+            return d;
+        };
+
+        const pathD = generatePath(coords);
+        const areaD = `${pathD} L 100,100 L 0,100 Z`;
+
+        return { coords, pathD, areaD };
+    }, [data]);
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        setMouseX(x);
+
+        // Find nearest point
+        let nearestIndex = 0;
+        let minDistance = Infinity;
+
+        coords.forEach((p, i) => {
+            const distance = Math.abs(p.x - x);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestIndex = i;
+            }
+        });
+
+        if (minDistance < 10) { // Snap distance
+            setHoveredIndex(nearestIndex);
+        } else {
+            setHoveredIndex(null);
         }
-        return d;
     };
 
-    const pathD = generatePath(coords);
-    const areaD = `${pathD} L 100,100 L 0,100 Z`;
-
     return (
-        <div className="w-full relative group flex flex-col" style={{ height }}>
-            <div className="flex-1 min-h-0 w-full relative">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+        <div 
+            className="w-full relative group flex flex-col select-none" 
+            style={{ height }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoveredIndex(null)}
+        >
+            <div className="flex-1 min-h-0 w-full relative overflow-visible">
+                
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible relative z-10">
                     <defs>
-                        <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-                            <stop offset="50%" stopColor={color} stopOpacity="0.1" />
+                        <linearGradient id={`gradient-${color}`} x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stopColor={color} stopOpacity="0.2" />
                             <stop offset="100%" stopColor={color} stopOpacity="0" />
                         </linearGradient>
-                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="2" result="blur" />
-                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                        </filter>
-                        <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-gray-200/10 dark:text-white/5" />
-                        </pattern>
                     </defs>
-
-                    {/* Background Grid */}
-                    <rect width="100" height="100" fill="url(#grid)" />
-
-                    {/* Horizontal Guides */}
-                    {[20, 50, 80].map(y => (
-                        <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="currentColor" strokeDasharray="2,2" className="text-gray-300/20 dark:text-white/10" strokeWidth="0.2" />
-                    ))}
-
+                    
                     {/* Area Fill */}
-                    <path d={areaD} fill="url(#chartGradient)" className="transition-all duration-500 ease-in-out" />
+                    <path
+                        d={areaD}
+                        fill={`url(#gradient-${color})`}
+                        className="transition-all duration-500 ease-in-out"
+                    />
 
-                    {/* The Line */}
+                    {/* Line */}
                     <path
                         d={pathD}
                         fill="none"
                         stroke={color}
-                        strokeWidth="1.5"
-                        filter="url(#glow)"
-                        vectorEffect="non-scaling-stroke"
+                        strokeWidth="3"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="drop-shadow-[0_0_10px_rgba(0,240,255,0.5)] transition-all duration-500 ease-in-out"
+                        className="transition-all duration-500 ease-in-out drop-shadow-sm"
                     />
-
-                    {/* Interactive Points */}
-                    {coords.map((p, i) => (
-                        <g key={i} className="group/point">
-                            {/* Invisible hit area */}
-                            <circle cx={p.x} cy={p.y} r="4" fill="transparent" className="cursor-pointer" />
-                            
-                            {/* Visible Dot */}
-                            <circle 
-                                cx={p.x} 
-                                cy={p.y} 
-                                r="1.5" 
-                                fill="#fff" 
-                                stroke={color} 
-                                strokeWidth="1" 
-                                className="opacity-0 group-hover/point:opacity-100 transition-opacity duration-200 shadow-[0_0_10px_currentColor]" 
+                    
+                    {/* Hover Effect */}
+                    {hoveredIndex !== null && (
+                        <>
+                            <line
+                                x1={coords[hoveredIndex].x}
+                                y1={0}
+                                x2={coords[hoveredIndex].x}
+                                y2={100}
+                                stroke={color}
+                                strokeWidth="1"
+                                strokeDasharray="4 4"
+                                className="opacity-50"
                             />
-                            
-                            {/* Tooltip */}
-                            <foreignObject x={p.x - 15} y={p.y - 25} width="30" height="20" className="overflow-visible opacity-0 group-hover/point:opacity-100 transition-all duration-200 z-50 pointer-events-none">
-                                <div className="flex flex-col items-center">
-                                    <div className="bg-black/80 backdrop-blur-md border border-white/20 text-white text-[8px] px-2 py-1 rounded-md shadow-xl whitespace-nowrap font-mono">
-                                        <span className="text-hud-primary font-bold">{p.val}</span>
-                                    </div>
-                                    <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[3px] border-t-black/80"></div>
-                                </div>
-                            </foreignObject>
-                        </g>
-                    ))}
+                            <circle
+                                cx={coords[hoveredIndex].x}
+                                cy={coords[hoveredIndex].y}
+                                r="4"
+                                fill="white"
+                                stroke={color}
+                                strokeWidth="3"
+                                className="drop-shadow-md"
+                            />
+                        </>
+                    )}
                 </svg>
-            </div>
-            
-            {/* X-Axis Labels */}
-            <div className="flex justify-between mt-2 px-1 shrink-0">
-                {coords.map((d, i) => (
-                    <span key={i} className="text-[10px] font-mono text-gray-400 dark:text-hud-primary/50 uppercase tracking-wider">{d.label}</span>
-                ))}
+
+                {/* Floating Tooltip */}
+                <AnimatePresence>
+                    {hoveredIndex !== null && (
+                        <motion.div
+                            className="absolute pointer-events-none z-20"
+                            style={{
+                                left: `${coords[hoveredIndex].x}%`,
+                                top: `${coords[hoveredIndex].y}%`
+                            }}
+                            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                            animate={{ opacity: 1, y: -40, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        >
+                            <div className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-lg p-2 shadow-xl transform -translate-x-1/2 min-w-[100px]">
+                                <div className="flex items-center justify-between gap-3 mb-1">
+                                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{coords[hoveredIndex].label}</span>
+                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }}></div>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800 tabular-nums leading-none">
+                                    {coords[hoveredIndex].val.toLocaleString()}
+                                </div>
+                            </div>
+                            {/* Tooltip Arrow */}
+                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-white/90 absolute left-1/2 -translate-x-1/2 bottom-[-6px]"></div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );

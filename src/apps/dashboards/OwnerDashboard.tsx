@@ -1,13 +1,38 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useOwnerDashboard } from '../../hooks/useOwnerDashboard';
 import { KPICard } from './components/KPICard';
 import { AlertList } from './components/AlertList';
 import { ActivityFeed } from './components/ActivityFeed';
 import { SimpleLineChart } from './components/SimpleLineChart';
+import { SegmentedBarChart } from './components/SegmentedBarChart';
+import { DonutChart } from './components/DonutChart';
 import { Icon, Button } from '../../components/shared/ui/CommonUI';
 import { LoadingScreen } from '../../components/shared/LoadingScreen';
-import env from '../../config/environment';
+
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1
+        }
+    }
+};
+
+const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+        y: 0,
+        opacity: 1,
+        transition: {
+            type: "spring",
+            stiffness: 100,
+            damping: 15
+        }
+    }
+};
 
 const OwnerDashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -44,166 +69,177 @@ const OwnerDashboard: React.FC = () => {
     if (loading) return <div className="h-96 flex items-center justify-center"><LoadingScreen /></div>;
     if (error) return (
         <div className="p-8 text-center">
-            <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
+            <p className="text-red-500 mb-4">{error}</p>
             <Button variant="primary" onClick={refresh}>Try Again</Button>
         </div>
     );
     if (!data) return null;
 
     return (
-        <div className="space-y-8 animate-fadeIn pb-10">
+        <motion.div 
+            className="h-full flex flex-col space-y-2 pb-2 overflow-hidden"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+        >
             {/* Header with Embedded KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-4 md:gap-8 border-b border-gray-200/50 dark:border-hud-primary/30 pb-4 relative">
-                <div className="shrink-0">
-                    <h1 className="text-lg md:text-3xl font-black text-gyn-blue-dark dark:text-white leading-tight tracking-tight">Platform Overview</h1>
-                    <p className="text-gyn-grey dark:text-hud-primary text-[10px] md:text-sm mt-0.5 md:mt-1 font-medium uppercase tracking-widest opacity-80">Super Admin Control Center</p>
+            <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-end gap-2 shrink-0 px-1">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tighter mb-0.5">
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600">Platform</span>
+                        <span className="text-emerald-500">.</span>
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-600 via-slate-400 to-slate-300">Overview</span>
+                    </h1>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-600/80">Super Admin Control Center</p>
                 </div>
 
-                {/* KPI Grid - Embedded in Header */}
-                <div className="w-full">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 md:divide-x md:divide-gray-200 dark:md:divide-white/10">
-                        <div className="px-4"><KPICard kpi={data.kpis.mrr} icon="Banknotes" compact={true} /></div>
-                        <div className="px-4"><KPICard kpi={data.kpis.activeTenants} icon="UserGroup" compact={true} /></div>
-                        <div className="px-4"><KPICard kpi={data.kpis.ltv} icon="ChartBar" compact={true} /></div>
-                        <div className="px-4"><KPICard kpi={data.kpis.churn} icon="ArrowPath" compact={true} /></div>
-                    </div>
-                </div>
-
-                <div className="flex gap-2 shrink-0 justify-end">
+                <div className="flex gap-2">
                     <Button
                         variant="ghost"
-                        size="xs"
-                        className="text-[10px] md:text-sm px-2 h-7 md:h-9 dark:text-hud-primary dark:hover:bg-hud-primary/10"
+                        size="sm"
+                        className="h-8 px-3 rounded-lg bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm transition-all hover:scale-105 text-xs"
                         onClick={refresh}
-                        leftIcon={<Icon name="ArrowPath" className={`w-3 h-3 md:w-4 md:h-4 ${refreshing ? 'animate-spin' : ''}`} />}
+                        leftIcon={<Icon name="ArrowPath" className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />}
                     >
                         Refresh
                     </Button>
                     <Button
                         variant="primary"
-                        size="xs"
-                        className="text-[10px] md:text-sm px-2 h-7 md:h-9 bg-gray-900 hover:bg-gray-800 text-white dark:bg-hud-primary dark:text-material-obsidian dark:hover:bg-hud-secondary border-none shadow-lg shadow-gray-200/50 dark:shadow-hud-glow font-bold"
-                        leftIcon={<Icon name="ArrowDownTrayIcon" className="w-3 h-3 md:w-4 md:h-4" />}
+                        size="sm"
+                        className="h-8 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white font-bold border-none shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] transition-all hover:scale-105 text-xs"
+                        leftIcon={<Icon name="ArrowDownTrayIcon" className="w-3 h-3" />}
                         onClick={handleExport}
                     >
                         Export
                     </Button>
                 </div>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Chart Section */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-material-gunmetal/50 backdrop-blur-xl p-6 rounded-2xl shadow-sm dark:shadow-glass border border-gray-100 dark:border-white/5 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-cyber-grid opacity-5 pointer-events-none"></div>
-                        <div className="flex justify-between items-center mb-6 bg-gradient-to-r from-gyn-blue-dark to-deepBlue dark:from-material-obsidian dark:to-material-gunmetal p-3 rounded-lg shadow-md border border-white/10 relative z-10">
-                            <h3 className="text-lg font-bold text-white dark:text-hud-primary flex items-center gap-2">
-                                <Icon name="ChartBar" className="w-5 h-5 text-gyn-orange dark:text-hud-secondary" />
-                                Revenue Growth
-                            </h3>
-                            <select className="text-xs border-none rounded-lg text-gyn-blue-dark dark:text-white bg-white dark:bg-white/10 font-bold focus:ring-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/20 transition-colors">
+            {/* Bento Grid Layout */}
+            <motion.div 
+                className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 grid-rows-[auto_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 min-h-0"
+                variants={containerVariants}
+            >
+                
+                {/* KPI Cards - Top Row */}
+                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
+                    <KPICard kpi={data.kpis.mrr} icon="Banknotes" />
+                </motion.div>
+                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
+                    <KPICard kpi={data.kpis.activeTenants} icon="UserGroup" />
+                </motion.div>
+                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
+                    <KPICard kpi={data.kpis.ltv} icon="ChartBar" />
+                </motion.div>
+                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
+                    <KPICard kpi={data.kpis.churn} icon="ArrowPath" />
+                </motion.div>
+
+                {/* Revenue Growth - Large Feature Block */}
+                <motion.div variants={itemVariants} className="lg:col-span-3 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
+                    <div className="flex justify-between items-start mb-4 shrink-0">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800">Revenue Trajectory</h3>
+                            <p className="text-slate-400 text-xs font-medium mt-1">Monthly Recurring Revenue Growth</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <select className="bg-slate-50 border-none text-slate-600 text-xs font-bold rounded-lg px-3 py-2 outline-none cursor-pointer hover:bg-slate-100 transition-colors">
                                 <option>Last 6 Months</option>
                                 <option>Last Year</option>
                             </select>
                         </div>
-                        <div className="relative z-10">
-                            <SimpleLineChart data={data.revenueHistory} color="#00F0FF" height={250} />
-                        </div>
                     </div>
-
-                    <div className="bg-white dark:bg-material-gunmetal/50 backdrop-blur-xl p-6 rounded-2xl shadow-sm dark:shadow-glass border border-gray-100 dark:border-white/5 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-cyber-grid opacity-5 pointer-events-none"></div>
-                        <div className="flex justify-between items-center mb-6 bg-gradient-to-r from-gyn-blue-dark to-deepBlue dark:from-material-obsidian dark:to-material-gunmetal p-3 rounded-lg shadow-md border border-white/10 relative z-10">
-                            <h3 className="text-lg font-bold text-white dark:text-hud-primary flex items-center gap-2">
-                                <Icon name="UserGroup" className="w-5 h-5 text-gyn-orange dark:text-hud-secondary" />
-                                New Tenant Acquisition
-                            </h3>
-                            <select className="text-xs border-none rounded-lg text-gyn-blue-dark dark:text-white bg-white dark:bg-white/10 font-bold focus:ring-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/20 transition-colors">
-                                <option>Last 6 Months</option>
-                            </select>
-                        </div>
-                        <div className="relative z-10">
-                            <SimpleLineChart data={data.tenantGrowth} color="#7000FF" height={200} />
-                        </div>
+                    
+                    <div className="flex-1 w-full min-h-0 relative">
+                        {/* Decorative background elements for the chart */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-emerald-50/30 to-transparent pointer-events-none" />
+                        <SimpleLineChart data={data.revenueHistory} color="#10B981" height="100%" />
                     </div>
-                </div>
+                </motion.div>
 
-                {/* Sidebar Section */}
-                <div className="space-y-6">
-                    {/* Alerts */}
-                    <div className="bg-white dark:bg-material-gunmetal/50 backdrop-blur-xl p-6 rounded-2xl shadow-sm dark:shadow-glass border border-gray-100 dark:border-white/5 relative overflow-hidden">
-                        <div className="flex justify-between items-center mb-4 bg-gradient-to-r from-gyn-blue-dark to-deepBlue dark:from-material-obsidian dark:to-material-gunmetal p-3 rounded-lg shadow-md border border-white/10">
-                            <h3 className="text-lg font-bold text-white dark:text-hud-primary flex items-center gap-2">
-                                <Icon name="BellAlertIcon" className="w-5 h-5 text-red-400 dark:text-red-500 animate-pulse" />
-                                System Alerts
-                            </h3>
-                            <span className="bg-white/20 text-white text-xs font-bold px-2 py-1 rounded-full border border-white/20 shadow-sm backdrop-blur-sm">
-                                {data.alerts.filter(a => a.severity === 'critical').length} Critical
-                            </span>
-                        </div>
-                        <AlertList alerts={data.alerts} />
+                {/* Live Feed - Right Sidebar */}
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Live Feed
+                        </h3>
+                        <span className="text-[10px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">REAL-TIME</span>
                     </div>
-
-                    {/* Activity Feed */}
-                    <div className="bg-white dark:bg-material-gunmetal/50 backdrop-blur-xl p-6 rounded-2xl shadow-sm dark:shadow-glass border border-gray-100 dark:border-white/5 relative overflow-hidden">
-                        <div className="flex justify-between items-center mb-4 bg-gradient-to-r from-gyn-blue-dark to-deepBlue dark:from-material-obsidian dark:to-material-gunmetal p-3 rounded-lg shadow-md border border-white/10">
-                            <h3 className="text-lg font-bold text-white dark:text-hud-primary flex items-center gap-2">
-                                <Icon name="BoltIcon" className="w-5 h-5 text-yellow-400 dark:text-yellow-300" />
-                                Live Activity
-                            </h3>
-                            <span className="bg-white/20 text-white text-xs font-bold px-2 py-1 rounded-full border border-white/20 shadow-sm backdrop-blur-sm flex items-center gap-1">
-                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                                Real-time
-                            </span>
-                        </div>
+                    <div className="flex-1 overflow-y-auto pr-2 -mr-2 custom-scrollbar">
                         <ActivityFeed activities={data.recentActivity} />
                     </div>
+                </motion.div>
 
-                    {/* Quick Actions */}
-                    <div className="bg-gradient-to-br from-gyn-blue-dark to-indigo-900 dark:from-material-obsidian dark:to-material-gunmetal p-6 rounded-2xl shadow-lg dark:shadow-hud-glow text-white border border-white/10 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-cyber-grid opacity-10 pointer-events-none"></div>
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 relative z-10">
-                            <Icon name="CommandLineIcon" className="w-5 h-5 text-hud-primary" />
-                            Platform Controls
-                        </h3>
-                        <div className="space-y-3 relative z-10">
-                            <button
-                                onClick={() => navigate('/admin/school/billing')}
-                                className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-hud-primary/20 rounded-xl transition-all duration-300 text-sm font-medium backdrop-blur-sm border border-white/5 hover:border-white/20 dark:hover:border-hud-primary/50 group/btn"
-                            >
-                                <span className="group-hover/btn:translate-x-1 transition-transform">Manage Subscription Plans</span>
-                                <Icon name="ChevronRight" className="w-4 h-4 opacity-70 group-hover/btn:opacity-100" />
-                            </button>
-                            <button
-                                onClick={() => navigate('/admin/settings/configuration')}
-                                className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-hud-primary/20 rounded-xl transition-all duration-300 text-sm font-medium backdrop-blur-sm border border-white/5 hover:border-white/20 dark:hover:border-hud-primary/50 group/btn"
-                            >
-                                <span className="group-hover/btn:translate-x-1 transition-transform">System Maintenance Mode</span>
-                                <div className="w-8 h-4 bg-gray-400/50 dark:bg-white/20 rounded-full relative transition-colors group-hover/btn:bg-hud-primary/30">
-                                    <div className="w-4 h-4 bg-white dark:bg-hud-primary rounded-full absolute left-0 top-0 shadow-sm transition-transform group-hover/btn:translate-x-4"></div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => navigate('/admin/tool_platform/logs')}
-                                className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-hud-primary/20 rounded-xl transition-all duration-300 text-sm font-medium backdrop-blur-sm border border-white/5 hover:border-white/20 dark:hover:border-hud-primary/50 group/btn"
-                            >
-                                <span className="group-hover/btn:translate-x-1 transition-transform">View Audit Logs</span>
-                                <Icon name="ChevronRight" className="w-4 h-4 opacity-70 group-hover/btn:opacity-100" />
-                            </button>
-                            <a
-                                href={`${env.get('pocketbaseAdminUrl')}settings/storage`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 dark:bg-white/5 dark:hover:bg-hud-primary/20 rounded-xl transition-all duration-300 text-sm font-medium backdrop-blur-sm border border-white/5 hover:border-white/20 dark:hover:border-hud-primary/50 group/btn"
-                            >
-                                <span className="group-hover/btn:translate-x-1 transition-transform">Configure MinIO Storage</span>
-                                <Icon name="ServerStack" className="w-4 h-4 opacity-70 group-hover/btn:opacity-100" />
-                            </a>
-                        </div>
+                {/* Analytics Row - New */}
+                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 min-h-[320px]">
+                    <SegmentedBarChart 
+                        title="Top Visited Pages" 
+                        subtitle="by URL path"
+                        data={data.topVisitedPages} 
+                    />
+                </motion.div>
+
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 min-h-[320px]">
+                    <SegmentedBarChart 
+                        title="Top Users Access" 
+                        subtitle="by Source"
+                        data={data.topUserAccess}
+                        totalLabel="Total Users"
+                    />
+                </motion.div>
+
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 min-h-[320px]">
+                    <DonutChart 
+                        title="Total Expenses" 
+                        data={data.expensesByCategory}
+                    />
+                </motion.div>
+
+                {/* Tenant Acquisition - Bottom Left */}
+                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col justify-between">
+                    <div className="flex justify-between items-center mb-2 shrink-0">
+                        <h3 className="text-lg font-bold text-slate-800">Tenant Acquisition</h3>
+                        <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
                     </div>
-                </div>
-            </div>
-        </div>
+                    <div className="flex-1 min-h-0 w-full">
+                        <SimpleLineChart data={data.tenantGrowth} color="#A855F7" height="100%" />
+                    </div>
+                </motion.div>
+
+                {/* System Health - Bottom Middle */}
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
+                    <div className="flex justify-between items-center mb-4 shrink-0">
+                        <h3 className="text-lg font-bold text-slate-800">System Health</h3>
+                        <span className="bg-rose-50 text-rose-600 text-[10px] font-bold px-2 py-1 rounded-lg">
+                            {data.alerts.filter(a => a.severity === 'critical').length} Issues
+                        </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <AlertList alerts={data.alerts} />
+                    </div>
+                </motion.div>
+
+                {/* Controls - Bottom Right */}
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-emerald-50/50 rounded-[2rem] p-6 relative overflow-hidden border border-emerald-100/50 flex flex-col">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 shrink-0">
+                        <Icon name="CommandLineIcon" className="w-5 h-5 text-emerald-600" />
+                        Controls
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3 flex-1">
+                        <button onClick={() => navigate('/admin/settings/configuration')} className="bg-white hover:bg-emerald-50 p-3 rounded-2xl border border-emerald-100/50 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 text-center group/btn shadow-sm h-full">
+                            <Icon name="Cog6ToothIcon" className="w-5 h-5 text-slate-400 group-hover/btn:text-emerald-600 transition-colors" />
+                            <span className="text-[10px] text-slate-500 font-bold group-hover/btn:text-emerald-700">Settings</span>
+                        </button>
+                        <button onClick={() => navigate('/admin/tool_platform/logs')} className="bg-white hover:bg-emerald-50 p-3 rounded-2xl border border-emerald-100/50 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 text-center group/btn shadow-sm h-full">
+                            <Icon name="DocumentTextIcon" className="w-5 h-5 text-slate-400 group-hover/btn:text-emerald-600 transition-colors" />
+                            <span className="text-[10px] text-slate-500 font-bold group-hover/btn:text-emerald-700">Logs</span>
+                        </button>
+                    </div>
+                </motion.div>
+
+            </motion.div>
+        </motion.div>
     );
 };
 

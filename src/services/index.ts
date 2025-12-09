@@ -1,3 +1,13 @@
+// Base classes and utilities
+export * from './BaseService';
+export * from './errorHandler';
+
+// Core services
+export * from './authService';
+export * from './mediaService';
+export * from './marketService';
+
+// Existing services
 export * from './crmService';
 export * from './tenantService';
 export * from './financeService';
@@ -5,7 +15,6 @@ export * from './academicsService';
 export * from './communicationService';
 export * from './eventService';
 export * from './supportService';
-export * from './marketService';
 export * from './professionalService';
 export * from './communityService';
 export * from './resourceService';

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { OwnerIcon } from '../shared/OwnerIcons';
 import OwnerTabs from './OwnerTabs';
-import EmptyState from '../shared/EmptyState';
+import { EmptyState } from '../shared/ui/CommonUI';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useOS } from '../../context/OSContext';

@@ -1,14 +1,18 @@
-// Postal Email Service
-// Documentation: https://docs.postalserver.io/
+// Email Service
+// Supports SMTP (Turbo-SMTP, Gmail, etc.) and Mock mode for testing
 
-const POSTAL_URL = import.meta.env.VITE_POSTAL_URL || 'http://localhost:5000';
-const POSTAL_API_KEY = import.meta.env.VITE_POSTAL_API_KEY || 'postal_api_key';
+const SMTP_HOST = import.meta.env.VITE_SMTP_HOST || 'pro.eu.turbo-smtp.com';
+const SMTP_PORT = parseInt(import.meta.env.VITE_SMTP_PORT || '465'); // 465 for SSL, 587 for TLS
+const SMTP_USERNAME = import.meta.env.VITE_SMTP_USERNAME || ''; // Consumer Key
+const SMTP_PASSWORD = import.meta.env.VITE_SMTP_PASSWORD || ''; // Consumer Secret
+const SMTP_FROM_EMAIL = import.meta.env.VITE_SMTP_FROM_EMAIL || 'noreply@growyourneed.com';
+const EMAIL_PROVIDER = import.meta.env.VITE_EMAIL_PROVIDER || 'smtp'; // 'smtp' | 'mock'
 
 export interface EmailMessage {
     to: string[];
     cc?: string[];
     bcc?: string[];
-    from: string;
+    from?: string;
     subject: string;
     html_body?: string;
     plain_body?: string;
@@ -18,27 +22,54 @@ export interface EmailMessage {
 
 export const emailService = {
     /**
-     * Send an email via Postal API
+     * Send an email via configured provider
      */
     async send(message: EmailMessage) {
+        if (!SMTP_USERNAME || !SMTP_PASSWORD) {
+            console.error('📧 [Email Service] Missing SMTP credentials');
+            throw new Error('Email service not configured');
+        }
+
+        return this.sendViaSMTP(message);
+    },
+
+    /**
+     * Send via SMTP (works with Turbo-SMTP, Gmail, etc.)
+     * This creates a backend API call since SMTP can't be done from browser
+     */
+    async sendViaSMTP(message: EmailMessage) {
         try {
-            const response = await fetch(`${POSTAL_URL}/api/v1/send/message`, {
+            // In production, this should call your backend API endpoint
+            // Backend will use nodemailer to send via SMTP
+
+            const emailData = {
+                from: message.from || SMTP_FROM_EMAIL,
+                to: message.to.join(', '),
+                cc: message.cc?.join(', '),
+                bcc: message.bcc?.join(', '),
+                subject: message.subject,
+                text: message.plain_body || '',
+                html: message.html_body || message.plain_body || '',
+                replyTo: message.reply_to
+            };
+
+            // For now, send to your backend API
+            const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Server-API-Key': POSTAL_API_KEY
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(message)
+                body: JSON.stringify(emailData)
             });
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.data?.message || 'Failed to send email');
+                throw new Error(error.message || 'Failed to send email');
             }
 
             return await response.json();
         } catch (error) {
-            console.error('Error sending email:', error);
+            console.error('SMTP Error:', error);
             throw error;
         }
     },

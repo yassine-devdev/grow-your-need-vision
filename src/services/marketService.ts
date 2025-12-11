@@ -55,10 +55,11 @@ export const marketService = {
       const { products } = await medusa.products.list()
       return products as unknown as Product[]
     } catch (error: unknown) {
-      console.error("Error fetching products:", error)
+      console.error("Failed to fetch products:", error)
       return []
     }
   },
+
 
   /**
    * Fetch a single product by ID

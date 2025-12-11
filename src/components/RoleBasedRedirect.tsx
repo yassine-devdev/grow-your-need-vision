@@ -16,12 +16,7 @@ const RoleBasedRedirect: React.FC = () => {
         if (loading) return;
 
         if (user) {
-            // Fallback: If role is missing but email is owner, assign Owner role
-            let userRole = user.role;
-            if (!userRole && user.email === 'owner@growyourneed.com') {
-                console.warn("⚠️ Role missing for owner, forcing 'Owner' role");
-                userRole = 'Owner';
-            }
+            const userRole = user.role;
 
             if (!userRole) {
                 console.error("User has no role defined, redirecting to login");

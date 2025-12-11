@@ -1,18 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { Icon, Card, Button, Badge } from '../components/shared/ui/CommonUI';
-import { marketService, Product } from '../services/marketService';
+import { Icon, Card, Button, Badge, Modal, Input, EmptyState, SkeletonCard } from '../components/shared/ui/CommonUI';
+import { marketService, Product, ProductVariant } from '../services/marketService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 import pb from '../lib/pocketbase';
+import { useToast } from '../hooks/useToast';
 
 interface MarketAppProps {
   activeTab: string;
   activeSubNav: string;
 }
 
+interface CartItem {
+    variantId: string;
+    productId: string;
+    title: string;
+    variantTitle: string;
+    price: number;
+    quantity: number;
+    thumbnail: string | null;
+}
+
 const MarketApp: React.FC<MarketAppProps> = ({ activeTab, activeSubNav }) => {
+  const { addToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  
+  // Cart State
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState(1); // 1: Shipping, 2: Payment, 3: Confirm
+
+  // Product Details State
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -25,42 +47,71 @@ const MarketApp: React.FC<MarketAppProps> = ({ activeTab, activeSubNav }) => {
       setProducts(result || []);
     } catch (error) {
       console.error('Error fetching products:', error);
+      addToast('Failed to load products', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBuy = async (product: Product) => {
-    try {
-      if (!product.variants || product.variants.length === 0) {
-        alert('Product out of stock');
-        return;
-      }
-
-      const variant = product.variants[0];
+  const addToCart = (product: Product, variant: ProductVariant) => {
       const price = variant.prices[0]?.amount ? variant.prices[0].amount / 100 : 0;
+      
+      setCart(prev => {
+          const existing = prev.find(item => item.variantId === variant.id);
+          if (existing) {
+              return prev.map(item => 
+                  item.variantId === variant.id 
+                      ? { ...item, quantity: item.quantity + 1 }
+                      : item
+              );
+          }
+          return [...prev, {
+              variantId: variant.id,
+              productId: product.id,
+              title: product.title,
+              variantTitle: variant.title,
+              price,
+              quantity: 1,
+              thumbnail: product.thumbnail
+          }];
+      });
+      addToast('Added to cart', 'success');
+      setIsCartOpen(true);
+  };
 
-      if (confirm(`Purchase ${product.title} for $${price}?`)) {
-        // 1. Create Cart
-        const cart = await marketService.createCart();
-        if (!cart) throw new Error('Failed to create cart');
+  const removeFromCart = (variantId: string) => {
+      setCart(prev => prev.filter(item => item.variantId !== variantId));
+  };
 
-        // 2. Add Item
-        await marketService.addToCart(cart.id, variant.id, 1);
+  const updateQuantity = (variantId: string, delta: number) => {
+      setCart(prev => prev.map(item => {
+          if (item.variantId === variantId) {
+              const newQty = Math.max(1, item.quantity + delta);
+              return { ...item, quantity: newQty };
+          }
+          return item;
+      }));
+  };
 
-        // 3. Checkout (Simplified for demo)
-        await marketService.completeCheckout(cart.id);
+  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-        alert('Order placed successfully!');
+  const handleCheckout = async () => {
+      try {
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Clear cart
+          setCart([]);
+          setIsCheckoutOpen(false);
+          setCheckoutStep(1);
+          addToast('Order placed successfully! Check your email for details.', 'success');
+      } catch (error) {
+          addToast('Checkout failed. Please try again.', 'error');
       }
-    } catch (error) {
-      console.error('Error placing order:', error);
-      alert('Failed to place order');
-    }
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn text-gray-800 dark:text-white">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn text-gray-800 dark:text-white relative">
       {/* Promo Banner */}
       <div className="bg-gradient-to-r from-teal-500 to-emerald-600 rounded-xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
         <div className="relative z-10">
@@ -72,7 +123,7 @@ const MarketApp: React.FC<MarketAppProps> = ({ activeTab, activeSubNav }) => {
       </div>
 
       {/* Category Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 pb-4">
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 pb-4 sticky top-0 bg-gray-50/95 dark:bg-slate-900/95 backdrop-blur z-20 py-2">
         <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold">{activeTab} - {activeSubNav}</h1>
             <Button 
@@ -85,86 +136,304 @@ const MarketApp: React.FC<MarketAppProps> = ({ activeTab, activeSubNav }) => {
                 Personal Shopper
             </Button>
         </div>
-        <div className="flex gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <span>Sort by:</span>
-          <select className="border-none bg-transparent font-bold text-gray-800 dark:text-white focus:outline-none cursor-pointer">
-            <option>Featured</option>
-            <option>Price: Low to High</option>
-            <option>Price: High to Low</option>
-          </select>
+        <div className="flex gap-4 items-center">
+            <div className="flex gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <span>Sort by:</span>
+            <select className="border-none bg-transparent font-bold text-gray-800 dark:text-white focus:outline-none cursor-pointer">
+                <option>Featured</option>
+                <option>Price: Low to High</option>
+                <option>Price: High to Low</option>
+            </select>
+            </div>
+            <Button 
+                variant="primary" 
+                className="relative"
+                onClick={() => setIsCartOpen(true)}
+            >
+                <Icon name="ShoppingCartIcon" className="w-5 h-5" />
+                {cart.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                        {cart.reduce((a, b) => a + b.quantity, 0)}
+                    </span>
+                )}
+            </Button>
         </div>
       </div>
 
       {/* Product Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400">Loading products...</div>
+          Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))
         ) : products.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400">No products found.</div>
+          <div className="col-span-full">
+            <EmptyState 
+              title="No products found" 
+              description="Try adjusting your search or filters to find what you're looking for."
+              icon="MagnifyingGlassIcon"
+            />
+          </div>
         ) : (
           products.map(product => {
-            const price = product.variants[0]?.prices[0]?.amount
-              ? product.variants[0].prices[0].amount / 100
-              : 0;
-
+            const price = product.variants[0]?.prices[0]?.amount ? product.variants[0].prices[0].amount / 100 : 0;
             return (
-              <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow group p-0 border border-gray-200 dark:border-slate-700">
-                <div className="aspect-square bg-gray-100 dark:bg-slate-800 relative p-4 flex items-center justify-center">
-                  {product.thumbnail ? (
-                    <img
-                      src={product.thumbnail}
-                      alt={product.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Icon name="MarketIcon" className="w-16 h-16 text-gray-300 dark:text-slate-600 group-hover:scale-110 transition-transform" />
-                  )}
-                  <button className="absolute top-3 right-3 p-2 bg-white/80 dark:bg-black/50 rounded-full hover:text-red-500 text-gray-400 backdrop-blur-sm transition-colors">
-                    <Icon name="Heart" className="w-4 h-4" />
-                  </button>
+            <Card key={product.id} className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-0 bg-white dark:bg-slate-800">
+                <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-slate-900">
+                {product.thumbnail ? (
+                    <img src={product.thumbnail} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                    <Icon name="PhotoIcon" className="w-12 h-12" />
+                    </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <Button 
+                        variant="secondary" 
+                        className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-white text-gray-900 hover:bg-gray-100"
+                        onClick={() => {
+                            setSelectedProduct(product);
+                            setSelectedVariant(product.variants[0]);
+                        }}
+                    >
+                        <Icon name="EyeIcon" className="w-5 h-5" />
+                    </Button>
+                    <Button 
+                        variant="primary" 
+                        className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
+                        onClick={() => addToCart(product, product.variants[0])}
+                    >
+                        <Icon name="ShoppingCartIcon" className="w-5 h-5" />
+                    </Button>
+                </div>
                 </div>
                 <div className="p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">{product.title}</h3>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">{product.description}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <div>
-                      <span className="text-lg font-bold text-gray-900 dark:text-white">${price.toFixed(2)}</span>
+                <h3 className="font-bold text-lg mb-1 truncate" title={product.title}>{product.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 h-10">{product.description}</p>
+                <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">${price.toFixed(2)}</span>
+                    <div className="flex gap-1">
+                    {product.variants.length > 1 && (
+                        <Badge variant="outline" size="sm">+{product.variants.length - 1} options</Badge>
+                    )}
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleBuy(product)}
-                      className="rounded-lg"
-                    >
-                      <Icon name="PlusCircleIcon" className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="mt-2 flex items-center gap-1 text-xs text-yellow-500">
-                    {'★'.repeat(4)}{'☆'.repeat(1)} <span className="text-gray-400 dark:text-gray-500 text-[10px]">({product.variants[0]?.inventory_quantity || 0} in stock)</span>
-                  </div>
                 </div>
-              </Card>
-            )
-          })
-        )}
+                </div>
+            </Card>
+            );
+        }))}
       </div>
+
+      {/* Cart Drawer */}
+      {isCartOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end">
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+              <div className="relative w-full max-w-md bg-white dark:bg-slate-800 h-full shadow-2xl flex flex-col animate-slideInRight">
+                  <div className="p-6 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+                      <h2 className="text-xl font-bold flex items-center gap-2">
+                          <Icon name="ShoppingCartIcon" className="w-6 h-6" />
+                          Your Cart ({cart.reduce((a,b) => a + b.quantity, 0)})
+                      </h2>
+                      <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full">
+                          <Icon name="XMarkIcon" className="w-5 h-5" />
+                      </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                      {cart.length === 0 ? (
+                          <div className="text-center py-20 text-gray-400">
+                              <Icon name="ShoppingCartIcon" className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                              <p>Your cart is empty</p>
+                              <Button variant="outline" className="mt-4" onClick={() => setIsCartOpen(false)}>Start Shopping</Button>
+                          </div>
+                      ) : (
+                          cart.map(item => (
+                              <div key={item.variantId} className="flex gap-4">
+                                  <div className="w-20 h-20 bg-gray-100 dark:bg-slate-900 rounded-lg overflow-hidden shrink-0">
+                                      {item.thumbnail && <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />}
+                                  </div>
+                                  <div className="flex-1">
+                                      <h4 className="font-bold line-clamp-1">{item.title}</h4>
+                                      <p className="text-sm text-gray-500 mb-2">{item.variantTitle}</p>
+                                      <div className="flex justify-between items-center">
+                                          <div className="font-bold text-emerald-600">${item.price.toFixed(2)}</div>
+                                          <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-900 rounded-lg p-1">
+                                              <button onClick={() => updateQuantity(item.variantId, -1)} className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 rounded shadow-sm">-</button>
+                                              <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                                              <button onClick={() => updateQuantity(item.variantId, 1)} className="w-6 h-6 flex items-center justify-center hover:bg-white dark:hover:bg-slate-800 rounded shadow-sm">+</button>
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <button onClick={() => removeFromCart(item.variantId)} className="text-gray-400 hover:text-red-500 self-start">
+                                      <Icon name="TrashIcon" className="w-5 h-5" />
+                                  </button>
+                              </div>
+                          ))
+                      )}
+                  </div>
+
+                  <div className="p-6 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                      <div className="flex justify-between mb-4 text-lg font-bold">
+                          <span>Total</span>
+                          <span>${cartTotal.toFixed(2)}</span>
+                      </div>
+                      <Button 
+                        variant="primary" 
+                        className="w-full py-3 text-lg" 
+                        disabled={cart.length === 0}
+                        onClick={() => {
+                            setIsCartOpen(false);
+                            setIsCheckoutOpen(true);
+                        }}
+                      >
+                          Checkout
+                      </Button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Checkout Modal */}
+      <Modal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        title="Checkout"
+        size="lg"
+      >
+          <div className="p-6">
+              {checkoutStep === 1 && (
+                  <div className="space-y-4 animate-fadeIn">
+                      <h3 className="font-bold text-lg mb-4">Shipping Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                          <Input label="First Name" placeholder="John" />
+                          <Input label="Last Name" placeholder="Doe" />
+                      </div>
+                      <Input label="Address" placeholder="123 Main St" />
+                      <div className="grid grid-cols-2 gap-4">
+                          <Input label="City" placeholder="New York" />
+                          <Input label="Zip Code" placeholder="10001" />
+                      </div>
+                      <div className="mt-6 flex justify-end">
+                          <Button variant="primary" onClick={() => setCheckoutStep(2)}>Continue to Payment</Button>
+                      </div>
+                  </div>
+              )}
+
+              {checkoutStep === 2 && (
+                  <div className="space-y-4 animate-fadeIn">
+                      <h3 className="font-bold text-lg mb-4">Payment Method</h3>
+                      <div className="p-4 border border-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center gap-4 cursor-pointer">
+                          <div className="w-5 h-5 rounded-full border-4 border-blue-500"></div>
+                          <Icon name="CreditCardIcon" className="w-6 h-6 text-blue-600" />
+                          <span className="font-bold">Credit Card (Stripe Test)</span>
+                      </div>
+                      <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl flex items-center gap-4 opacity-50 cursor-not-allowed">
+                          <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                          <Icon name="BanknotesIcon" className="w-6 h-6" />
+                          <span>Cash on Delivery</span>
+                      </div>
+                      
+                      <div className="mt-6 p-4 bg-gray-50 dark:bg-slate-900 rounded-xl">
+                          <div className="flex justify-between mb-2">
+                              <span className="text-gray-500">Subtotal</span>
+                              <span>${cartTotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between mb-2">
+                              <span className="text-gray-500">Shipping</span>
+                              <span>Free</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-lg border-t border-gray-200 dark:border-slate-700 pt-2 mt-2">
+                              <span>Total</span>
+                              <span>${cartTotal.toFixed(2)}</span>
+                          </div>
+                      </div>
+
+                      <div className="mt-6 flex justify-between">
+                          <Button variant="ghost" onClick={() => setCheckoutStep(1)}>Back</Button>
+                          <Button variant="primary" onClick={handleCheckout}>Place Order</Button>
+                      </div>
+                  </div>
+              )}
+          </div>
+      </Modal>
+
+      {/* Product Details Modal */}
+      <Modal
+        isOpen={!!selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+        title={selectedProduct?.title || 'Product Details'}
+        size="xl"
+      >
+          {selectedProduct && selectedVariant && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
+                  <div className="aspect-square bg-gray-100 dark:bg-slate-900 rounded-xl overflow-hidden">
+                      {selectedProduct.thumbnail ? (
+                          <img src={selectedProduct.thumbnail} alt={selectedProduct.title} className="w-full h-full object-cover" />
+                      ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                              <Icon name="PhotoIcon" className="w-20 h-20" />
+                          </div>
+                      )}
+                  </div>
+                  <div className="space-y-6">
+                      <div>
+                          <h2 className="text-3xl font-black mb-2">{selectedProduct.title}</h2>
+                          <p className="text-2xl font-bold text-emerald-600">
+                              ${(selectedVariant.prices[0]?.amount / 100).toFixed(2)}
+                          </p>
+                      </div>
+                      
+                      <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                          {selectedProduct.description}
+                      </p>
+
+                      <div>
+                          <label className="block text-sm font-bold mb-2 text-gray-500">Select Option</label>
+                          <div className="flex flex-wrap gap-2">
+                              {selectedProduct.variants.map(variant => (
+                                  <button
+                                    key={variant.id}
+                                    onClick={() => setSelectedVariant(variant)}
+                                    className={`px-4 py-2 rounded-lg border-2 font-bold transition-all ${
+                                        selectedVariant.id === variant.id 
+                                        ? 'border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' 
+                                        : 'border-gray-200 dark:border-slate-700 hover:border-gray-300'
+                                    }`}
+                                  >
+                                      {variant.title}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
+                      <div className="pt-6 border-t border-gray-100 dark:border-slate-700 flex gap-4">
+                          <Button 
+                            variant="primary" 
+                            size="lg" 
+                            className="flex-1"
+                            onClick={() => {
+                                addToCart(selectedProduct, selectedVariant);
+                                setSelectedProduct(null);
+                            }}
+                          >
+                              Add to Cart
+                          </Button>
+                          <Button variant="outline" size="lg" icon="HeartIcon" />
+                      </div>
+                  </div>
+              </div>
+          )}
+      </Modal>
 
       <AIContentGeneratorModal
         isOpen={isAIModalOpen}
         onClose={() => setIsAIModalOpen(false)}
-        onSuccess={() => setIsAIModalOpen(false)}
-        title="AI Personal Shopper"
-        promptTemplate={`I am looking for a gift for [Recipient (e.g., 10 year old boy, teacher)].
-        
-        Based on the available products:
-        ${products.slice(0, 10).map(p => `- ${p.title} ($${p.variants[0]?.prices[0]?.amount/100})`).join('\n')}
-        
-        Recommend 3 items and explain why they would be good gifts.`}
-        contextData={{ products: products.slice(0, 20) }}
+        type="text"
+        onGenerate={(content) => console.log(content)}
       />
     </div>
   );
 };
+
 
 export default MarketApp;

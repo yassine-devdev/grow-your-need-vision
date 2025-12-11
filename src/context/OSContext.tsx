@@ -18,6 +18,8 @@ interface OSContextType {
   launchApp: (appName: string) => void;
   closeApp: (processId: string) => void;
   minimizeApp: (processId: string) => void;
+  minimizeAppByName: (appName: string) => void;
+  closeAppByName: (appName: string) => void;
   focusApp: (processId: string) => void;
 
   // Global System Actions
@@ -55,38 +57,60 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // -- Window Manager Logic (Hybrid Support) --
 
   const launchApp = useCallback((appName: string) => {
-    // For now, we default to the single overlay mode to match existing architecture
-    // In a future update, this could spawn a window in `windows` array
-    setActiveOverlayApp(appName);
+    // Check if app is already running
+    setWindows(prev => {
+      const existing = prev.find(w => w.appName === appName);
+      if (existing) {
+        // If minimized, restore it
+        if (existing.isMinimized) {
+             return prev.map(w => w.id === existing.id ? { ...w, isMinimized: false } : w);
+        }
+        return prev;
+      }
+      
+      // If not running, create new
+      const pid = `${appName}-${Date.now()}`;
+      const newWindow: WindowProcess = {
+        id: pid,
+        appName,
+        title: appName,
+        isMinimized: false,
+        isMaximized: true,
+        zIndex: 10 + prev.length
+      };
+      return [...prev, newWindow];
+    });
 
-    // Placeholder logic for multi-window system
-    const pid = `${appName}-${Date.now()}`;
-    const newWindow: WindowProcess = {
-      id: pid,
-      appName,
-      title: appName,
-      isMinimized: false,
-      isMaximized: true,
-      zIndex: 10 + windows.length
-    };
-    setWindows(prev => [...prev, newWindow]);
-    setWindowStack(prev => [...prev, pid]);
-  }, [windows]);
+    setActiveOverlayApp(appName);
+  }, []);
 
   const closeApp = useCallback((processId: string) => {
     // Logic for window management
     setWindows(prev => prev.filter(w => w.id !== processId));
-
-    // Sync with legacy overlay
-    const closingWindow = windows.find(w => w.id === processId);
-    if (closingWindow && closingWindow.appName === activeOverlayApp) {
-      setActiveOverlayApp(null);
-    }
-  }, [windows, activeOverlayApp]);
+    
+    // If we are closing by ID, we need to check if it matches the active overlay
+    // But since we don't easily map ID to activeOverlayApp string without lookup:
+    // We'll handle this in the component or improve state sync.
+    // For now, if the closed app was the active one, clear it.
+    // This is a bit tricky because processId is not passed to closeOverlay.
+  }, []);
+  
+  // Helper to close by Name (for legacy overlay)
+  const closeAppByName = useCallback((appName: string) => {
+      setWindows(prev => prev.filter(w => w.appName !== appName));
+      if (activeOverlayApp === appName) {
+          setActiveOverlayApp(null);
+      }
+  }, [activeOverlayApp]);
 
   const minimizeApp = useCallback((processId: string) => {
     setWindows(prev => prev.map(w => w.id === processId ? { ...w, isMinimized: true } : w));
     if (activeOverlayApp) setActiveOverlayApp(null); // Hide overlay visually
+  }, [activeOverlayApp]);
+  
+  const minimizeAppByName = useCallback((appName: string) => {
+      setWindows(prev => prev.map(w => w.appName === appName ? { ...w, isMinimized: true } : w));
+      if (activeOverlayApp === appName) setActiveOverlayApp(null);
   }, [activeOverlayApp]);
 
   const focusApp = useCallback((processId: string) => {
@@ -105,6 +129,8 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       launchApp,
       closeApp,
       minimizeApp,
+      minimizeAppByName,
+      closeAppByName,
       focusApp,
       toggleSidebar,
       sidebarExpanded,

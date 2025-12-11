@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { multiverseService } from '../services/multiverseService';
+import { useGamification } from '../../../hooks/useGamification';
 
 export const MultiverseHUD: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const [xp, setXp] = useState(1250);
-    const [level, setLevel] = useState(5);
-    const [streak, setStreak] = useState(3);
+    const { progress, levelProgress, loading } = useGamification();
+    
+    const xp = progress?.current_xp || 0;
+    const level = progress?.level || 1;
+    const streak = progress?.streak_days || 0;
+    const progressPercent = levelProgress();
+    const nextLevelXp = level * 1000; // Assuming 1000 XP per level based on hook logic
 
     // Only show HUD on multiverse routes
     if (!location.pathname.includes('/apps/edumultiverse')) {
@@ -33,6 +37,8 @@ export const MultiverseHUD: React.FC<{ children: React.ReactNode }> = ({ childre
                         <NavButton to="/apps/edumultiverse" label="MAP" active={location.pathname === '/apps/edumultiverse'} />
                         <NavButton to="/apps/edumultiverse/concept-fusion" label="FUSION LAB" active={location.pathname.includes('fusion')} />
                         <NavButton to="/apps/edumultiverse/glitch-hunter" label="GLITCHES" active={location.pathname.includes('glitch')} />
+                        <NavButton to="/apps/edumultiverse/quantum-quiz" label="QUIZ" active={location.pathname.includes('quiz')} />
+                        <NavButton to="/apps/edumultiverse/time-loop" label="TIME LOOP" active={location.pathname.includes('time-loop')} />
                     </nav>
                 </div>
 
@@ -51,12 +57,12 @@ export const MultiverseHUD: React.FC<{ children: React.ReactNode }> = ({ childre
                         <div className="flex flex-col w-32">
                             <div className="flex justify-between text-xs mb-1">
                                 <span className="text-slate-300 font-bold">XP</span>
-                                <span className="text-cyan-400">{xp} / 2000</span>
+                                <span className="text-cyan-400">{xp} / {nextLevelXp}</span>
                             </div>
                             <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                                 <motion.div 
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${(xp / 2000) * 100}%` }}
+                                    animate={{ width: `${progressPercent}%` }}
                                     className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
                                 />
                             </div>

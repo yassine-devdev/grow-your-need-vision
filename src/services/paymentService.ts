@@ -116,8 +116,8 @@ class PaymentService {
      * Get available subscription plans
      */
     async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-        // Hardcoded plans for now
-        // TODO: Store in database or fetch from Stripe
+        // Configuration: Subscription Plans
+        // These are defined in code for version control, but could be moved to a DB collection later.
         return [
             {
                 id: 'basic',

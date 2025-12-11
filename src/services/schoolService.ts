@@ -1,13 +1,21 @@
 import pb from '../lib/pocketbase';
 import { RecordModel } from 'pocketbase';
 
+export interface ActivityDetails {
+    targetId?: string;
+    targetName?: string;
+    actionType?: string;
+    metadata?: Record<string, string | number | boolean | null>;
+    [key: string]: string | number | boolean | null | undefined | Record<string, unknown>;
+}
+
 export interface SchoolActivity {
     id: string;
     type: 'Info' | 'Warning' | 'Success' | 'Error';
     message: string;
     time: string; // Relative time string or ISO date
     timestamp: Date;
-    details?: any;
+    details?: ActivityDetails;
 }
 
 export interface ChartDataPoint {
@@ -25,7 +33,7 @@ export const schoolService = {
             });
 
             // 2. Fetch recent classes (if any)
-            let recentClasses: any[] = [];
+            let recentClasses: RecordModel[] = [];
             try {
                 const classesResult = await pb.collection('classes').getList(1, 5, {
                     sort: '-created',

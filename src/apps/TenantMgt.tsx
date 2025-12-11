@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Icon } from '../components/shared/ui/CommonUI';
+import { Icon, EmptyState } from '../components/shared/ui/CommonUI';
 import { DropdownMenu } from '../components/shared/ui/DropdownMenu';
-import EmptyState from '../components/shared/EmptyState';
 import { tenantService, Tenant } from '../services/tenantService';
 import { SchoolOnboardingWizard } from './school/SchoolOnboardingWizard';
 import { SchoolDetail } from './school/SchoolDetail';
@@ -69,14 +68,9 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
             setLoading(true);
             try {
                 let result;
-                if (activeSubNav === 'Schools') {
-                    result = await tenantService.getSchools();
-                } else if (activeSubNav === 'Individuals') {
-                    result = await tenantService.getIndividuals();
-                } else {
-                    result = await tenantService.getTenants();
-                }
-                setTenants(result);
+                // Fetch all tenants for now as specific methods are not implemented
+                const response = await tenantService.getTenants();
+                setTenants(response.items as unknown as Tenant[]);
             } catch (error) {
                 console.error('Failed to fetch tenants:', error);
             } finally {

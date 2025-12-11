@@ -3,7 +3,10 @@ import { OwnerIcon } from '../components/shared/OwnerIcons';
 import { useFileStorage } from '../hooks/useFileStorage';
 import { FileTree } from '../components/shared/ui/FileTree';
 import { Icon } from '../components/shared/ui/CommonUI';
+import { Icon } from '../components/shared/ui/CommonUI';
 import { ResourcesView } from './tools/ResourcesView';
+import { ReportsApp } from './ReportsApp';
+import pb from '../lib/pocketbase';
 
 interface ToolsProps {
     activeTab: string;
@@ -67,16 +70,48 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
 
     // --- Student / Productivity Tools State ---
     // Notes
-    const [notes, setNotes] = useState<string[]>(['Welcome to your notes!']);
+    const [notes, setNotes] = useState<any[]>([]);
     const [currentNote, setCurrentNote] = useState('');
+    const [loadingNotes, setLoadingNotes] = useState(false);
 
     // Flashcards
-    const [flashcards, setFlashcards] = useState<{front: string, back: string}[]>([
-        { front: 'What is the capital of France?', back: 'Paris' },
-        { front: 'What is 2 + 2?', back: '4' }
-    ]);
+    const [flashcards, setFlashcards] = useState<any[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
+    const [loadingFlashcards, setLoadingFlashcards] = useState(false);
+
+    // Fetch Data
+    useEffect(() => {
+        if (activeTool === 'Notes') {
+            loadNotes();
+        } else if (activeTool === 'Flashcards') {
+            loadFlashcards();
+        }
+    }, [activeTool]);
+
+    const loadNotes = async () => {
+        setLoadingNotes(true);
+        try {
+            const records = await pb.collection('notes').getFullList({ sort: '-created' });
+            setNotes(records);
+        } catch (e) {
+            console.error('Error loading notes:', e);
+        } finally {
+            setLoadingNotes(false);
+        }
+    };
+
+    const loadFlashcards = async () => {
+        setLoadingFlashcards(true);
+        try {
+            const records = await pb.collection('flashcards').getFullList({ sort: '-created' });
+            setFlashcards(records);
+        } catch (e) {
+            console.error('Error loading flashcards:', e);
+        } finally {
+            setLoadingFlashcards(false);
+        }
+    };
 
     const formatJson = () => {
         try {
@@ -88,7 +123,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
     };
 
     const convertUnit = () => {
-        // Simple mock conversion (e.g., meters to feet)
+        // Convert meters to feet
         const val = parseFloat(unitInput);
         if (!isNaN(val)) {
             setUnitOutput(`${(val * 3.28084).toFixed(2)} ft`);
@@ -217,7 +252,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
     const pickRandom = () => {
         const items = pickerItems.split('\n').filter(i => i.trim());
         if (items.length === 0) return;
-        
+
         setIsPicking(true);
         let count = 0;
         const interval = setInterval(() => {
@@ -231,10 +266,30 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
     };
 
     // Notes Logic
-    const addNote = () => {
+    const addNote = async () => {
         if (currentNote.trim()) {
-            setNotes([...notes, currentNote]);
-            setCurrentNote('');
+            try {
+                const record = await pb.collection('notes').create({
+                    content: currentNote,
+                    user: pb.authStore.model?.id
+                });
+                setNotes([record, ...notes]);
+                setCurrentNote('');
+            } catch (e) {
+                console.error('Error adding note:', e);
+                alert('Failed to save note');
+            }
+        }
+    };
+
+    const deleteNote = async (id: string) => {
+        if (confirm('Delete this note?')) {
+            try {
+                await pb.collection('notes').delete(id);
+                setNotes(notes.filter(n => n.id !== id));
+            } catch (e) {
+                console.error('Error deleting note:', e);
+            }
         }
     };
 
@@ -252,17 +307,17 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                     <div className="h-full flex flex-col gap-4">
                         <div className="flex justify-between items-center bg-[#161825] p-2 rounded-lg border border-[#2a2d3d]">
                             <div className="flex gap-4 items-center">
-                                <input 
-                                    type="color" 
-                                    value={brushColor} 
+                                <input
+                                    type="color"
+                                    value={brushColor}
                                     onChange={(e) => setBrushColor(e.target.value)}
                                     className="w-8 h-8 rounded cursor-pointer bg-transparent"
                                 />
-                                <input 
-                                    type="range" 
-                                    min="1" 
-                                    max="20" 
-                                    value={brushSize} 
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    value={brushSize}
                                     onChange={(e) => setBrushSize(parseInt(e.target.value))}
                                     className="w-32"
                                 />
@@ -287,28 +342,28 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                 return (
                     <div className="h-full flex flex-col items-center justify-center gap-8">
                         <div className="flex gap-4 bg-[#161825] p-1 rounded-lg border border-[#2a2d3d]">
-                            <button 
+                            <button
                                 onClick={() => { setTimerMode('Timer'); setIsTimerRunning(false); }}
                                 className={`px-4 py-2 rounded text-sm ${timerMode === 'Timer' ? 'bg-[#2a2d3d] text-white' : 'text-gray-500'}`}
                             >Timer</button>
-                            <button 
+                            <button
                                 onClick={() => { setTimerMode('Stopwatch'); setIsTimerRunning(false); setTimerSeconds(0); }}
                                 className={`px-4 py-2 rounded text-sm ${timerMode === 'Stopwatch' ? 'bg-[#2a2d3d] text-white' : 'text-gray-500'}`}
                             >Stopwatch</button>
                         </div>
-                        
+
                         <div className="text-9xl font-mono font-bold text-white tabular-nums tracking-wider">
                             {formatTime(timerSeconds)}
                         </div>
 
                         <div className="flex gap-4">
-                            <button 
+                            <button
                                 onClick={() => setIsTimerRunning(!isTimerRunning)}
                                 className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isTimerRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
                             >
                                 <Icon name={isTimerRunning ? "PauseIcon" : "PlayIcon"} className="w-8 h-8 text-white" />
                             </button>
-                            <button 
+                            <button
                                 onClick={() => { setIsTimerRunning(false); setTimerSeconds(timerMode === 'Timer' ? 300 : 0); }}
                                 className="w-16 h-16 rounded-full bg-[#2a2d3d] hover:bg-[#3f4255] flex items-center justify-center transition-all"
                             >
@@ -319,7 +374,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                         {timerMode === 'Timer' && (
                             <div className="flex gap-2 mt-8">
                                 {[1, 5, 10, 25].map(min => (
-                                    <button 
+                                    <button
                                         key={min}
                                         onClick={() => { setTimerSeconds(min * 60); setIsTimerRunning(false); }}
                                         className="px-4 py-2 bg-[#161825] border border-[#2a2d3d] rounded text-xs text-gray-400 hover:text-white hover:border-gray-500"
@@ -336,7 +391,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                     <div className="h-full flex gap-6 p-4">
                         <div className="w-1/3 flex flex-col gap-2">
                             <label className="text-sm text-gray-400">Items (one per line)</label>
-                            <textarea 
+                            <textarea
                                 value={pickerItems}
                                 onChange={(e) => setPickerItems(e.target.value)}
                                 className="flex-1 bg-[#161825] border border-[#2a2d3d] rounded-lg p-4 text-sm text-white resize-none focus:outline-none focus:border-emerald-500"
@@ -351,7 +406,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                             ) : (
                                 <div className="text-gray-600 text-xl">Enter items and click Pick</div>
                             )}
-                            <button 
+                            <button
                                 onClick={pickRandom}
                                 disabled={isPicking || !pickerItems.trim()}
                                 className="px-8 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-bold text-lg shadow-lg shadow-blue-900/20"
@@ -367,11 +422,23 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                 return (
                     <div className="h-full flex gap-4">
                         <div className="w-1/3 bg-[#161825] border border-[#2a2d3d] rounded-lg p-2 overflow-y-auto">
-                            {notes.map((note, i) => (
-                                <div key={i} className="p-3 mb-2 bg-[#0f111a] rounded border border-[#2a2d3d] text-xs text-gray-300 truncate">
-                                    {note}
-                                </div>
-                            ))}
+                            {loadingNotes ? (
+                                <div className="text-center text-gray-500 py-4">Loading...</div>
+                            ) : notes.length === 0 ? (
+                                <div className="text-center text-gray-500 py-4 text-xs">No notes yet</div>
+                            ) : (
+                                notes.map((note) => (
+                                    <div key={note.id} className="group relative p-3 mb-2 bg-[#0f111a] rounded border border-[#2a2d3d] text-xs text-gray-300 hover:border-emerald-500/50 transition-colors">
+                                        <div className="truncate pr-6">{note.content}</div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                                            className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
+                                        >
+                                            <Icon name="TrashIcon" className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
                         </div>
                         <div className="flex-1 flex flex-col gap-2">
                             <textarea
@@ -380,7 +447,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                                 className="flex-1 bg-[#161825] border border-[#2a2d3d] rounded-lg p-4 text-sm text-white resize-none focus:outline-none focus:border-emerald-500"
                                 placeholder="Type your note here..."
                             />
-                            <button onClick={addNote} className="bg-emerald-600 text-white py-2 rounded text-sm font-bold">Save Note</button>
+                            <button onClick={addNote} disabled={!currentNote.trim()} className="bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 rounded text-sm font-bold hover:bg-emerald-500 transition-colors">Save Note</button>
                         </div>
                     </div>
                 );
@@ -388,18 +455,32 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                 const card = flashcards[currentCardIndex];
                 return (
                     <div className="h-full flex flex-col items-center justify-center gap-8">
-                        <div 
-                            onClick={() => setIsFlipped(!isFlipped)}
-                            className={`w-96 h-64 bg-[#161825] border border-[#2a2d3d] rounded-xl flex items-center justify-center p-8 cursor-pointer transition-all transform duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}
-                        >
-                            <div className="text-2xl font-bold text-center text-white">
-                                {isFlipped ? card.back : card.front}
+                        {loadingFlashcards ? (
+                            <div className="text-gray-500">Loading flashcards...</div>
+                        ) : flashcards.length === 0 ? (
+                            <div className="text-center text-gray-500">
+                                <p>No flashcards found.</p>
+                                <p className="text-xs mt-2">Add some via the database or ask admin to seed them.</p>
                             </div>
-                        </div>
-                        <div className="flex gap-4">
-                            <button onClick={() => setIsFlipped(!isFlipped)} className="px-6 py-2 bg-[#2a2d3d] text-white rounded-lg">Flip</button>
-                            <button onClick={nextCard} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Next Card</button>
-                        </div>
+                        ) : (
+                            <>
+                                <div
+                                    onClick={() => setIsFlipped(!isFlipped)}
+                                    className={`w-96 h-64 bg-[#161825] border border-[#2a2d3d] rounded-xl flex items-center justify-center p-8 cursor-pointer transition-all transform duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}
+                                >
+                                    <div className="text-2xl font-bold text-center text-white">
+                                        {isFlipped ? card.back : card.front}
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <button onClick={() => setIsFlipped(!isFlipped)} className="px-6 py-2 bg-[#2a2d3d] text-white rounded-lg hover:bg-[#3f4255] transition-colors">Flip</button>
+                                    <button onClick={nextCard} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors">Next Card</button>
+                                </div>
+                                <div className="text-xs text-gray-500 font-mono">
+                                    Card {currentCardIndex + 1} of {flashcards.length}
+                                </div>
+                            </>
+                        )}
                     </div>
                 );
             case 'Calendar':
@@ -668,6 +749,8 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                         </div>
                     </div>
                 );
+            case 'Reports':
+                return <ReportsApp />;
             default:
                 return <div className="flex items-center justify-center h-full text-gray-500 font-mono">Select a tool from the sidebar</div>;
         }
@@ -679,9 +762,9 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
 
     // Determine which tools to show in sidebar
     const getSidebarTools = () => {
-        if (activeTab === 'Classroom') return ['Whiteboard', 'Timer', 'Random Picker'];
+        if (activeTab === 'Classroom') return ['Whiteboard', 'Timer', 'Random Picker', 'Reports'];
         if (activeTab === 'Productivity') return ['Notes', 'Calendar', 'Tasks'];
-        
+
         // Student Tabs
         if (activeTab === 'Notes') return ['Notes'];
         if (activeTab === 'Flashcards') return ['Flashcards'];

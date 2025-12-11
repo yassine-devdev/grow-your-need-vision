@@ -44,17 +44,19 @@ export const DonutChart: React.FC<DonutChartProps> = ({ data, size = 200, thickn
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="transform">
         {data.map((item, i) => {
-          const sliceAngle = (item.value / total) * 360;
+          const sliceAngle = total > 0 ? (item.value / total) * 360 : 0;
           const path = getArcPath(currentAngle, currentAngle + sliceAngle);
           currentAngle += sliceAngle;
           
           // SVG strokes are centered on path, so we simulate thickness with stroke-width
           // A true donut path is more complex, simplified here with thick stroke circle
           const circleCircumference = 2 * Math.PI * (radius - thickness / 2);
-          const strokeDashoffset = circleCircumference - (item.value / total) * circleCircumference;
           
           // Using simple circle stroke dasharray approach for cleaner code in this snippet context
           // Reset angle for simplicity in this specific implementation pattern
+          const dashArrayValue = total > 0 ? (item.value / total) * circleCircumference : 0;
+          const dashOffsetValue = -1 * (currentAngle - sliceAngle) / 360 * circleCircumference;
+
           return (
              <circle
                 key={i}
@@ -64,8 +66,8 @@ export const DonutChart: React.FC<DonutChartProps> = ({ data, size = 200, thickn
                 fill="transparent"
                 stroke={item.color}
                 strokeWidth={thickness}
-                strokeDasharray={`${(item.value / total) * circleCircumference} ${circleCircumference}`}
-                strokeDashoffset={-1 * (currentAngle - sliceAngle) / 360 * circleCircumference}
+                strokeDasharray={`${dashArrayValue} ${circleCircumference}`}
+                strokeDashoffset={dashOffsetValue}
                 transform={`rotate(-90 ${radius} ${radius})`}
                 className="transition-all duration-1000 ease-out hover:opacity-80 cursor-pointer"
              >

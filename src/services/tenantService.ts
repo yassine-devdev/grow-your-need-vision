@@ -1,168 +1,193 @@
 import pb from '../lib/pocketbase';
-import { RecordModel } from 'pocketbase';
-import { Invoice } from './billingService';
 
-export interface TenantBranding {
-    logoUrl?: string;
-    primaryColor?: string;
-    secondaryColor?: string;
-    fontFamily?: string;
-    customCss?: string;
+export interface Tenant {
+    id: string;
+    name: string;
+    subdomain: string;
+    custom_domain?: string;
+    logo?: string;
+    plan: 'free' | 'basic' | 'pro' | 'enterprise';
+    status: 'active' | 'suspended' | 'trial' | 'cancelled';
+    subscription_status: 'active' | 'past_due' | 'cancelled' | 'trialing';
+    admin_email: string;
+    admin_user: string;
+    max_students: number;
+    max_teachers: number;
+    max_storage_gb: number;
+    features_enabled: string[];
+    trial_ends_at?: string;
+    subscription_ends_at?: string;
+    stripe_customer_id?: string;
+    stripe_subscription_id?: string;
+    created: string;
+    updated: string;
+    metadata?: Record<string, any>;
 }
 
-export interface TenantSettings {
-    allowRegistration: boolean;
-    requireEmailVerification: boolean;
-    defaultUserRole: string;
+export interface TenantUsage {
+    id: string;
+    tenant: string;
+    period_start: string;
+    period_end: string;
+    student_count: number;
+    teacher_count: number;
+    storage_used_gb: number;
+    api_calls: number;
+    active_users: number;
+}
+
+export interface SubscriptionPlan {
+    id: string;
+    name: string;
+    stripe_price_id: string;
+    price_monthly: number;
+    price_annual: number;
+    max_students: number;
+    max_teachers: number;
+    max_storage_gb: number;
     features: string[];
-}
-
-export interface Tenant extends RecordModel {
-    name: string;
-    type: 'School' | 'Individual' | 'Enterprise';
-    status: 'Active' | 'Pending' | 'Suspended' | 'Trial';
-    domain: string;
-    contact_email: string;
-    subscription_plan: 'Starter' | 'Professional' | 'Enterprise';
-    users_count: number;
-    branding?: TenantBranding;
-    settings?: TenantSettings;
-    address?: string;
-    phone?: string;
-    website?: string;
-    billing_cycle?: 'Monthly' | 'Yearly';
-    next_billing_date?: string;
-}
-
-export interface TenantUser extends RecordModel {
-    username: string;
-    email: string;
-    name: string;
-    role: 'Admin' | 'Teacher' | 'Student' | 'Parent';
-    tenantId: string;
-    avatar?: string;
-    status: 'Active' | 'Inactive';
+    is_active: boolean;
 }
 
 export const tenantService = {
-    // --- Tenant CRUD ---
-    async getTenants(filter?: string): Promise<Tenant[]> {
-        console.log("Fetching tenants...");
-        try {
-            // Fetch ALL tenants to avoid 400 errors with filters
-            const allTenants = await pb.collection('tenants').getFullList<Tenant>();
-            console.log(`Fetched ${allTenants.length} tenants.`);
+    // Tenant CRUD
+    getTenants: async (filter?: string) => {
+        return await pb.collection('tenants').getList(1, 50, {
+            filter: filter || '',
+            sort: '-created',
+            expand: 'admin_user'
+        });
+    },
 
-            if (filter) {
-                if (filter.includes('type = "School"')) return allTenants.filter(t => t.type === 'School');
-                if (filter.includes('type = "Individual"')) return allTenants.filter(t => t.type === 'Individual');
-            }
-            return allTenants;
-        } catch (err) {
-            console.error("Error in getTenants:", err);
-            throw err;
+    getTenantById: async (id: string) => {
+        return await pb.collection('tenants').getOne<Tenant>(id, {
+            expand: 'admin_user'
+        });
+    },
+
+    createTenant: async (data: Omit<Tenant, 'id' | 'created' | 'updated'>) => {
+        return await pb.collection('tenants').create(data);
+    },
+
+    updateTenant: async (id: string, data: Partial<Tenant>) => {
+        return await pb.collection('tenants').update(id, data);
+    },
+
+    deleteTenant: async (id: string) => {
+        return await pb.collection('tenants').delete(id);
+    },
+
+    suspendTenant: async (id: string) => {
+        return await pb.collection('tenants').update(id, { status: 'suspended' });
+    },
+
+    activateTenant: async (id: string) => {
+        return await pb.collection('tenants').update(id, { status: 'active' });
+    },
+
+    // Usage tracking
+    getTenantUsage: async (tenantId: string, startDate?: string, endDate?: string) => {
+        let filter = `tenant = "${tenantId}"`;
+        if (startDate && endDate) {
+            filter += ` && period_start >= "${startDate}" && period_end <= "${endDate}"`;
         }
+
+        return await pb.collection('tenant_usage').getList(1, 100, {
+            filter,
+            sort: '-period_start'
+        });
     },
 
-    async getSchools(): Promise<Tenant[]> {
-        return this.getTenants('type = "School"');
+    recordUsage: async (data: Omit<TenantUsage, 'id'>) => {
+        return await pb.collection('tenant_usage').create(data);
     },
 
-    async getIndividuals(): Promise<Tenant[]> {
-        return this.getTenants('type = "Individual"');
+    // Current usage calculations
+    getCurrentUsage: async (tenantId: string) => {
+        // Get current counts
+        const [students, teachers, classes] = await Promise.all([
+            pb.collection('users').getList(1, 1, {
+                filter: `tenant = "${tenantId}" && role = "Student"`,
+                fields: 'id'
+            }),
+            pb.collection('users').getList(1, 1, {
+                filter: `tenant = "${tenantId}" && role = "Teacher"`,
+                fields: 'id'
+            }),
+            pb.collection('classes').getList(1, 1, {
+                filter: `tenant = "${tenantId}"`,
+                fields: 'id'
+            })
+        ]);
+
+        return {
+            student_count: students.totalItems,
+            teacher_count: teachers.totalItems,
+            class_count: classes.totalItems,
+            storage_used_gb: 0 // Note: Requires backend aggregation or 'tenant_stats' collection for accurate calculation
+        };
     },
 
-    async getTenant(id: string): Promise<Tenant | null> {
-        try {
-            return await pb.collection('tenants').getOne<Tenant>(id);
-        } catch (error) {
-            console.error('Error fetching tenant:', error);
-            return null;
-        }
+    // Feature checks
+    hasFeature: (tenant: Tenant, feature: string): boolean => {
+        return tenant.features_enabled?.includes(feature) || false;
     },
 
-    async createTenant(data: Partial<Tenant>): Promise<Tenant | null> {
-        try {
-            return await pb.collection('tenants').create<Tenant>(data);
-        } catch (error) {
-            console.error('Error creating tenant:', error);
-            return null;
-        }
+    canAddStudent: async (tenantId: string): Promise<boolean> => {
+        const tenant = await tenantService.getTenantById(tenantId);
+        const usage = await tenantService.getCurrentUsage(tenantId);
+        return usage.student_count < tenant.max_students;
     },
 
-    async updateTenant(id: string, data: Partial<Tenant>): Promise<Tenant | null> {
-        try {
-            return await pb.collection('tenants').update<Tenant>(id, data);
-        } catch (error) {
-            console.error('Error updating tenant:', error);
-            return null;
-        }
+    canAddTeacher: async (tenantId: string): Promise<boolean> => {
+        const tenant = await tenantService.getTenantById(tenantId);
+        const usage = await tenantService.getCurrentUsage(tenantId);
+        return usage.teacher_count < tenant.max_teachers;
     },
 
-    async updateTenantStatus(id: string, status: Tenant['status']): Promise<Tenant | null> {
-        return this.updateTenant(id, { status });
+    // Subscription plans
+    getPlans: async () => {
+        return await pb.collection('subscription_plans').getFullList<SubscriptionPlan>({
+            filter: 'is_active = true',
+            sort: 'price_monthly'
+        });
     },
 
-    async deleteTenant(id: string): Promise<boolean> {
-        try {
-            return await pb.collection('tenants').delete(id);
-        } catch (error) {
-            console.error('Error deleting tenant:', error);
-            return false;
-        }
+    // Analytics
+    getTenantStats: async () => {
+        const tenants = await pb.collection('tenants').getList(1, 1, { fields: 'id' });
+        const activeTenants = await pb.collection('tenants').getList(1, 1, {
+            filter: 'status = "active"',
+            fields: 'id'
+        });
+        const trialTenants = await pb.collection('tenants').getList(1, 1, {
+            filter: 'status = "trial"',
+            fields: 'id'
+        });
+
+        return {
+            total: tenants.totalItems,
+            active: activeTenants.totalItems,
+            trial: trialTenants.totalItems,
+            suspended: tenants.totalItems - activeTenants.totalItems - trialTenants.totalItems
+        };
     },
 
-    // --- Tenant Users ---
-    async getTenantUsers(tenantId: string): Promise<TenantUser[]> {
-        try {
-            // Fetch ALL users to avoid 400 errors with filters
-            const allUsers = await pb.collection('users').getFullList<TenantUser>({ requestKey: null });
-            return allUsers.filter(u => u.tenantId === tenantId);
-        } catch (error) {
-            console.error('Error fetching tenant users:', error);
-            return [];
-        }
-    },
+    // MRR calculation
+    calculateMRR: async (): Promise<number> => {
+        const tenants = await pb.collection('tenants').getFullList<Tenant>({
+            filter: 'subscription_status = "active"'
+        });
 
-    async addTenantUser(tenantId: string, data: Partial<TenantUser>): Promise<TenantUser | null> {
-        try {
-            // Ensure tenantId is set
-            return await pb.collection('users').create<TenantUser>({ ...data, tenantId });
-        } catch (error) {
-            console.error('Error adding tenant user:', error);
-            return null;
-        }
-    },
+        const monthlyPrices: Record<string, number> = {
+            free: 0,
+            basic: 99,
+            pro: 299,
+            enterprise: 999
+        };
 
-    async removeTenantUser(userId: string): Promise<boolean> {
-        try {
-            // We might want to soft delete or just remove tenantId
-            return await pb.collection('users').delete(userId);
-        } catch (error) {
-            console.error('Error removing tenant user:', error);
-            return false;
-        }
-    },
-
-    // --- White Labeling ---
-    async updateBranding(tenantId: string, branding: TenantBranding): Promise<Tenant | null> {
-        try {
-            return await pb.collection('tenants').update<Tenant>(tenantId, { branding });
-        } catch (error) {
-            console.error('Error updating branding:', error);
-            return null;
-        }
-    },
-
-    // --- Billing ---
-    async getInvoices(tenantId: string): Promise<Invoice[]> {
-        try {
-            // Fetch ALL invoices to avoid 400 errors with filters
-            const allInvoices = await pb.collection('invoices').getFullList<Invoice>({ requestKey: null });
-            return allInvoices.filter(i => i.tenantId === tenantId);
-        } catch (error) {
-            console.error('Error fetching invoices:', error);
-            return [];
-        }
+        return tenants.reduce((mrr, tenant) => {
+            return mrr + (monthlyPrices[tenant.plan] || 0);
+        }, 0);
     }
 };

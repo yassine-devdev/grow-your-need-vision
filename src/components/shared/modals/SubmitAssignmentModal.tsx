@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import { OwnerIcon } from '../OwnerIcons';
 import { assignmentService, AssignmentRecord, SubmissionRecord } from '../../../services/assignmentService';
-import { FileUpload } from '../ui/FileUpload';
+import { FileUploader } from '../FileUploader';
 import { fileUploadService } from '../../../services/fileUploadService';
 import { Badge } from '../ui/Badge';
 import { storageQuotaService, StorageQuota } from '../../../services/storageQuotaService';
@@ -45,7 +45,7 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
             setActiveTab('upload');
             setHistory([]);
         }
-        
+
         if (existingSubmission) {
             setNotes(existingSubmission.notes || '');
         }
@@ -76,7 +76,7 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
         // Check quota
         const totalSize = files.reduce((acc, file) => acc + file.size, 0);
         const hasSpace = await storageQuotaService.checkQuota(studentId, totalSize);
-        
+
         if (!hasSpace) {
             alert('Not enough storage space!');
             return;
@@ -100,7 +100,7 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
                     submission.id,
                     'files'
                 );
-                
+
                 // Update quota
                 await storageQuotaService.updateUsage(studentId, totalSize);
             }
@@ -180,7 +180,7 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
                                 </span>
                             </div>
                             <div className="w-full bg-blue-200 rounded-full h-1.5">
-                                <div 
+                                <div
                                     className={`h-1.5 rounded-full transition-all duration-500 ${quota.percentage > 90 ? 'bg-red-500' : 'bg-blue-600'}`}
                                     style={{ width: `${Math.min(quota.percentage, 100)}%` }}
                                 ></div>
@@ -206,15 +206,14 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Upload Your Work <span className="text-red-500">*</span>
                             </label>
-                            <FileUpload
-                                onFileSelect={(uploadedFiles) => setFiles(uploadedFiles)}
-                                multiple={true}
+                            <FileUploader
+                                onUpload={(uploadedFiles) => setFiles(uploadedFiles)}
                                 accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.png,.zip"
+                                maxSize={10 * 1024 * 1024} // 10MB
+                                maxFiles={5}
                                 label="Drop assignment files here"
+                                helperText="PDF, Word, PowerPoint, Images, or ZIP (Max 10MB)"
                             />
-                            <p className="text-xs text-gray-500 mt-2">
-                                Upload your completed assignment files (PDF, Word, PowerPoint, images, or ZIP)
-                            </p>
                         </div>
 
                         {/* Actions */}
@@ -264,9 +263,9 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
                                                 {submission.files.map((file, idx) => (
                                                     <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-100">
                                                         <OwnerIcon name="DocumentText" className="w-4 h-4 text-gray-400" />
-                                                        <a 
-                                                            href={fileUploadService.getFileUrl(submission, file)} 
-                                                            target="_blank" 
+                                                        <a
+                                                            href={fileUploadService.getFileUrl(submission, file)}
+                                                            target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-sm text-gray-700 truncate flex-1 hover:text-gyn-blue-medium hover:underline"
                                                         >

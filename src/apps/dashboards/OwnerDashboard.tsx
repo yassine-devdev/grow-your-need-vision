@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { useOwnerDashboard } from '../../hooks/useOwnerDashboard';
 import { KPICard } from './components/KPICard';
 import { AlertList } from './components/AlertList';
@@ -11,7 +11,7 @@ import { DonutChart } from './components/DonutChart';
 import { Icon, Button } from '../../components/shared/ui/CommonUI';
 import { LoadingScreen } from '../../components/shared/LoadingScreen';
 
-const containerVariants = {
+const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
         opacity: 1,
@@ -21,7 +21,7 @@ const containerVariants = {
     }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: {
         y: 0,
@@ -136,14 +136,14 @@ const OwnerDashboard: React.FC = () => {
                 </motion.div>
 
                 {/* Revenue Growth - Large Feature Block */}
-                <motion.div variants={itemVariants} className="lg:col-span-3 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <div className="flex justify-between items-start mb-4 shrink-0">
+                <motion.div variants={itemVariants} className="lg:col-span-3 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
+                    <div className="flex justify-between items-start mb-2 shrink-0">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">Revenue Trajectory</h3>
-                            <p className="text-slate-400 text-xs font-medium mt-1">Monthly Recurring Revenue Growth</p>
+                            <h3 className="text-base font-bold text-slate-800">Revenue Trajectory</h3>
+                            <p className="text-slate-400 text-[10px] font-medium mt-0.5">Monthly Recurring Revenue Growth</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <select className="bg-slate-50 border-none text-slate-600 text-xs font-bold rounded-lg px-3 py-2 outline-none cursor-pointer hover:bg-slate-100 transition-colors">
+                            <select className="bg-slate-50 border-none text-slate-600 text-[10px] font-bold rounded-lg px-2 py-1 outline-none cursor-pointer hover:bg-slate-100 transition-colors">
                                 <option>Last 6 Months</option>
                                 <option>Last Year</option>
                             </select>
@@ -158,21 +158,21 @@ const OwnerDashboard: React.FC = () => {
                 </motion.div>
 
                 {/* Live Feed - Right Sidebar */}
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <div className="flex items-center justify-between mb-4 shrink-0">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
+                    <div className="flex items-center justify-between mb-2 shrink-0">
+                        <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             Live Feed
                         </h3>
-                        <span className="text-[10px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">REAL-TIME</span>
+                        <span className="text-[9px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">REAL-TIME</span>
                     </div>
-                    <div className="flex-1 overflow-y-auto pr-2 -mr-2 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto pr-1 -mr-1 custom-scrollbar">
                         <ActivityFeed activities={data.recentActivity} />
                     </div>
                 </motion.div>
 
                 {/* Analytics Row - New */}
-                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 min-h-[320px]">
+                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
                     <SegmentedBarChart 
                         title="Top Visited Pages" 
                         subtitle="by URL path"
@@ -180,7 +180,7 @@ const OwnerDashboard: React.FC = () => {
                     />
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 min-h-[320px]">
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
                     <SegmentedBarChart 
                         title="Top Users Access" 
                         subtitle="by Source"
@@ -189,7 +189,7 @@ const OwnerDashboard: React.FC = () => {
                     />
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 min-h-[320px]">
+                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
                     <DonutChart 
                         title="Total Expenses" 
                         data={data.expensesByCategory}

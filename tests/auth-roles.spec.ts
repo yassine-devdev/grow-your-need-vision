@@ -6,40 +6,41 @@ import { test, expect } from '@playwright/test';
  */
 
 // Test credentials for each role
+// NOTE: These must be provided via environment variables in CI/CD
 const TEST_USERS = {
     owner: {
-        email: 'owner@growyourneed.com',
-        password: 'Darnag12345678@',
+        email: process.env.TEST_OWNER_EMAIL,
+        password: process.env.TEST_OWNER_PASSWORD,
         expectedRoute: '/admin',
         role: 'Owner',
     },
     admin: {
-        email: 'admin@school.com',
-        password: '12345678',
+        email: process.env.TEST_ADMIN_EMAIL,
+        password: process.env.TEST_ADMIN_PASSWORD,
         expectedRoute: '/school-admin',
         role: 'Admin',
     },
     teacher: {
-        email: 'teacher@school.com',
-        password: '123456789',
+        email: process.env.TEST_TEACHER_EMAIL,
+        password: process.env.TEST_TEACHER_PASSWORD,
         expectedRoute: '/teacher',
         role: 'Teacher',
     },
     student: {
-        email: 'student@school.com',
-        password: '12345678',
+        email: process.env.TEST_STUDENT_EMAIL,
+        password: process.env.TEST_STUDENT_PASSWORD,
         expectedRoute: '/student',
         role: 'Student',
     },
     parent: {
-        email: 'parent@school.com',
-        password: '123456788',
+        email: process.env.TEST_PARENT_EMAIL,
+        password: process.env.TEST_PARENT_PASSWORD,
         expectedRoute: '/parent',
         role: 'Parent',
     },
     individual: {
-        email: 'individual@individual.com',
-        password: '12345678',
+        email: process.env.TEST_INDIVIDUAL_EMAIL,
+        password: process.env.TEST_INDIVIDUAL_PASSWORD,
         expectedRoute: '/individual',
         role: 'Individual',
     },

@@ -78,6 +78,15 @@ export const crmService = {
         }
     },
 
+    async updateDeal(id: string, data: Partial<Deal>) {
+        try {
+            return await pb.collection('deals').update<Deal>(id, data);
+        } catch (error) {
+            console.error('Error updating deal:', error);
+            return null;
+        }
+    },
+
     async deleteDeal(id: string) {
         try {
             return await pb.collection('deals').delete(id);

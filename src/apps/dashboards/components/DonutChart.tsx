@@ -21,19 +21,20 @@ export const DonutChart: React.FC<DonutChartProps> = ({ title, data, currency = 
     let currentOffset = 0;
 
     const segments = data.map(item => {
-        const strokeDasharray = `${(item.value / total) * circumference} ${circumference}`;
+        const ratio = total > 0 ? item.value / total : 0;
+        const strokeDasharray = `${ratio * circumference} ${circumference}`;
         const strokeDashoffset = -currentOffset;
-        currentOffset += (item.value / total) * circumference;
+        currentOffset += ratio * circumference;
         return { ...item, strokeDasharray, strokeDashoffset };
     });
 
     return (
         <div className="w-full h-full flex flex-col">
-            <h3 className="text-base font-bold text-slate-800 mb-4">{title}</h3>
+            <h3 className="text-sm font-bold text-slate-800 mb-2">{title}</h3>
             
-            <div className="flex-1 flex items-center gap-6">
+            <div className="flex-1 flex items-center gap-3 min-h-0">
                 {/* Chart */}
-                <div className="relative w-40 h-40 shrink-0">
+                <div className="relative w-28 h-28 shrink-0">
                     <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
                         {segments.map((segment, index) => (
                             <motion.circle
@@ -56,26 +57,26 @@ export const DonutChart: React.FC<DonutChartProps> = ({ title, data, currency = 
                     
                     {/* Center Text */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-xl font-black text-slate-800">
+                        <span className="text-lg font-black text-slate-800">
                             {currency}{total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total}
                         </span>
                     </div>
                     
                     {/* Inner Dashed Ring Decoration */}
-                    <div className="absolute inset-0 m-3 border-2 border-dashed border-slate-200 rounded-full pointer-events-none"></div>
+                    <div className="absolute inset-0 m-2 border-2 border-dashed border-slate-200 rounded-full pointer-events-none"></div>
                 </div>
 
                 {/* Legend List */}
-                <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-y-auto pr-2 custom-scrollbar max-h-[200px]">
+                <div className="flex-1 flex flex-col gap-2 min-w-0 overflow-y-auto pr-1 custom-scrollbar h-full">
                     {data.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between text-xs group">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-2 h-2 rounded-[2px] shrink-0" style={{ backgroundColor: item.color }}></div>
+                        <div key={index} className="flex items-center justify-between text-[10px] group">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="w-1.5 h-1.5 rounded-[2px] shrink-0" style={{ backgroundColor: item.color }}></div>
                                 <span className="text-slate-600 truncate font-medium group-hover:text-slate-900 transition-colors">{item.label}</span>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
                                 <span className="font-bold text-slate-800">{currency}{item.value.toLocaleString()}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium w-10 text-center">
+                                <span className="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-500 font-medium w-8 text-center">
                                     {item.percentage}%
                                 </span>
                             </div>

@@ -18,18 +18,18 @@ export const SegmentedBarChart: React.FC<SegmentedBarChartProps> = ({ title, sub
 
     return (
         <div className="w-full h-full flex flex-col">
-            <div className="flex justify-between items-end mb-4">
-                <h3 className="text-base font-bold text-slate-800">{title}</h3>
-                {subtitle && <span className="text-xs text-slate-400">{subtitle}</span>}
+            <div className="flex justify-between items-end mb-2">
+                <h3 className="text-sm font-bold text-slate-800">{title}</h3>
+                {subtitle && <span className="text-[10px] text-slate-400">{subtitle}</span>}
             </div>
 
-            <div className="flex justify-between items-center mb-2 text-xs text-slate-500">
+            <div className="flex justify-between items-center mb-1 text-[10px] text-slate-500">
                 <span>{totalLabel}</span>
                 <span className="font-bold text-slate-800">{total.toLocaleString()}</span>
             </div>
 
             {/* The Bar */}
-            <div className="w-full h-4 rounded-full flex overflow-hidden mb-6">
+            <div className="w-full h-3 rounded-full flex overflow-hidden mb-3 shrink-0">
                 {data.map((item, index) => (
                     <motion.div
                         key={index}
@@ -48,20 +48,20 @@ export const SegmentedBarChart: React.FC<SegmentedBarChartProps> = ({ title, sub
             </div>
 
             {/* Legend Grid */}
-            <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+            <div className="grid grid-cols-2 gap-y-2 gap-x-2 overflow-y-auto custom-scrollbar pr-1">
                 {data.map((item, index) => (
                     <div key={index} className="flex flex-col">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-lg font-bold text-slate-800 leading-none">
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-bold text-slate-800 leading-none">
                                 {item.value.toLocaleString()}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-0.5 rounded-full" style={{ backgroundColor: item.color }}></div>
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></div>
                             <span className="text-[10px] text-slate-500 truncate">{item.label}</span>
                         </div>
                         {item.subLabel && (
-                            <span className="text-[9px] text-slate-400 pl-3.5 truncate">{item.subLabel}</span>
+                            <span className="text-[9px] text-slate-400 pl-3 truncate">{item.subLabel}</span>
                         )}
                     </div>
                 ))}

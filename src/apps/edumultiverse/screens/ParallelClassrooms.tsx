@@ -29,7 +29,7 @@ export const ParallelClassrooms: React.FC = () => {
             // 2. Fetch Missions for each timeline
             const missionMap: Record<string, Mission[]> = {};
             await Promise.all(tData.map(async (t) => {
-                const mData = await multiverseService.getMissions(t.id);
+                const mData = await multiverseService.getMissions(id, t.id);
                 missionMap[t.id] = mData;
             }));
             setMissions(missionMap);
@@ -130,6 +130,8 @@ const TimelineTrack: React.FC<{ timeline: Timeline; missions: Mission[] }> = ({ 
 };
 
 const MissionNode: React.FC<{ mission: Mission; index: number; difficulty: string }> = ({ mission, index, difficulty }) => {
+    const navigate = useNavigate();
+
     const getBorderColor = () => {
         switch (difficulty) {
             case 'Easy': return 'hover:border-green-500';
@@ -140,12 +142,18 @@ const MissionNode: React.FC<{ mission: Mission; index: number; difficulty: strin
         }
     };
 
+    const handleStartMission = () => {
+        if (mission.status === 'locked') return;
+        navigate('/apps/edumultiverse/time-loop', { state: { mission } });
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className={`bg-slate-800 p-5 rounded-xl border border-slate-700 ${getBorderColor()} transition-all cursor-pointer relative z-10 shadow-lg group`}
+            onClick={handleStartMission}
+            className={`bg-slate-800 p-5 rounded-xl border border-slate-700 ${getBorderColor()} transition-all cursor-pointer relative z-10 shadow-lg group ${mission.status === 'locked' ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
         >
             {/* Connector Dot */}
             <div className="absolute left-1/2 -top-4 w-3 h-3 rounded-full bg-slate-700 border-2 border-slate-900 transform -translate-x-1/2 z-0"></div>

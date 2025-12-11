@@ -5,6 +5,7 @@ import { Input } from '../components/shared/ui/Input';
 import { Select } from '../components/shared/ui/Select';
 import { crmService, Deal, Contact, ForecastData } from '../services/crmService';
 import { tenantService, Tenant } from '../services/tenantService';
+import { reportService } from '../services/reportService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 
 interface PlatformCRMProps {
@@ -20,6 +21,7 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [newDeal, setNewDeal] = useState<{
         title: string;
         value: number;
@@ -36,28 +38,51 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
         assigned_to: 'u1'
     });
 
-    const handleCreateDeal = async () => {
+    const handleSaveDeal = async () => {
         if (!newDeal.title) return;
 
         try {
-            await crmService.createDeal(newDeal);
+            if (editingId) {
+                await crmService.updateDeal(editingId, newDeal);
+            } else {
+                await crmService.createDeal(newDeal);
+            }
+
             setIsModalOpen(false);
             // Refresh
             const result = await crmService.getDeals();
             setDeals(result);
             // Reset form
-            setNewDeal({
-                title: '',
-                value: 0,
-                stage: 'Lead',
-                description: '',
-                contact_name: '',
-                assigned_to: 'u1'
-            });
+            resetForm();
         } catch (e) {
             console.error(e);
-            alert("Failed to create deal");
+            alert(editingId ? "Failed to update deal" : "Failed to create deal");
         }
+    };
+
+    const handleEditDeal = (deal: Deal) => {
+        setNewDeal({
+            title: deal.title,
+            value: deal.value,
+            stage: deal.stage,
+            description: deal.description,
+            contact_name: deal.contact_name,
+            assigned_to: deal.assigned_to
+        });
+        setEditingId(deal.id);
+        setIsModalOpen(true);
+    };
+
+    const resetForm = () => {
+        setNewDeal({
+            title: '',
+            value: 0,
+            stage: 'Lead',
+            description: '',
+            contact_name: '',
+            assigned_to: 'u1'
+        });
+        setEditingId(null);
     };
 
     const handleDeleteDeal = async (id: string) => {
@@ -93,18 +118,18 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
         const today = new Date();
         const currentYear = today.getFullYear();
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']; // Q1-Q2
-        
-        const data = months.map((month, index) => ({ 
-            month, 
-            projected: 0, 
-            actual: 0 
+
+        const data = months.map((month, index) => ({
+            month,
+            projected: 0,
+            actual: 0
         }));
 
         dealsData.forEach(deal => {
             // If no date, assume current month for simplicity or skip
             const date = deal.expected_close_date ? new Date(deal.expected_close_date) : new Date();
             const monthIndex = date.getMonth();
-            
+
             if (monthIndex < 6) {
                 // Projected: Value * Probability (default to 50% if not set)
                 const prob = deal.probability !== undefined ? deal.probability : 50;
@@ -169,6 +194,13 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Customer Relationship Management</p>
                 </div>
                 <div className="flex space-x-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg shadow-inner">
+                    <button onClick={() => handleExportDeals('pdf')} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400" title="Export PDF">
+                        <Icon name="DocumentText" className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleExportDeals('excel')} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400" title="Export Excel">
+                        <Icon name="TableCells" className="w-4 h-4" />
+                    </button>
+                    <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
                     <button className="p-2 rounded-md bg-white dark:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-600 text-gyn-blue-dark dark:text-white">
                         <Icon name="Grid" className="w-4 h-4" />
                     </button>
@@ -223,6 +255,7 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                                                             </button>
                                                         }
                                                         items={[
+                                                            { label: 'Edit', icon: 'PencilSquareIcon', onClick: () => handleEditDeal(deal) },
                                                             { label: 'Delete', icon: 'Trash', onClick: () => handleDeleteDeal(deal.id), danger: true }
                                                         ]}
                                                     />
@@ -242,7 +275,7 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                                         ))}
 
                                         <button
-                                            onClick={() => setIsModalOpen(true)}
+                                            onClick={() => { resetForm(); setIsModalOpen(true); }}
                                             className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-400 hover:border-gyn-blue-medium hover:text-gyn-blue-medium dark:hover:text-blue-400 transition-colors flex items-center justify-center gap-1"
                                         >
                                             <Icon name="PlusCircleIcon" className="w-3 h-3" /> Add Deal
@@ -326,7 +359,11 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                         </div>
                         <h2 className="text-4xl font-black mb-2">$425,000</h2>
                         <p className="text-blue-200 font-medium mb-8">Total Projected Revenue (Q1-Q2)</p>
-                        <Button variant="secondary" className="bg-white text-blue-900 hover:bg-blue-50">Download Report</Button>
+                        <p className="text-blue-200 font-medium mb-8">Total Projected Revenue (Q1-Q2)</p>
+                        <div className="flex gap-2">
+                            <Button variant="secondary" className="bg-white text-blue-900 hover:bg-blue-50" onClick={() => handleExportForecast('pdf')}>Download PDF</Button>
+                            <Button variant="secondary" className="bg-blue-800 text-white hover:bg-blue-700 border border-blue-700" onClick={() => handleExportForecast('excel')}>Export Excel</Button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -385,13 +422,13 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title="Create New Deal"
+                title={editingId ? "Edit Deal" : "Create New Deal"}
                 footer={
                     <Button
                         variant="primary"
-                        onClick={handleCreateDeal}
+                        onClick={handleSaveDeal}
                     >
-                        Create Deal
+                        {editingId ? "Update Deal" : "Create Deal"}
                     </Button>
                 }
             >

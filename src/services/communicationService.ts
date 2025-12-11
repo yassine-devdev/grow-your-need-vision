@@ -135,6 +135,18 @@ export const communicationService = {
     }
   },
 
+  async searchUsers(query: string) {
+    try {
+      return await pb.collection('users').getList(1, 10, {
+        filter: `email ~ "${query}" || name ~ "${query}"`,
+        sort: 'name'
+      });
+    } catch (error) {
+      console.warn('Failed to search users:', error);
+      return { items: [], totalItems: 0 };
+    }
+  },
+
   // Social Media
   async getSocialPosts() {
     try {

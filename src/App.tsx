@@ -16,6 +16,7 @@ import { GlobalSearch } from './components/shared/GlobalSearch';
 import NotFound from './components/shared/NotFound';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import TestChat from './TestChat';
+import { GlobalErrorBoundary } from './components/shared/ui/GlobalErrorBoundary';
 
 // Lazy Loaded Layouts & Pages
 const LoginPage = lazy(() => import('./components/LoginPage'));
@@ -32,7 +33,16 @@ import { ParallelClassrooms } from './apps/edumultiverse/screens/ParallelClassro
 import { GlitchHunter } from './apps/edumultiverse/screens/GlitchHunter';
 import { TimeLoopMission } from './apps/edumultiverse/screens/TimeLoopMission';
 import { ConceptFusion } from './apps/edumultiverse/screens/ConceptFusion';
+import { QuantumQuiz } from './apps/edumultiverse/screens/QuantumQuiz';
 import { MultiverseHUD } from './apps/edumultiverse/components/MultiverseHUD';
+import { Leaderboard } from './apps/edumultiverse/components/Leaderboard';
+
+// SaaS Owner Features
+import { TenantDashboard } from './apps/owner/TenantDashboard';
+import { AnalyticsDashboard } from './apps/owner/AnalyticsDashboard';
+import { SupportDashboard } from './apps/owner/SupportDashboard';
+import { TenantOnboardingFlow } from './apps/owner/TenantOnboardingFlow';
+import { OverlayAppsManager } from './apps/owner/OverlayAppsManager';
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
@@ -50,7 +60,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   const isAuthPage = location.pathname === '/login';
-  
+
   // Routes that use MainLayout and should take up the full screen (no global sidebar/margin)
   const isFullScreenRoute = ['/admin', '/school-admin', '/teacher', '/student', '/parent', '/individual'].some(path => location.pathname.startsWith(path));
 
@@ -65,6 +75,7 @@ const AppContent: React.FC = () => {
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<TenantOnboardingFlow />} />
 
             {/* Protected Routes */}
 
@@ -72,6 +83,28 @@ const AppContent: React.FC = () => {
             <Route path="/admin/*" element={
               <ProtectedRoute allowedRoles={['Owner']}>
                 <OwnerLayout />
+              </ProtectedRoute>
+            } />
+
+            {/* OWNER SAAS FEATURES - Standalone Routes */}
+            <Route path="/owner/tenants" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <TenantDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/analytics" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <AnalyticsDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/support" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <SupportDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/overlay-apps" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <OverlayAppsManager />
               </ProtectedRoute>
             } />
 
@@ -114,15 +147,17 @@ const AppContent: React.FC = () => {
 
             {/* EDUMULTIVERSE ADD-ON */}
             <Route path="/apps/edumultiverse/*" element={
-                <MultiverseHUD>
-                    <Routes>
-                        <Route path="/" element={<MultiverseMap />} />
-                        <Route path="/universe/:universeId" element={<ParallelClassrooms />} />
-                        <Route path="/glitch-hunter" element={<GlitchHunter />} />
-                        <Route path="/time-loop" element={<TimeLoopMission />} />
-                        <Route path="/concept-fusion" element={<ConceptFusion />} />
-                    </Routes>
-                </MultiverseHUD>
+              <MultiverseHUD>
+                <Routes>
+                  <Route path="/" element={<MultiverseMap />} />
+                  <Route path="/universe/:universeId" element={<ParallelClassrooms />} />
+                  <Route path="/glitch-hunter" element={<GlitchHunter />} />
+                  <Route path="/time-loop" element={<TimeLoopMission />} />
+                  <Route path="/concept-fusion" element={<ConceptFusion />} />
+                  <Route path="/quantum-quiz" element={<QuantumQuiz />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                </Routes>
+              </MultiverseHUD>
             } />
 
             {/* Test Route */}
@@ -136,9 +171,9 @@ const AppContent: React.FC = () => {
           </Routes>
         </Suspense>
       </main>
-      
+
       {/* Global Realtime Status Indicator */}
-      {/* {user && <RealtimeStatus />} */}
+      {user && <RealtimeStatus />}
       {user && <GlobalSearch />}
     </div>
   );
@@ -154,7 +189,9 @@ const App: React.FC = () => {
               <ToastProvider>
                 <ModalProvider>
                   <SoundProvider>
-                    <AppContent />
+                    <GlobalErrorBoundary>
+                      <AppContent />
+                    </GlobalErrorBoundary>
                   </SoundProvider>
                 </ModalProvider>
               </ToastProvider>

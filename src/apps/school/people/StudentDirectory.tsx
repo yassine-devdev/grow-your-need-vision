@@ -8,6 +8,10 @@ import { Modal } from '../../../components/shared/ui/CommonUI';
 import { AIContentGeneratorModal } from '../../../components/shared/modals/AIContentGeneratorModal';
 import { IDCardGenerator } from './IDCardGenerator';
 import { BulkImport } from './BulkImport';
+import { AddStudentModal } from './components/AddStudentModal';
+import { SkeletonTable } from '../../../components/shared/SkeletonLoader';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
+import { useToast } from '../../../hooks/useToast';
 import pb from '../../../lib/pocketbase';
 import { User } from '../../../context/AuthContext';
 
@@ -22,8 +26,12 @@ export const StudentDirectory: React.FC = () => {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [enrollData, setEnrollData] = useState({ classId: '' });
     const [classes, setClasses] = useState<any[]>([]);
+    const { addToast } = useToast();
 
     // Fetch classes when opening enroll modal
     const openEnrollModal = async (user: User) => {
@@ -56,13 +64,13 @@ export const StudentDirectory: React.FC = () => {
     const columns = [
         { header: 'Name', accessor: 'name', sortable: true },
         { header: 'Email', accessor: 'email', sortable: true },
-        { 
-            header: 'Status', 
+        {
+            header: 'Status',
             accessor: (user: User) => (
                 <Badge variant={user.verified ? 'success' : 'warning'}>
                     {user.verified ? 'Verified' : 'Pending'}
                 </Badge>
-            ) 
+            )
         },
         {
             header: 'Last Active',
@@ -72,9 +80,11 @@ export const StudentDirectory: React.FC = () => {
             header: 'Actions',
             accessor: (user: User) => (
                 <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                    <Button size="sm" variant="ghost" onClick={() => { setSelectedUser(user); setIsAddModalOpen(true); }}>Edit</Button>
                     <Button size="sm" variant="ghost" onClick={() => { setSelectedUser(user); setIsIDModalOpen(true); }}>ID Card</Button>
                     <Button size="sm" variant="ghost" onClick={() => { setSelectedUser(user); setIsAIModalOpen(true); }}>Report</Button>
                     <Button size="sm" variant="primary" onClick={() => openEnrollModal(user)}>Enroll</Button>
+                    <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => { setUserToDelete(user); setIsDeleteConfirmOpen(true); }}>Delete</Button>
                 </div>
             )
         }
@@ -84,10 +94,13 @@ export const StudentDirectory: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white">Student Directory</h2>
-                <Button variant="primary" onClick={() => setIsImportModalOpen(true)}>Bulk Import</Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>Bulk Import</Button>
+                    <Button variant="primary" onClick={() => { setSelectedUser(null); setIsAddModalOpen(true); }}>Add Student</Button>
+                </div>
             </div>
 
-            <DataToolbar 
+            <DataToolbar
                 collectionName="students_view"
                 onSearch={(term) => query.setFilter(`role = "Student" && (name ~ "${term}" || email ~ "${term}")`)}
                 onExport={() => query.exportData('students.csv')}
@@ -95,21 +108,21 @@ export const StudentDirectory: React.FC = () => {
                 loading={query.loading}
             />
 
-            <DataTable 
-                query={query} 
+            <DataTable
+                query={query}
                 columns={columns}
                 onRowClick={(user) => console.log("View profile", user)}
             />
 
-            <IDCardGenerator 
-                user={selectedUser} 
-                isOpen={isIDModalOpen} 
-                onClose={() => setIsIDModalOpen(false)} 
+            <IDCardGenerator
+                user={selectedUser}
+                isOpen={isIDModalOpen}
+                onClose={() => setIsIDModalOpen(false)}
             />
 
-            <BulkImport 
-                isOpen={isImportModalOpen} 
-                onClose={() => setIsImportModalOpen(false)} 
+            <BulkImport
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
                 onSuccess={() => { setIsImportModalOpen(false); query.refresh(); }}
                 role="Student"
             />
@@ -118,7 +131,7 @@ export const StudentDirectory: React.FC = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Select Class</label>
-                        <select 
+                        <select
                             className="w-full p-2 border rounded dark:bg-slate-800 dark:border-slate-700"
                             value={enrollData.classId}
                             onChange={e => setEnrollData({ classId: e.target.value })}
@@ -135,6 +148,36 @@ export const StudentDirectory: React.FC = () => {
                     </div>
                 </div>
             </Modal>
+
+            <AddStudentModal
+                isOpen={isAddModalOpen}
+                onClose={() => { setIsAddModalOpen(false); setSelectedUser(null); }}
+                onSuccess={() => { query.refresh(); addToast('Student saved successfully!', 'success'); }}
+                studentToEdit={selectedUser}
+            />
+
+            <ConfirmDialog
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => { setIsDeleteConfirmOpen(false); setUserToDelete(null); }}
+                onConfirm={async () => {
+                    if (userToDelete) {
+                        try {
+                            await pb.collection('users').delete(userToDelete.id);
+                            addToast('Student deleted successfully', 'success');
+                            query.refresh();
+                        } catch (error) {
+                            addToast('Failed to delete student', 'error');
+                        } finally {
+                            setIsDeleteConfirmOpen(false);
+                            setUserToDelete(null);
+                        }
+                    }
+                }}
+                title="Delete Student?"
+                message={`Are you sure you want to delete ${userToDelete?.name}? This action cannot be undone.`}
+                variant="danger"
+                confirmText="Delete Student"
+            />
 
             <AIContentGeneratorModal
                 isOpen={isAIModalOpen}

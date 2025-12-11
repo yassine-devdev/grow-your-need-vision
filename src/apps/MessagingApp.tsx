@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Icon, Card, Button, Badge, Avatar } from '../components/shared/ui/CommonUI';
-import EmptyState from '../components/shared/EmptyState';
+import { Icon, Card, Button, Badge, Avatar, EmptyState } from '../components/shared/ui/CommonUI';
 import { communicationService, Message } from '../services/communicationService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 import pb from '../lib/pocketbase';

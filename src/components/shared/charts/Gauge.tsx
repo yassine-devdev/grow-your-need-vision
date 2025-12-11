@@ -12,7 +12,8 @@ export const Gauge: React.FC<GaugeProps> = ({ value, label, size = 150, color = 
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * Math.PI; // Half circle
-  const offset = circumference - (value / 100) * circumference;
+  const safeValue = isNaN(value) ? 0 : value;
+  const offset = circumference - (safeValue / 100) * circumference;
 
   return (
     <div className="relative flex flex-col items-center justify-end" style={{ width: size, height: size / 2 + 20 }}>

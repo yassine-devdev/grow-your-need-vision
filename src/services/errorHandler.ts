@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/react";
+
 /**
  * Standardized Error Handling Service
  * Provides consistent error handling across the platform
@@ -196,6 +198,7 @@ class ErrorHandler {
      * Log error (can be extended to send to error tracking service)
      */
     private log(error: AppError): void {
+        // Always log to console, but with different verbosity based on environment
         if (process.env.NODE_ENV === 'development') {
             console.error('[ErrorHandler]', {
                 name: error.name,
@@ -205,12 +208,13 @@ class ErrorHandler {
                 statusCode: error.statusCode,
                 details: error.details
             });
+        } else {
+            // Production logging: minimal info to avoid leaking sensitive details
+            console.error('[ErrorHandler]', `${error.name}: ${error.message} (Code: ${error.code})`);
         }
 
-        // TODO: Send to error tracking service (Sentry, etc.)
-        // if (process.env.NODE_ENV === 'production') {
-        //   Sentry.captureException(error);
-        // }
+        // Future integration: Sentry or other error tracking
+        Sentry.captureException(error);
     }
 
     /**

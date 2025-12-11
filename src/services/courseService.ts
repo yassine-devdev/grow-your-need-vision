@@ -41,7 +41,7 @@ export const courseService = {
             return {
                 ...courseData,
                 title: courseData.name, // Map name to title
-                progress: courseData.progress || Math.floor(Math.random() * 100), // Mock progress for now as it's not in schema
+                progress: courseData.progress || 0,
                 expand: courseData.expand
             } as Course;
         }).filter((c): c is Course => c !== null);

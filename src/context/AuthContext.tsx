@@ -7,10 +7,11 @@ import { RecordModel } from 'pocketbase';
 export interface User extends RecordModel {
   name: string;
   email: string;
-  role: 'Owner' | 'Admin' | 'Teacher' | 'Student' | 'Parent' | 'Individual';
+  role: 'Owner' | 'SchoolAdmin' | 'Teacher' | 'Student' | 'Parent' | 'Individual';
   avatar?: string;
   tenantId?: string; // Link to a School or Organization
   emailVisibility?: boolean;
+  verified: boolean;
 }
 
 interface AuthContextType {
@@ -33,26 +34,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Refresh auth store to ensure we have latest user data (like roles)
     const refreshAuth = async () => {
-        if (pb.authStore.isValid) {
-            try {
-                // Disable auto-cancellation to prevent React Strict Mode double-fetch issues
-                const authData = await pb.collection('users').authRefresh({ requestKey: null });
-                console.log("Auth Refreshed:", authData.record);
-                setUser(authData.record as User);
-            } catch (err) {
-                // Ignore auto-cancellation errors
-                if (err instanceof Error && err.name === 'AbortError') return;
-                // PocketBase specific error check
-                const isAbort = (err as { isAbort?: boolean }).isAbort;
-                if (isAbort) return;
+      if (pb.authStore.isValid) {
+        try {
+          // Disable auto-cancellation to prevent React Strict Mode double-fetch issues
+          const authData = await pb.collection('users').authRefresh({ requestKey: null });
+          setUser(authData.record as User);
+        } catch (err) {
+          // Ignore auto-cancellation errors
+          if (err instanceof Error && err.name === 'AbortError') return;
+          // PocketBase specific error check
+          const isAbort = (err as { isAbort?: boolean }).isAbort;
+          if (isAbort) return;
 
-                console.warn("Session expired or invalid:", err instanceof Error ? err.message : String(err));
-                // If refresh fails (e.g. deleted user), clear auth
-                pb.authStore.clear();
-                setUser(null);
-            }
+          console.warn("Session expired or invalid:", err instanceof Error ? err.message : String(err));
+          // If refresh fails (e.g. deleted user), clear auth
+          pb.authStore.clear();
+          setUser(null);
         }
-        setLoading(false);
+      }
+      setLoading(false);
     };
 
     refreshAuth();

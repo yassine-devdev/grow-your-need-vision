@@ -5,11 +5,13 @@ import { multiverseService } from '../services/multiverseService';
 import { Universe } from '../types/gamification';
 import { LoadingScreen } from '../../../components/shared/LoadingScreen';
 import { Icon } from '../../../components/shared/ui/CommonUI';
+import { useGamification } from '../../../hooks/useGamification';
 
 export const MultiverseMap: React.FC = () => {
     const [universes, setUniverses] = useState<Universe[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+    const { canAccess } = useGamification();
 
     useEffect(() => {
         loadUniverses();
@@ -52,6 +54,7 @@ export const MultiverseMap: React.FC = () => {
                             key={universe.id}
                             universe={universe}
                             index={index}
+                            isLocked={!canAccess(universe.min_level)}
                             onClick={() => navigate(`/apps/edumultiverse/universe/${universe.id}`)}
                         />
                     ))
@@ -97,44 +100,68 @@ export const MultiverseMap: React.FC = () => {
                         </h3>
                         <p className="text-slate-400 text-sm">Trapped in a temporal anomaly. Master the concept to break the cycle.</p>
                     </motion.div>
+
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate('/apps/edumultiverse/quantum-quiz')}
+                        className="bg-purple-900/20 border border-purple-500/30 p-6 rounded-xl cursor-pointer hover:bg-purple-900/40 transition-all group relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-xl font-bold text-purple-400 mb-2 group-hover:translate-x-2 transition-transform flex items-center gap-2">
+                            <Icon name="Brain" className="w-5 h-5" />
+                            QUANTUM QUIZ
+                        </h3>
+                        <p className="text-slate-400 text-sm">Test your knowledge across dimensions. Stabilize the timeline with correct answers.</p>
+                    </motion.div>
                 </div>
             </div>
         </div>
     );
 };
 
-const UniverseCard: React.FC<{ universe: Universe; index: number; onClick: () => void }> = ({ universe, index, onClick }) => {
+const UniverseCard: React.FC<{ universe: Universe; index: number; isLocked: boolean; onClick: () => void }> = ({ universe, index, isLocked, onClick }) => {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: isLocked ? 0.5 : 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(168, 85, 247, 0.4)" }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-700 cursor-pointer relative overflow-hidden group"
-            onClick={onClick}
+            whileHover={!isLocked ? { scale: 1.05, boxShadow: "0 0 25px rgba(168, 85, 247, 0.4)" } : {}}
+            whileTap={!isLocked ? { scale: 0.95 } : {}}
+            className={`bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border ${isLocked ? 'border-slate-700 cursor-not-allowed grayscale' : 'border-slate-700 cursor-pointer'} relative overflow-hidden group`}
+            onClick={!isLocked ? onClick : undefined}
         >
             <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity transform group-hover:rotate-12 duration-500">
                 <span className="text-6xl filter grayscale group-hover:grayscale-0 transition-all">{universe.icon}</span>
             </div>
 
             <div className="relative z-10">
-                <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold mb-4 uppercase tracking-wider ${universe.type === 'SchoolClass' ? 'bg-blue-900/50 text-blue-300 border border-blue-500/30' : 'bg-emerald-900/50 text-emerald-300 border border-emerald-500/30'
-                    }`}>
-                    {universe.type === 'SchoolClass' ? 'Class Reality' : 'Solo Track'}
-                </span>
+                <div className="flex justify-between items-start mb-4">
+                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${universe.type === 'SchoolClass' ? 'bg-blue-900/50 text-blue-300 border border-blue-500/30' : 'bg-emerald-900/50 text-emerald-300 border border-emerald-500/30'
+                        }`}>
+                        {universe.type === 'SchoolClass' ? 'Class Reality' : 'Solo Track'}
+                    </span>
+                    {isLocked && (
+                        <span className="bg-red-900/50 text-red-300 border border-red-500/30 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1">
+                            <Icon name="LockClosedIcon" className="w-3 h-3" />
+                            LVL {universe.min_level}
+                        </span>
+                    )}
+                </div>
 
                 <h3 className="text-2xl font-bold mb-2 text-white group-hover:text-cyan-300 transition-colors">{universe.name}</h3>
                 <p className="text-slate-400 mb-6 text-sm line-clamp-2">{universe.description}</p>
 
                 <div className="flex items-center justify-between mt-4 border-t border-slate-700 pt-4">
                     <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">Online</span>
+                        <div className={`w-2 h-2 rounded-full ${isLocked ? 'bg-red-500' : 'bg-green-400 animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]'}`}></div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">{isLocked ? 'Locked' : 'Online'}</span>
                     </div>
-                    <span className="text-cyan-400 text-xs font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                        ENTER <Icon name="ArrowRight" className="w-3 h-3" />
-                    </span>
+                    {!isLocked && (
+                        <span className="text-cyan-400 text-xs font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                            ENTER <Icon name="ArrowRight" className="w-3 h-3" />
+                        </span>
+                    )}
                 </div>
             </div>
         </motion.div>

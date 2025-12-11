@@ -1,6 +1,17 @@
-import PocketBase from 'pocketbase';
+import pb from '../lib/pocketbase';
+import { RecordModel } from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+export interface Activity extends RecordModel {
+    title: string;
+    description?: string;
+    date?: string;
+    location?: string;
+    type?: string;
+    participants?: string[];
+    maxParticipants?: number;
+    cost?: number;
+    organizer?: string;
+}
 
 export const activityService = {
     // Local Activities
@@ -20,7 +31,7 @@ export const activityService = {
         });
     },
 
-    createActivity: async (data: any) => {
+    createActivity: async (data: Partial<Activity>) => {
         return await pb.collection('activities').create(data);
     }
 };

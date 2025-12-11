@@ -14,10 +14,10 @@ export const storageQuotaService = {
         try {
             // In a real app, this would be a field on the user record or a separate collection
             // For now, we'll fetch the user and look for a 'storage_used' field, 
-            // or default to a random value for demo purposes if not present.
+            // or default to 0 if not present.
             const user = await pb.collection('users').getOne(userId);
             
-            const used = user.storage_used || 450 * 1024 * 1024; // Default mock: 450MB
+            const used = user.storage_used || 0; // Default: 0 bytes
             const total = user.storage_limit || 1024 * 1024 * 1024; // Default limit: 1GB
 
             return {

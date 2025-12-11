@@ -70,8 +70,6 @@ export interface OwnerDashboardData {
 
 class OwnerService {
     async getDashboardData(): Promise<OwnerDashboardData> {
-        console.log("OwnerService: Starting optimized data fetch...");
-        
         // Initialize default values
         let activeTenantsCount = 0;
         let suspendedTenantsCount = 0;
@@ -81,9 +79,9 @@ class OwnerService {
         let revenueHistory: ChartDataPoint[] = [];
         let tenantGrowth: ChartDataPoint[] = [];
         let combinedActivity: AuditLog[] = [];
-        let topVisitedPages: any[] = [];
-        let topUserAccess: any[] = [];
-        let expensesByCategory: any[] = [];
+        let topVisitedPages: { label: string; value: number; color: string; subLabel?: string }[] = [];
+        let topUserAccess: { label: string; value: number; color: string }[] = [];
+        let expensesByCategory: { label: string; value: number; color: string; percentage: number }[] = [];
 
         try {
             // --- New Analytics Fetching ---
@@ -131,11 +129,14 @@ class OwnerService {
                 // New Tenants this month
                 const now = new Date();
                 const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().replace('T', ' ');
-                const newTenantsResult = await pb.collection('tenants').getList(1, 1, {
+                
+                // OPTIMIZED: Fetch count directly using filter
+                const newTenantsList = await pb.collection('tenants').getList(1, 1, {
                     filter: `created >= "${firstDayOfMonth}"`,
-                    requestKey: null
+                    requestKey: null,
+                    count: true
                 });
-                newTenantsCount = newTenantsResult.totalItems;
+                newTenantsCount = newTenantsList.totalItems;
             } catch (e) {
                 console.error("Error fetching tenant metrics:", e);
             }
@@ -157,11 +158,13 @@ class OwnerService {
 
             // 3. Alerts
             try {
-                const allAlerts = await pb.collection('system_alerts').getList<SystemAlert>(1, 5, {
+                // OPTIMIZED: Fetch latest 5 alerts sorted by created
+                const recentAlerts = await pb.collection('system_alerts').getList<SystemAlert>(1, 5, {
                     sort: '-created',
                     requestKey: null
                 });
-                alerts = allAlerts.items.map(a => ({
+                
+                alerts = recentAlerts.items.map(a => ({
                     ...a,
                     timestamp: a.created
                 }));
@@ -210,35 +213,40 @@ class OwnerService {
 
             // 5. Tenant Growth (Last 6 Months)
             try {
-                const allTenants = await pb.collection('tenants').getFullList<Tenant>({
-                    // Removed 'fields' optimization to be safe
-                    requestKey: null
-                });
-
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                
+                const growthPromises = [];
                 for (let i = 5; i >= 0; i--) {
                     const d = new Date();
                     d.setMonth(d.getMonth() - i);
                     const monthLabel = monthNames[d.getMonth()];
                     const year = d.getFullYear();
-                    const monthEnd = new Date(year, d.getMonth() + 1, 0);
+                    const monthEnd = new Date(year, d.getMonth() + 1, 0).toISOString().replace('T', ' ');
 
-                    const count = allTenants.filter(t => new Date(t.created) <= monthEnd).length;
-                    tenantGrowth.push({
-                        label: monthLabel,
-                        value: count
-                    });
+                    growthPromises.push(
+                        pb.collection('tenants').getList(1, 1, {
+                            filter: `created <= "${monthEnd}"`,
+                            requestKey: null,
+                            count: true
+                        }).then(res => ({
+                            label: monthLabel,
+                            value: res.totalItems
+                        }))
+                    );
                 }
+                
+                tenantGrowth = await Promise.all(growthPromises);
             } catch (e) {
                 console.error("Error fetching tenant growth:", e);
             }
 
             // 6. Activity Feed
             try {
-                const recentTenantsResult = await pb.collection('tenants').getList(1, 5, { sort: '-created', requestKey: null });
-                const recentInvoicesResult = await pb.collection('invoices').getList(1, 5, { sort: '-created', requestKey: null });
+                // WORKAROUND: Fetch all records and sort in memory because 'created' sort is failing
+                const allTenants = await pb.collection('tenants').getFullList({ requestKey: null });
+                const allInvoices = await pb.collection('invoices').getFullList({ requestKey: null });
 
-                const recentTenantsLogs = recentTenantsResult.items.map(t => ({
+                const recentTenantsLogs = allTenants.map(t => ({
                     id: t.id,
                     collectionId: t.collectionId,
                     collectionName: t.collectionName,
@@ -251,7 +259,7 @@ class OwnerService {
                     module: 'Tenants'
                 }));
 
-                const recentInvoicesLogs = recentInvoicesResult.items.map(i => ({
+                const recentInvoicesLogs = allInvoices.map(i => ({
                     id: i.id,
                     collectionId: i.collectionId,
                     collectionName: i.collectionName,
@@ -375,15 +383,18 @@ class OwnerService {
     // --- Analytics & Finance ---
 
     async getTopVisitedPages(): Promise<RecordModel[]> {
-        return await pb.collection('analytics_pages').getFullList({ sort: '-visitors' });
+        const res = await pb.collection('analytics_pages').getList(1, 10, { sort: '-visitors' });
+        return res.items;
     }
 
     async getTopUserAccess(): Promise<RecordModel[]> {
-        return await pb.collection('analytics_sources').getFullList({ sort: '-visitors' });
+        const res = await pb.collection('analytics_sources').getList(1, 10, { sort: '-visitors' });
+        return res.items;
     }
 
     async getExpensesByCategory(): Promise<RecordModel[]> {
-        return await pb.collection('finance_expenses').getFullList({ sort: '-amount' });
+        const res = await pb.collection('finance_expenses').getList(1, 10, { sort: '-amount' });
+        return res.items;
     }
 }
 

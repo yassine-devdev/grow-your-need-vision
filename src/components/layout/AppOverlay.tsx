@@ -29,6 +29,7 @@ interface OverlayProps {
 const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
   const [activeTab, setActiveTab] = useState<string>('');
   const [activeSubNav, setActiveSubNav] = useState<string>('');
+  const { minimizeAppByName } = useOS();
   
   // In the future, useOS could provide window state here
   // const { windows } = useOS();
@@ -125,6 +126,7 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
                   {/* Right: Window Controls */}
                   <div className="flex items-center justify-end gap-2 w-80 z-50">
                       <button 
+                        onClick={() => appName && minimizeAppByName(appName)}
                         className="w-9 h-9 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-700 flex items-center justify-center transition-all border border-transparent hover:border-gray-300"
                         title="Minimize Application"
                       >

@@ -19,7 +19,8 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
+  const safePercentage = isNaN(percentage) ? 0 : percentage;
+  const offset = circumference - (safePercentage / 100) * circumference;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>

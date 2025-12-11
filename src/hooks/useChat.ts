@@ -191,7 +191,7 @@ export const useChat = (context?: string) => {
                 }
             }
 
-            // 2. Call AI Service (Mock for now if URL not set)
+            // 2. Call AI Service
             const apiUrl = import.meta.env.VITE_AI_SERVICE_URL;
             let aiContent = "";
             const userRole = pb.authStore.model?.role || 'user';
@@ -245,7 +245,6 @@ export const useChat = (context?: string) => {
                 }
             } else {
                 // Local Command Handler (when AI service is offline)
-                await new Promise(resolve => setTimeout(resolve, 500)); // Simulate processing
                 aiContent = await LocalIntelligence.process(content, context || 'General', pb.authStore.model?.id || '', userRole);
             }
 

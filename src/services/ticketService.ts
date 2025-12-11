@@ -44,10 +44,25 @@ export const ticketService = {
         const open = tickets.filter(t => t.status === 'Open').length;
         const critical = tickets.filter(t => t.priority === 'Critical' && t.status !== 'Resolved').length;
         
+        // Calculate average response time for resolved tickets
+        const resolvedTickets = tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed');
+        let avgResponseTime = 'N/A';
+
+        if (resolvedTickets.length > 0) {
+            const totalTimeMs = resolvedTickets.reduce((acc, t) => {
+                const created = new Date(t.created).getTime();
+                const updated = new Date(t.updated).getTime();
+                return acc + (updated - created);
+            }, 0);
+            
+            const avgHours = totalTimeMs / resolvedTickets.length / (1000 * 60 * 60);
+            avgResponseTime = `${avgHours.toFixed(1)}h`;
+        }
+        
         return {
             open,
             critical,
-            avgResponseTime: '2.4h' // Placeholder calculation
+            avgResponseTime
         };
     }
 };

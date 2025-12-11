@@ -4,6 +4,7 @@ import { multiverseService } from '../services/multiverseService';
 import { Glitch } from '../types/gamification';
 import { useAuth } from '../../../context/AuthContext';
 import { LoadingScreen } from '../../../components/shared/LoadingScreen';
+import { Icon } from '../../../components/shared/ui/CommonUI';
 
 export const GlitchHunter: React.FC = () => {
     const { user } = useAuth();
@@ -55,11 +56,19 @@ export const GlitchHunter: React.FC = () => {
 
             <header className="flex justify-between items-center mb-12 border-b border-green-900 pb-4 relative z-10">
                 <div>
-                    <h1 className="text-4xl font-bold glitch-text tracking-tighter">GLITCH HUNTER_</h1>
-                    <p className="text-sm opacity-70 mt-1">SYSTEM INTEGRITY: {Math.min(100, 60 + fixedCount * 10)}%</p>
+                    <h1 className="text-4xl font-bold glitch-text tracking-tighter flex items-center gap-3">
+                        <Icon name="CommandLineIcon" className="w-10 h-10 text-green-500" />
+                        GLITCH HUNTER_
+                    </h1>
+                    <p className="text-sm opacity-70 mt-1 flex items-center gap-2">
+                        <Icon name="ShieldCheckIcon" className="w-4 h-4" />
+                        SYSTEM INTEGRITY: {Math.min(100, 60 + fixedCount * 10)}%
+                    </p>
                 </div>
                 <div className="text-right">
-                    <div className="text-3xl font-bold text-green-500">{fixedCount} FIXED</div>
+                    <div className="text-3xl font-bold text-green-500 flex items-center justify-end gap-2">
+                        {fixedCount} <span className="text-sm text-green-700">FIXED</span>
+                    </div>
                     <div className="text-xs tracking-widest opacity-60">PATCHES APPLIED</div>
                 </div>
             </header>
@@ -82,24 +91,29 @@ export const GlitchHunter: React.FC = () => {
                                 </div>
 
                                 <div className="flex justify-between mb-4">
-                                    <span className="text-xs border border-green-500/30 px-2 py-1 rounded bg-black/40">
-                                        ERR_CODE_{glitch.id.slice(0, 4).toUpperCase()}
+                                    <span className="text-xs border border-green-500/30 px-2 py-1 rounded bg-black/40 font-mono">
+                                        ERR_{glitch.id.slice(0, 4).toUpperCase()}
                                     </span>
-                                    <span className="text-red-500 animate-pulse font-bold text-xs">⚠ UNSTABLE</span>
+                                    <span className="text-red-500 animate-pulse font-bold text-xs flex items-center gap-1">
+                                        <Icon name="ExclamationCircleIcon" className="w-3 h-3" />
+                                        UNSTABLE
+                                    </span>
                                 </div>
                                 <h3 className="text-xl font-bold mb-2 group-hover:underline text-green-300">{glitch.title}</h3>
                                 <div className="bg-black/50 p-3 rounded text-sm font-mono text-red-300 mb-4 border-l-2 border-red-500/50">
                                     {glitch.broken_content}
                                 </div>
-                                <button className="w-full py-2 bg-green-900/30 border border-green-500/50 hover:bg-green-500 hover:text-black transition-colors uppercase text-sm font-bold tracking-wider">
+                                <button className="w-full py-2 bg-green-900/30 border border-green-500/50 hover:bg-green-500 hover:text-black transition-colors uppercase text-sm font-bold tracking-wider flex items-center justify-center gap-2">
+                                    <Icon name="WrenchScrewdriverIcon" className="w-4 h-4" />
                                     Initialize Patch
                                 </button>
                             </motion.div>
                         ))
                     ) : (
-                        <div className="col-span-full text-center py-20 border border-green-900/30 rounded-lg bg-green-900/5">
-                            <h3 className="text-2xl font-bold text-green-600 mb-2">SYSTEM STABLE</h3>
-                            <p className="text-green-800/70">No active anomalies detected. Good work, Hunter.</p>
+                        <div className="col-span-full text-center py-20 border border-green-900/30 rounded-lg bg-green-900/5 flex flex-col items-center">
+                            <Icon name="CheckCircleIcon" className="w-16 h-16 text-green-500/50 mb-4" />
+                            <h3 className="text-xl text-green-500">ALL SYSTEMS NOMINAL</h3>
+                            <p className="text-green-700">No active glitches detected in this sector.</p>
                         </div>
                     )}
                 </AnimatePresence>

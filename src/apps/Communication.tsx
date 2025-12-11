@@ -1,289 +1,406 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Card, Badge, Avatar, Modal, Icon } from '../components/shared/ui/CommonUI';
-import EmptyState from '../components/shared/EmptyState';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button, Card, Badge, Avatar, Modal, Icon, EmptyState } from '../components/shared/ui/CommonUI';
+import { Skeleton } from '../components/shared/ui/Skeleton';
 import pb from '../lib/pocketbase';
 import { communicationService, Message, SocialPost } from '../services/communicationService';
 import { communityService, Post } from '../services/communityService';
+import { useToast } from '../hooks/useToast';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface CommunicationProps {
-  activeTab: string;
-  activeSubNav: string;
+    activeTab: string;
+    activeSubNav: string;
+}
+
+interface UserSearchResult {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
 }
 
 const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+    const { addToast } = useToast();
+    const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+    const [isComposeOpen, setIsComposeOpen] = useState(false);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  // Compose state
-  const [toEmail, setToEmail] = useState('');
-  const [subject, setSubject] = useState(''); 
-  const [content, setContent] = useState('');
+    // Compose state
+    const [toEmail, setToEmail] = useState('');
+    const [recipientId, setRecipientId] = useState('');
+    const [subject, setSubject] = useState('');
+    const [content, setContent] = useState('');
 
-  // Handle Compose subnav action
-  useEffect(() => {
-      if (activeSubNav === 'Compose') {
-          setIsComposeOpen(true);
-      }
-  }, [activeSubNav]);
+    // User Search State
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const debouncedSearch = useDebounce(toEmail, 300);
+    const searchRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-      const fetchMessages = async () => {
-          setLoading(true);
-          try {
-              const userId = pb.authStore.model?.id;
-              if (!userId) {
-                  setMessages([]);
-                  return;
-              }
+    // Handle outside click for suggestions
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-              // Map folder to service type
-              let type: 'inbox' | 'sent' | 'archived' | 'starred' | 'trash' = 'inbox';
-              if (activeSubNav === 'Sent') type = 'sent';
-              else if (activeSubNav === 'Starred') type = 'starred';
-              else if (activeSubNav === 'Archive') type = 'archived';
-              else if (activeSubNav === 'Trash') type = 'trash';
-              else if (activeSubNav === 'Spam') type = 'trash'; // Map spam to trash for now
+    // Search Users Effect
+    useEffect(() => {
+        const searchUsers = async () => {
+            if (!debouncedSearch || recipientId) return; // Don't search if we already selected a user or empty
 
-              const result = await communicationService.getMessages(userId, type);
-              setMessages(result.items);
-          } catch (err) {
-              console.error("Error fetching messages:", err);
-          } finally {
-              setLoading(false);
-          }
-      };
+            setIsSearching(true);
+            try {
+                const result = await communicationService.searchUsers(debouncedSearch);
+                setSearchResults(result.items.map(u => ({
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    avatar: u.avatar
+                })));
+                setShowSuggestions(true);
+            } catch (error) {
+                console.error("Search failed", error);
+            } finally {
+                setIsSearching(false);
+            }
+        };
 
-      fetchMessages();
-      
-      // Real-time subscription
-      pb.collection('messages').subscribe('*', function (e) {
-          fetchMessages();
-      });
+        if (debouncedSearch.length > 1) {
+            searchUsers();
+        } else {
+            setSearchResults([]);
+            setShowSuggestions(false);
+        }
+    }, [debouncedSearch, recipientId]);
 
-      return () => {
-          pb.collection('messages').unsubscribe('*');
-      };
-  }, [activeSubNav]);
+    const selectRecipient = (user: UserSearchResult) => {
+        setToEmail(user.email);
+        setRecipientId(user.id);
+        setShowSuggestions(false);
+    };
 
-  const handleSend = async () => {
-      try {
-          const currentUser = pb.authStore.model;
-          if (!currentUser) return;
+    const handleToChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setToEmail(e.target.value);
+        setRecipientId(''); // Reset ID if user types manually
+    };
 
-          // Find recipient by email (simplified)
-          let recipientId = '';
-          try {
-              const user = await communicationService.findUserByEmail(toEmail);
-              recipientId = user.id;
-          } catch (e) {
-              alert('Recipient not found');
-              return;
-          }
+    // Handle Compose subnav action
+    useEffect(() => {
+        if (activeSubNav === 'Compose') {
+            setIsComposeOpen(true);
+        }
+    }, [activeSubNav]);
 
-          await communicationService.sendMessage({
-              sender: currentUser.id,
-              recipient: recipientId,
-              content: `Subject: ${subject}\n\n${content}`, 
-              read_at: undefined
-          });
-          
-          setIsComposeOpen(false);
-          setToEmail('');
-          setSubject('');
-          setContent('');
-          
-          // Refresh if we are in Sent
-          if (activeSubNav === 'Sent') {
-              // trigger fetch
-          }
-      } catch (e) {
-          console.error(e);
-          alert('Failed to send message');
-      }
-  };
+    useEffect(() => {
+        const fetchMessages = async () => {
+            setLoading(true);
+            try {
+                const userId = pb.authStore.model?.id;
+                if (!userId) {
+                    setMessages([]);
+                    return;
+                }
 
-  // Helper to get sender name safely
-  const getSenderName = (msg: Message) => {
-      return msg.expand?.sender?.name || msg.expand?.sender?.email || 'Unknown Sender';
-  };
+                // Map folder to service type
+                let type: 'inbox' | 'sent' | 'archived' | 'starred' | 'trash' = 'inbox';
+                if (activeSubNav === 'Sent') type = 'sent';
+                else if (activeSubNav === 'Starred') type = 'starred';
+                else if (activeSubNav === 'Archive') type = 'archived';
+                else if (activeSubNav === 'Trash') type = 'trash';
+                else if (activeSubNav === 'Spam') type = 'trash'; // Map spam to trash for now
 
-  // Extract subject from content hack
-  const getSubject = (content: string) => {
-      const match = content.match(/^Subject: (.*?)(\n|$)/);
-      return match ? match[1] : '(No Subject)';
-  };
+                const result = await communicationService.getMessages(userId, type);
+                setMessages(result.items);
+            } catch (err) {
+                console.error("Error fetching messages:", err);
+                addToast("Failed to load messages", 'error');
+            } finally {
+                setLoading(false);
+            }
+        };
 
-  const getBody = (content: string) => {
-      return content.replace(/^Subject: .*?(\n|$)/, '').trim();
-  };
+        fetchMessages();
 
-  const isEmpty = !loading && messages.length === 0;
+        // Real-time subscription
+        pb.collection('messages').subscribe('*', function (e) {
+            fetchMessages();
+        });
 
-  return (
-    <div className="h-full flex gap-6 overflow-hidden animate-fadeIn relative">
-       
-       {/* Main Content - Split Pane Glass */}
-       <div className={`flex-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-glass-edge flex flex-col overflow-hidden relative transition-all duration-300 ${selectedMessage ? 'hidden lg:flex' : 'flex'}`}>
-           {/* Header */}
-           <div className="h-16 border-b border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center px-6 shrink-0 backdrop-blur-md z-10">
-               <div className="flex items-center gap-4">
-                   <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-black text-gyn-blue-dark dark:text-blue-400">Email</h2>
-                        <span className="text-gray-300 dark:text-slate-600 text-xl font-light">/</span>
-                        <h3 className="text-lg font-bold text-gray-600 dark:text-slate-300">{activeSubNav || 'Inbox'}</h3>
-                   </div>
-                   
-                   <Button 
-                        variant="primary"
-                        onClick={() => setIsComposeOpen(true)}
-                        icon="PencilIcon"
-                   >
-                        Compose
-                   </Button>
-               </div>
-               <div className="relative group">
-                   <input type="text" placeholder="Search messages..." className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-gyn-blue-medium/20 focus:border-gyn-blue-medium transition-all dark:text-white" />
-                   <Icon name="SearchIcon" className="w-4 h-4 text-gray-400 absolute right-3 top-2.5" />
-               </div>
-           </div>
-           
-           {/* Message List */}
-           <div className="flex-1 overflow-y-auto no-scrollbar">
-               {loading ? (
-                   <div className="p-10 text-center text-gray-400">Loading messages...</div>
-               ) : isEmpty ? (
-                   <EmptyState 
-                        title={`No ${activeSubNav} Messages`}
-                        description="This folder is empty. New messages will appear here."
-                        icon="Envelope"
-                        className="mt-12"
-                   />
-               ) : (
-                   messages.map(msg => {
-                       const senderName = getSenderName(msg);
-                       const isRead = !!msg.read_at;
-                       return (
-                       <div 
-                            key={msg.id} 
-                            onClick={() => {
-                                setSelectedMessage(msg);
-                                if (!msg.read_at && activeSubNav === 'Inbox') {
-                                    communicationService.markMessageRead(msg.id);
-                                }
-                            }}
-                            className={`group border-b border-gray-50 dark:border-slate-700 p-5 hover:bg-white dark:hover:bg-slate-700 transition-all cursor-pointer relative overflow-hidden ${!isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+        return () => {
+            pb.collection('messages').unsubscribe('*');
+        };
+    }, [activeSubNav]);
+
+    const handleSend = async () => {
+        try {
+            const currentUser = pb.authStore.model;
+            if (!currentUser) return;
+
+            let finalRecipientId = recipientId;
+
+            // If no ID selected but email provided, try to find exact match
+            if (!finalRecipientId && toEmail) {
+                try {
+                    const user = await communicationService.findUserByEmail(toEmail);
+                    finalRecipientId = user.id;
+                } catch (e) {
+                    addToast(`Recipient with email ${toEmail} not found`, 'error');
+                    return;
+                }
+            }
+
+            if (!finalRecipientId) {
+                addToast('Please specify a valid recipient', 'warning');
+                return;
+            }
+
+            await communicationService.sendMessage({
+                sender: currentUser.id,
+                recipient: finalRecipientId,
+                content: `Subject: ${subject}\n\n${content}`,
+                read_at: undefined
+            });
+
+            addToast('Message sent successfully', 'success');
+            setIsComposeOpen(false);
+            setToEmail('');
+            setRecipientId('');
+            setSubject('');
+            setContent('');
+
+            // Refresh if we are in Sent
+            if (activeSubNav === 'Sent') {
+                // trigger fetch
+            }
+        } catch (e) {
+            console.error(e);
+            addToast('Failed to send message', 'error');
+        }
+    };
+
+    // Helper to get sender name safely
+    const getSenderName = (msg: Message) => {
+        return msg.expand?.sender?.name || msg.expand?.sender?.email || 'Unknown Sender';
+    };
+
+    // Extract subject from content
+    const getSubject = (content: string) => {
+        const match = content.match(/^Subject: (.*?)(\n|$)/);
+        return match ? match[1] : '(No Subject)';
+    };
+
+    const getBody = (content: string) => {
+        return content.replace(/^Subject: .*?(\n|$)/, '').trim();
+    };
+
+    const isEmpty = !loading && messages.length === 0;
+
+    return (
+        <div className="h-full flex gap-6 overflow-hidden animate-fadeIn relative">
+
+            {/* Main Content - Split Pane Glass */}
+            <div className={`flex-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-glass-edge flex flex-col overflow-hidden relative transition-all duration-300 ${selectedMessage ? 'hidden lg:flex' : 'flex'}`}>
+                {/* Header */}
+                <div className="h-16 border-b border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center px-6 shrink-0 backdrop-blur-md z-10">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xl font-black text-gyn-blue-dark dark:text-blue-400">Email</h2>
+                            <span className="text-gray-300 dark:text-slate-600 text-xl font-light">/</span>
+                            <h3 className="text-lg font-bold text-gray-600 dark:text-slate-300">{activeSubNav || 'Inbox'}</h3>
+                        </div>
+
+                        <Button
+                            variant="primary"
+                            onClick={() => setIsComposeOpen(true)}
+                            icon="PencilIcon"
                         >
-                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gyn-blue-medium scale-y-0 group-hover:scale-y-100 transition-transform duration-300"></div>
-                           
-                           <div className="flex gap-4 items-start relative z-10">
-                               {/* Avatar */}
-                               <Avatar initials={senderName.charAt(0)} size="md" />
-                               
-                               <div className="flex-1 min-w-0">
-                                   <div className="flex justify-between items-baseline mb-1">
-                                       <h4 className={`text-sm font-bold group-hover:text-gyn-blue-dark dark:group-hover:text-blue-400 transition-colors ${!isRead ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-slate-300'}`}>{senderName}</h4>
-                                       <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-slate-800 px-2 py-0.5 rounded-full group-hover:bg-white dark:group-hover:bg-slate-600 group-hover:shadow-sm transition-all">
-                                           {new Date(msg.created).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                       </span>
-                                   </div>
-                                   <p className={`text-sm font-bold mb-1 ${!isRead ? 'text-gray-800 dark:text-slate-200' : 'text-gray-500 dark:text-slate-400'}`}>{getSubject(msg.content)}</p>
-                                   <p className="text-xs text-gray-400 line-clamp-1 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors">
-                                       {getBody(msg.content)}
-                                   </p>
-                               </div>
-                           </div>
-                       </div>
-                   )})
-               )}
-           </div>
-       </div>
+                            Compose
+                        </Button>
+                    </div>
+                    <div className="relative group">
+                        <input type="text" placeholder="Search messages..." className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-gyn-blue-medium/20 focus:border-gyn-blue-medium transition-all dark:text-white" />
+                        <Icon name="SearchIcon" className="w-4 h-4 text-gray-400 absolute right-3 top-2.5" />
+                    </div>
+                </div>
 
-       {/* Reading Pane (Overlay on Mobile, Side on Desktop) */}
-       {selectedMessage && (
-           <div className="absolute inset-0 lg:static lg:w-[500px] lg:shrink-0 bg-white/80 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-2xl lg:shadow-glass-edge flex flex-col z-20 animate-slideInRight">
-               <div className="h-16 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between px-6 shrink-0 bg-white/50 dark:bg-slate-800/50">
-                   <div className="flex gap-2">
-                       <button onClick={() => setSelectedMessage(null)} className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400"><Icon name="ArrowLeftIcon" className="w-5 h-5" /></button>
-                       <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Archive"><Icon name="ArchiveBoxIcon" className="w-5 h-5" /></button>
-                       <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Delete"><Icon name="TrashIcon" className="w-5 h-5" /></button>
-                   </div>
-                   <div className="flex gap-2">
-                       <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Reply"><Icon name="ArrowUturnLeftIcon" className="w-5 h-5" /></button>
-                       <button onClick={() => setSelectedMessage(null)} className="hidden lg:block p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400"><Icon name="XMarkIcon" className="w-5 h-5" /></button>
-                   </div>
-               </div>
-               
-               <div className="flex-1 overflow-y-auto p-8">
-                   <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-6">{getSubject(selectedMessage.content)}</h2>
-                   
-                   <div className="flex items-center gap-4 mb-8">
-                       <Avatar initials={getSenderName(selectedMessage).charAt(0)} size="lg" />
-                       <div>
-                           <div className="font-bold text-gray-900 dark:text-white">{getSenderName(selectedMessage)}</div>
-                           <div className="text-xs text-gray-500 dark:text-slate-400">to me • {new Date(selectedMessage.created).toLocaleString()}</div>
-                       </div>
-                   </div>
-                   
-                   <div className="prose prose-sm max-w-none text-gray-600 dark:text-slate-300 whitespace-pre-line">
-                       {getBody(selectedMessage.content)}
-                   </div>
-                   
-                   <div className="mt-8 pt-8 border-t border-gray-100 dark:border-slate-700">
-                       <Button variant="outline" icon="ArrowUturnLeftIcon">
-                           Reply to {getSenderName(selectedMessage)}
-                       </Button>
-                   </div>
-               </div>
-           </div>
-       )}
+                {/* Message List */}
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                    {loading ? (
+                        <div className="p-5 space-y-4">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <div key={i} className="flex gap-4 p-4 border border-gray-100 dark:border-slate-700 rounded-xl">
+                                    <Skeleton className="w-10 h-10 rounded-full" />
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="w-1/3 h-4" />
+                                        <Skeleton className="w-1/2 h-3" />
+                                        <Skeleton className="w-full h-12" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : isEmpty ? (
+                        <EmptyState
+                            title={`No ${activeSubNav} Messages`}
+                            description="This folder is empty. New messages will appear here."
+                            icon="Envelope"
+                            className="mt-12"
+                        />
+                    ) : (
+                        messages.map(msg => {
+                            const senderName = getSenderName(msg);
+                            const isRead = !!msg.read_at;
+                            return (
+                                <div
+                                    key={msg.id}
+                                    onClick={() => {
+                                        setSelectedMessage(msg);
+                                        if (!msg.read_at && activeSubNav === 'Inbox') {
+                                            communicationService.markMessageRead(msg.id);
+                                        }
+                                    }}
+                                    className={`group border-b border-gray-50 dark:border-slate-700 p-5 hover:bg-white dark:hover:bg-slate-700 transition-all cursor-pointer relative overflow-hidden ${!isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                                >
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gyn-blue-medium scale-y-0 group-hover:scale-y-100 transition-transform duration-300"></div>
 
-       {/* Compose Modal */}
-       <Modal
-           isOpen={isComposeOpen}
-           onClose={() => setIsComposeOpen(false)}
-           title="New Message"
-           size="lg"
-       >
-           <div className="flex flex-col gap-4">
-               <input 
-                    type="text" 
-                    placeholder="To (Email):" 
-                    value={toEmail}
-                    onChange={e => setToEmail(e.target.value)}
-                    className="w-full border-b border-gray-200 dark:border-slate-700 py-2 focus:outline-none focus:border-gyn-blue-medium font-medium bg-transparent dark:text-white" 
-                />
-               <input 
-                    type="text" 
-                    placeholder="Subject:" 
-                    value={subject}
-                    onChange={e => setSubject(e.target.value)}
-                    className="w-full border-b border-gray-200 dark:border-slate-700 py-2 focus:outline-none focus:border-gyn-blue-medium font-bold bg-transparent dark:text-white" 
-                />
-               <textarea 
-                    value={content}
-                    onChange={e => setContent(e.target.value)}
-                    className="w-full flex-1 min-h-[150px] resize-none focus:outline-none text-gray-600 dark:text-slate-300 bg-transparent" 
-                    placeholder="Write your message..."
-                ></textarea>
-                
-                <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-slate-700">
-                   <div className="flex gap-2 text-gray-400">
-                       <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"><Icon name="PaperClipIcon" className="w-5 h-5" /></button>
-                       <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"><Icon name="PhotoIcon" className="w-5 h-5" /></button>
-                   </div>
-                   <div className="flex gap-3">
-                       <Button variant="ghost" onClick={() => setIsComposeOpen(false)}>Discard</Button>
-                       <Button variant="primary" onClick={handleSend}>Send</Button>
-                   </div>
-               </div>
-           </div>
-       </Modal>
+                                    <div className="flex gap-4 items-start relative z-10">
+                                        {/* Avatar */}
+                                        <Avatar initials={senderName.charAt(0)} size="md" />
 
-    </div>
-  );
-};const SocialMediaView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-baseline mb-1">
+                                                <h4 className={`text-sm font-bold group-hover:text-gyn-blue-dark dark:group-hover:text-blue-400 transition-colors ${!isRead ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-slate-300'}`}>{senderName}</h4>
+                                                <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-slate-800 px-2 py-0.5 rounded-full group-hover:bg-white dark:group-hover:bg-slate-600 group-hover:shadow-sm transition-all">
+                                                    {new Date(msg.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <p className={`text-sm font-bold mb-1 ${!isRead ? 'text-gray-800 dark:text-slate-200' : 'text-gray-500 dark:text-slate-400'}`}>{getSubject(msg.content)}</p>
+                                            <p className="text-xs text-gray-400 line-clamp-1 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors">
+                                                {getBody(msg.content)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })
+                    )}
+                </div>
+            </div>
+
+            {/* Reading Pane (Overlay on Mobile, Side on Desktop) */}
+            {selectedMessage && (
+                <div className="absolute inset-0 lg:static lg:w-[500px] lg:shrink-0 bg-white/80 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-2xl lg:shadow-glass-edge flex flex-col z-20 animate-slideInRight">
+                    <div className="h-16 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between px-6 shrink-0 bg-white/50 dark:bg-slate-800/50">
+                        <div className="flex gap-2">
+                            <button onClick={() => setSelectedMessage(null)} className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400"><Icon name="ArrowLeftIcon" className="w-5 h-5" /></button>
+                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Archive"><Icon name="ArchiveBoxIcon" className="w-5 h-5" /></button>
+                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Delete"><Icon name="TrashIcon" className="w-5 h-5" /></button>
+                        </div>
+                        <div className="flex gap-2">
+                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Reply"><Icon name="ArrowUturnLeftIcon" className="w-5 h-5" /></button>
+                            <button onClick={() => setSelectedMessage(null)} className="hidden lg:block p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400"><Icon name="XMarkIcon" className="w-5 h-5" /></button>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-8">
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-6">{getSubject(selectedMessage.content)}</h2>
+
+                        <div className="flex items-center gap-4 mb-8">
+                            <Avatar initials={getSenderName(selectedMessage).charAt(0)} size="lg" />
+                            <div>
+                                <div className="font-bold text-gray-900 dark:text-white">{getSenderName(selectedMessage)}</div>
+                                <div className="text-xs text-gray-500 dark:text-slate-400">to me • {new Date(selectedMessage.created).toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        <div className="prose prose-sm max-w-none text-gray-600 dark:text-slate-300 whitespace-pre-line">
+                            {getBody(selectedMessage.content)}
+                        </div>
+
+                        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-slate-700">
+                            <Button variant="outline" icon="ArrowUturnLeftIcon">
+                                Reply to {getSenderName(selectedMessage)}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Compose Modal */}
+            <Modal
+                isOpen={isComposeOpen}
+                onClose={() => setIsComposeOpen(false)}
+                title="New Message"
+                size="lg"
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="relative" ref={searchRef}>
+                        <input
+                            type="text"
+                            placeholder="To (Name or Email):"
+                            value={toEmail}
+                            onChange={handleToChange}
+                            className="w-full border-b border-gray-200 dark:border-slate-700 py-2 focus:outline-none focus:border-gyn-blue-medium font-medium bg-transparent dark:text-white"
+                        />
+                        {isSearching && (
+                            <div className="absolute right-2 top-2">
+                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        )}
+                        {showSuggestions && searchResults.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                                {searchResults.map(user => (
+                                    <div
+                                        key={user.id}
+                                        onClick={() => selectRecipient(user)}
+                                        className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                                    >
+                                        <Avatar initials={user.name.charAt(0)} size="sm" src={user.avatar ? pb.files.getUrl(user, user.avatar) : undefined} />
+                                        <div>
+                                            <div className="font-bold text-sm text-gray-900 dark:text-white">{user.name}</div>
+                                            <div className="text-xs text-gray-500 dark:text-slate-400">{user.email}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Subject:"
+                        value={subject}
+                        onChange={e => setSubject(e.target.value)}
+                        className="w-full border-b border-gray-200 dark:border-slate-700 py-2 focus:outline-none focus:border-gyn-blue-medium font-bold bg-transparent dark:text-white"
+                    />
+                    <textarea
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        className="w-full flex-1 min-h-[150px] resize-none focus:outline-none text-gray-600 dark:text-slate-300 bg-transparent"
+                        placeholder="Write your message..."
+                    ></textarea>
+
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-slate-700">
+                        <div className="flex gap-2 text-gray-400">
+                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"><Icon name="PaperClipIcon" className="w-5 h-5" /></button>
+                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"><Icon name="PhotoIcon" className="w-5 h-5" /></button>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button variant="ghost" onClick={() => setIsComposeOpen(false)}>Discard</Button>
+                            <Button variant="primary" onClick={handleSend}>Send</Button>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
+        </div>
+    );
+}; const SocialMediaView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
     const [posts, setPosts] = useState<SocialPost[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -326,9 +443,23 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
                         {loading ? (
-                            <div className="text-center text-gray-400 py-10">Loading posts...</div>
+                            <div className="space-y-6">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="flex gap-4">
+                                        <Skeleton className="w-10 h-10 rounded-full" />
+                                        <div className="flex-1 space-y-3">
+                                            <Skeleton className="w-1/3 h-4" />
+                                            <Skeleton className="w-full h-20 rounded-xl" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : posts.length === 0 ? (
-                            <div className="text-center text-gray-400 py-10">No scheduled posts found.</div>
+                            <EmptyState
+                                title="No Scheduled Posts"
+                                description="Create a post to get started with your social media campaign."
+                                icon="Calendar"
+                            />
                         ) : (
                             posts.map(post => (
                                 <div key={post.id} className="flex gap-4 group">
@@ -343,8 +474,8 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                                             <div className="flex items-center gap-2">
                                                 <span className="font-bold text-gray-800 dark:text-white">{post.platform} Post</span>
                                                 <Badge variant={
-                                                    post.status === 'Scheduled' ? 'warning' : 
-                                                    post.status === 'Published' ? 'success' : 'default'
+                                                    post.status === 'Scheduled' ? 'warning' :
+                                                        post.status === 'Published' ? 'success' : 'default'
                                                 }>{post.status}</Badge>
                                             </div>
                                             <span className="text-xs text-gray-400">{post.scheduled_for ? new Date(post.scheduled_for).toLocaleString() : 'Draft'}</span>
@@ -373,27 +504,19 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                 <div className="space-y-6">
                     <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg">
                         <h3 className="font-bold mb-4 opacity-90">Engagement Rate</h3>
-                        <div className="text-4xl font-black mb-2">4.8%</div>
+                        <div className="text-4xl font-black mb-2">--%</div>
                         <div className="flex items-center gap-2 text-sm opacity-75">
                             <Icon name="ArrowTrendingUpIcon" className="w-4 h-4" />
-                            <span>+1.2% vs last week</span>
+                            <span>Analytics coming soon</span>
                         </div>
                     </div>
 
                     <Card className="p-6">
                         <h3 className="font-bold text-gray-700 dark:text-slate-200 mb-4">Connected Accounts</h3>
                         <div className="space-y-4">
-                            {['Facebook Page', 'Twitter Handle', 'Instagram Business', 'LinkedIn Company'].map((acc, i) => (
-                                <div key={i} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${['bg-blue-600', 'bg-sky-400', 'bg-pink-600', 'bg-blue-800'][i]}`}>
-                                            {acc[0]}
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-600 dark:text-slate-300">{acc}</span>
-                                    </div>
-                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                </div>
-                            ))}
+                            <div className="text-sm text-gray-500 text-center py-4">
+                                No accounts connected yet.
+                            </div>
                         </div>
                         <Button variant="outline" className="w-full mt-6">Manage Connections</Button>
                     </Card>
@@ -443,9 +566,30 @@ const CommunityView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => 
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-slate-700 overflow-y-auto">
                     {loading ? (
-                        <div className="p-10 text-center text-gray-400">Loading discussions...</div>
+                        <div className="p-4 space-y-4">
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="grid grid-cols-12 gap-4">
+                                    <div className="col-span-6 flex gap-3">
+                                        <Skeleton className="w-2 h-2 mt-2 rounded-full" />
+                                        <div className="flex-1 space-y-2">
+                                            <Skeleton className="w-3/4 h-4" />
+                                            <Skeleton className="w-1/2 h-3" />
+                                        </div>
+                                    </div>
+                                    <Skeleton className="col-span-2 h-4" />
+                                    <Skeleton className="col-span-2 h-4" />
+                                    <Skeleton className="col-span-2 h-4" />
+                                </div>
+                            ))}
+                        </div>
                     ) : posts.length === 0 ? (
-                        <div className="p-10 text-center text-gray-400">No discussions found.</div>
+                        <div className="p-10 flex justify-center">
+                            <EmptyState
+                                title="No Discussions"
+                                description="Start a new topic to engage with the community."
+                                icon="ChatBubbleLeftRight"
+                            />
+                        </div>
                     ) : (
                         posts.map(post => (
                             <div key={post.id} className="grid grid-cols-12 gap-4 p-4 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors cursor-pointer group items-center">
@@ -478,36 +622,36 @@ const CommunityView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => 
 };
 
 const Communication: React.FC<CommunicationProps> = ({ activeTab, activeSubNav }) => {
-  if (activeTab === 'Email') {
-      return <EmailView activeSubNav={activeSubNav} />;
-  }
-  if (activeTab === 'Social-Media') {
-      return <SocialMediaView activeSubNav={activeSubNav} />;
-  }
-  if (activeTab === 'Community') {
-      return <CommunityView activeSubNav={activeSubNav} />;
-  }
-  
-  return (
-    <div className="h-full flex gap-6 overflow-hidden animate-fadeIn relative">
-       <div className="flex-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-glass-edge flex flex-col overflow-hidden relative">
-           <div className="h-16 border-b border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center px-6 shrink-0 backdrop-blur-md z-10">
-               <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-black text-gyn-blue-dark dark:text-blue-400">{activeTab}</h2>
-                    <span className="text-gray-300 dark:text-slate-600 text-xl font-light">/</span>
-                    <h3 className="text-lg font-bold text-gray-600 dark:text-slate-300">{activeSubNav || 'Overview'}</h3>
-               </div>
-           </div>
-           <div className="flex-1 p-8 overflow-y-auto flex flex-col items-center justify-center">
-               <EmptyState 
-                    title={`${activeTab} - ${activeSubNav || 'Overview'}`}
-                    description={`Manage your ${activeTab.toLowerCase()} settings and content here.`}
-                    icon="ChatBubbleLeftRight"
-               />
-           </div>
-       </div>
-    </div>
-  );
+    if (activeTab === 'Email') {
+        return <EmailView activeSubNav={activeSubNav} />;
+    }
+    if (activeTab === 'Social-Media') {
+        return <SocialMediaView activeSubNav={activeSubNav} />;
+    }
+    if (activeTab === 'Community') {
+        return <CommunityView activeSubNav={activeSubNav} />;
+    }
+
+    return (
+        <div className="h-full flex gap-6 overflow-hidden animate-fadeIn relative">
+            <div className="flex-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-glass-edge flex flex-col overflow-hidden relative">
+                <div className="h-16 border-b border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center px-6 shrink-0 backdrop-blur-md z-10">
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-black text-gyn-blue-dark dark:text-blue-400">{activeTab}</h2>
+                        <span className="text-gray-300 dark:text-slate-600 text-xl font-light">/</span>
+                        <h3 className="text-lg font-bold text-gray-600 dark:text-slate-300">{activeSubNav || 'Overview'}</h3>
+                    </div>
+                </div>
+                <div className="flex-1 p-8 overflow-y-auto flex flex-col items-center justify-center">
+                    <EmptyState
+                        title={`${activeTab} - ${activeSubNav || 'Overview'}`}
+                        description={`Manage your ${activeTab.toLowerCase()} settings and content here.`}
+                        icon="ChatBubbleLeftRight"
+                    />
+                </div>
+            </div>
+        </div>
+    );
 };
 // ...existing code...
 

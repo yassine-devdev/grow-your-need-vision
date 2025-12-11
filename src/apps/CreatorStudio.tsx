@@ -11,8 +11,52 @@ interface CreatorStudioProps {
 }
 
 const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }) => {
-    const [mode, setMode] = useState<'design' | 'video'>('design');
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'Designer':
+                return (
+                    <div className="w-full h-full p-8 overflow-auto bg-grid-pattern flex items-center justify-center">
+                        <div className="w-full h-full max-w-6xl shadow-2xl">
+                            <DesignEditor />
+                        </div>
+                    </div>
+                );
+            case 'Video':
+                return (
+                    <div className="w-full h-full p-4">
+                        <VideoEditor />
+                    </div>
+                );
+            case 'Coder':
+                return (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        <div className="text-center">
+                            <OwnerIcon name="CodeBracketIcon" className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                            <h2 className="text-xl font-bold">Code Editor</h2>
+                            <p>Coming Soon</p>
+                        </div>
+                    </div>
+                );
+            case 'Office':
+                return (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        <div className="text-center">
+                            <OwnerIcon name="DocumentTextIcon" className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                            <h2 className="text-xl font-bold">Office Suite</h2>
+                            <p>Coming Soon</p>
+                        </div>
+                    </div>
+                );
+            default:
+                return (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                        <p>Select a tool from the tabs above</p>
+                    </div>
+                );
+        }
+    };
 
     return (
         <div className="h-full flex flex-col bg-[#18181b] text-white overflow-hidden animate-fadeIn">
@@ -21,28 +65,8 @@ const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2 text-purple-400 font-bold tracking-wider text-xs uppercase">
                         <OwnerIcon name="StudioIcon3D" className="w-5 h-5" />
-                        <span className="font-machina">Studio</span>
+                        <span className="font-machina">Studio - {activeTab}</span>
                     </div>
-                    <div className="h-4 w-[1px] bg-[#3f3f46]"></div>
-
-                    {/* Mode Switcher */}
-                    <div className="flex bg-[#18181b] rounded-lg p-1 border border-[#27272a]">
-                        <button
-                            type="button"
-                            onClick={() => setMode('design')}
-                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${mode === 'design' ? 'bg-[#3f3f46] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            Design
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setMode('video')}
-                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${mode === 'video' ? 'bg-[#3f3f46] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            Video
-                        </button>
-                    </div>
-
                     <div className="h-4 w-[1px] bg-[#3f3f46]"></div>
 
                     <div className="flex items-center space-x-1">
@@ -66,7 +90,7 @@ const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Left Toolbar - Only show for Design mode as Video has its own or doesn't need this specific one */}
-                {mode === 'design' && (
+                {activeTab === 'Designer' && (
                     <div className="w-14 bg-[#1f1f22] border-r border-[#27272a] flex flex-col items-center py-4 gap-4 z-10 shadow-lg">
                         {[1, 2, 3, 4, 5, 6].map(i => (
                             <button type="button" key={i} className={`p-2.5 rounded-lg transition-all relative group ${i === 1 ? 'bg-[#3f3f46] text-white' : 'text-gray-500 hover:text-white hover:bg-[#27272a]'}`}>
@@ -84,21 +108,11 @@ const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }
 
                 {/* Main Content Area */}
                 <div className="flex-1 bg-[#121214] relative flex flex-col overflow-hidden">
-                    {mode === 'design' ? (
-                        <div className="w-full h-full p-8 overflow-auto bg-grid-pattern flex items-center justify-center">
-                            <div className="w-full h-full max-w-6xl shadow-2xl">
-                                <DesignEditor />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="w-full h-full p-4">
-                            <VideoEditor />
-                        </div>
-                    )}
+                    {renderContent()}
                 </div>
 
                 {/* Right Properties Panel - Only for Design mode for now */}
-                {mode === 'design' && (
+                {activeTab === 'Designer' && (
                     <div className="w-72 bg-[#1f1f22] border-l border-[#27272a] flex flex-col z-10 shadow-lg">
                         <div className="p-4 border-b border-[#27272a]">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Properties</h3>
@@ -167,7 +181,7 @@ const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }
                 }}
                 title="AI Design Assistant"
                 promptTemplate="Suggest 3 creative layout ideas for a [Project Type] targeting [Audience]. Include color palette suggestions (Hex codes) and typography pairings."
-                contextData={{ mode, activeTool: 'Layout' }}
+                contextData={{ activeTab, activeTool: 'Layout' }}
             />
         </div>
     );

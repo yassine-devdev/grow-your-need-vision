@@ -1,6 +1,15 @@
 import pb from '../lib/pocketbase';
 import { RecordModel } from 'pocketbase';
 
+export interface Meal {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    time: string;
+}
+
 export interface WellnessLog extends RecordModel {
     date: string;
     steps: number;
@@ -8,6 +17,7 @@ export interface WellnessLog extends RecordModel {
     sleep_minutes: number;
     mood: string;
     user: string;
+    meals: Meal[];
 }
 
 export const wellnessService = {

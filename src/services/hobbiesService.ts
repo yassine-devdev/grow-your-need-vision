@@ -80,6 +80,14 @@ export const hobbiesService = {
         });
     },
 
+    createResource: async (data: Partial<HobbyResource>) => {
+        return await pb.collection('hobby_resources').create(data);
+    },
+
+    deleteResource: async (id: string) => {
+        return await pb.collection('hobby_resources').delete(id);
+    },
+
     searchResources: async (query: string) => {
         return await pb.collection('hobby_resources').getFullList<HobbyResource>({
             filter: `title ~ "${query}" || description ~ "${query}"`,

@@ -1,7 +1,7 @@
 import pb from '../lib/pocketbase';
+import { RecordModel } from 'pocketbase';
 
-export interface Tenant {
-    id: string;
+export interface Tenant extends RecordModel {
     name: string;
     subdomain: string;
     custom_domain?: string;
@@ -19,13 +19,22 @@ export interface Tenant {
     subscription_ends_at?: string;
     stripe_customer_id?: string;
     stripe_subscription_id?: string;
-    created: string;
-    updated: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
+    branding?: {
+        primaryColor: string;
+        secondaryColor: string;
+        fontFamily: string;
+        logo?: string;
+    };
+    settings?: {
+        allowRegistration: boolean;
+        requireEmailVerification: boolean;
+        defaultUserRole: string;
+        features: string[];
+    };
 }
 
-export interface TenantUsage {
-    id: string;
+export interface TenantUsage extends RecordModel {
     tenant: string;
     period_start: string;
     period_end: string;
@@ -36,8 +45,7 @@ export interface TenantUsage {
     active_users: number;
 }
 
-export interface SubscriptionPlan {
-    id: string;
+export interface SubscriptionPlan extends RecordModel {
     name: string;
     stripe_price_id: string;
     price_monthly: number;
@@ -52,7 +60,7 @@ export interface SubscriptionPlan {
 export const tenantService = {
     // Tenant CRUD
     getTenants: async (filter?: string) => {
-        return await pb.collection('tenants').getList(1, 50, {
+        return await pb.collection('tenants').getList<Tenant>(1, 50, {
             filter: filter || '',
             sort: '-created',
             expand: 'admin_user'
@@ -65,12 +73,16 @@ export const tenantService = {
         });
     },
 
-    createTenant: async (data: Omit<Tenant, 'id' | 'created' | 'updated'>) => {
-        return await pb.collection('tenants').create(data);
+    createTenant: async (data: Omit<Tenant, 'id' | 'created' | 'updated' | 'collectionId' | 'collectionName'>) => {
+        return await pb.collection('tenants').create<Tenant>(data);
     },
 
     updateTenant: async (id: string, data: Partial<Tenant>) => {
-        return await pb.collection('tenants').update(id, data);
+        return await pb.collection('tenants').update<Tenant>(id, data);
+    },
+
+    updateTenantStatus: async (id: string, status: Tenant['status']) => {
+        return await pb.collection('tenants').update<Tenant>(id, { status });
     },
 
     deleteTenant: async (id: string) => {
@@ -78,11 +90,29 @@ export const tenantService = {
     },
 
     suspendTenant: async (id: string) => {
-        return await pb.collection('tenants').update(id, { status: 'suspended' });
+        return await pb.collection('tenants').update<Tenant>(id, { status: 'suspended' });
     },
 
     activateTenant: async (id: string) => {
-        return await pb.collection('tenants').update(id, { status: 'active' });
+        return await pb.collection('tenants').update<Tenant>(id, { status: 'active' });
+    },
+
+    addTenantUser: async (tenantId: string, userData: any) => {
+        return await pb.collection('users').create({
+            ...userData,
+            tenant: tenantId
+        });
+    },
+
+    getTenantUsers: async (tenantId: string) => {
+        return await pb.collection('users').getList(1, 100, {
+            filter: `tenant = "${tenantId}"`,
+            sort: '-created'
+        });
+    },
+
+    removeTenantUser: async (userId: string) => {
+        return await pb.collection('users').delete(userId);
     },
 
     // Usage tracking
@@ -92,7 +122,7 @@ export const tenantService = {
             filter += ` && period_start >= "${startDate}" && period_end <= "${endDate}"`;
         }
 
-        return await pb.collection('tenant_usage').getList(1, 100, {
+        return await pb.collection('tenant_usage').getList<TenantUsage>(1, 100, {
             filter,
             sort: '-period_start'
         });

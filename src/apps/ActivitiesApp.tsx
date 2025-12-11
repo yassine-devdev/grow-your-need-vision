@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon, Card, Button, Badge, Avatar } from '../components/shared/ui/CommonUI';
-import { eventService, Activity } from '../services/eventService';
+import { eventService, EventActivity } from '../services/eventService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 
 interface ActivitiesAppProps {
@@ -9,7 +9,7 @@ interface ActivitiesAppProps {
 }
 
 const ActivitiesApp: React.FC<ActivitiesAppProps> = ({ activeTab, activeSubNav }) => {
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<EventActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 

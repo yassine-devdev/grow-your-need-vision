@@ -6,6 +6,9 @@ export interface Message {
   recipient: string;
   content: string;
   read_at?: string;
+  archived?: boolean;
+  trashed?: boolean;
+  starred?: boolean;
   attachments?: string[];
   created: string;
   expand?: {
@@ -86,6 +89,27 @@ export const communicationService = {
     }
   },
 
+  async searchUsers(query: string) {
+    try {
+        return await pb.collection('users').getList(1, 10, {
+            filter: `name ~ "${query}" || email ~ "${query}"`,
+            requestKey: null
+        });
+    } catch (error) {
+        console.error('Failed to search users:', error);
+        return { items: [] };
+    }
+  },
+
+  async findUserByEmail(email: string) {
+    try {
+        return await pb.collection('users').getFirstListItem(`email = "${email}"`);
+    } catch (error) {
+        console.error('Failed to find user by email:', error);
+        throw error;
+    }
+  },
+
   // Notifications
   async getNotifications(userId: string) {
     try {
@@ -123,27 +147,6 @@ export const communicationService = {
       ));
     } catch (error) {
       console.warn('Failed to mark all notifications as read:', error);
-    }
-  },
-
-  async findUserByEmail(email: string) {
-    try {
-      return await pb.collection('users').getFirstListItem(`email = "${email}"`);
-    } catch (error) {
-      console.warn('User not found:', email);
-      throw error;
-    }
-  },
-
-  async searchUsers(query: string) {
-    try {
-      return await pb.collection('users').getList(1, 10, {
-        filter: `email ~ "${query}" || name ~ "${query}"`,
-        sort: 'name'
-      });
-    } catch (error) {
-      console.warn('Failed to search users:', error);
-      return { items: [], totalItems: 0 };
     }
   },
 

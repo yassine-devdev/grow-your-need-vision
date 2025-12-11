@@ -9,6 +9,7 @@ interface Toast {
 
 export interface ToastContextType {
   addToast: (message: string, type: ToastType) => void;
+  showToast: (message: string, type: ToastType) => void;
   removeToast: (id: number) => void;
 }
 
@@ -27,8 +28,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTimeout(() => removeToast(id), 3000);
   }, [removeToast]);
 
+  const showToast = addToast;
+
   return (
-    <ToastContext.Provider value={{ addToast, removeToast }}>
+    <ToastContext.Provider value={{ addToast, showToast, removeToast }}>
       {children}
       <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
         {toasts.map(toast => (

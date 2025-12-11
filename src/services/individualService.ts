@@ -39,6 +39,16 @@ export interface IndividualGoal extends RecordModel {
     completed_date?: string;
 }
 
+export interface LearningProgress extends RecordModel {
+    user: string;
+    subject: string;
+    level: number;
+    xp: number;
+    next_level_xp: number;
+    daily_streak: number;
+    last_activity: string;
+}
+
 export interface MarketplaceOrder extends RecordModel {
     user: string;
     order_number: string;
@@ -172,6 +182,13 @@ class IndividualUserService {
     /**
      * Calculate wellness score from recent wellness data
      */
+    async getLearningProgress(userId: string): Promise<LearningProgress[]> {
+        return pb.collection('learning_progress').getFullList<LearningProgress>({
+            filter: `user = "${userId}"`,
+            sort: '-last_activity'
+        });
+    }
+
     async getWellnessStats(userId: string): Promise<IndividualDashboardStats['wellness']> {
         try {
             // Get last 7 days of wellness data

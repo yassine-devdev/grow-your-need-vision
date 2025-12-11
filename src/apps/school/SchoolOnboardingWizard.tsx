@@ -18,9 +18,8 @@ export const SchoolOnboardingWizard: React.FC<SchoolOnboardingWizardProps> = ({ 
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<Partial<Tenant> & { adminPassword?: string }>({
-        type: 'School',
-        status: 'Pending',
-        subscription_plan: 'Starter',
+        status: 'trial',
+        plan: 'basic',
         branding: {
             primaryColor: '#1d2a78',
             secondaryColor: '#ffffff',
@@ -55,15 +54,15 @@ export const SchoolOnboardingWizard: React.FC<SchoolOnboardingWizardProps> = ({ 
             const newTenant = await tenantService.createTenant(formData);
             
             // 2. Create Admin User for the Tenant
-            if (formData.contact_email && formData.adminPassword) {
+            if (formData.admin_email && formData.adminPassword) {
                 await tenantService.addTenantUser(newTenant.id, {
-                    email: formData.contact_email,
+                    email: formData.admin_email,
                     password: formData.adminPassword,
                     passwordConfirm: formData.adminPassword,
                     name: 'School Admin',
                     role: 'Admin',
                     status: 'Active',
-                    username: formData.contact_email.split('@')[0] + '_' + Math.floor(Math.random() * 1000)
+                    username: formData.admin_email.split('@')[0] + '_' + Math.floor(Math.random() * 1000)
                 });
             }
 
@@ -133,14 +132,14 @@ export const SchoolOnboardingWizard: React.FC<SchoolOnboardingWizardProps> = ({ 
                                 <Input 
                                     label="Domain" 
                                     placeholder="springfield.edu" 
-                                    value={formData.domain || ''}
-                                    onChange={e => updateField('domain', e.target.value)}
+                                    value={formData.custom_domain || ''}
+                                    onChange={e => updateField('custom_domain', e.target.value)}
                                 />
                                 <Input 
                                     label="Contact Email" 
                                     placeholder="admin@springfield.edu" 
-                                    value={formData.contact_email || ''}
-                                    onChange={e => updateField('contact_email', e.target.value)}
+                                    value={formData.admin_email || ''}
+                                    onChange={e => updateField('admin_email', e.target.value)}
                                 />
                             </div>
                             <Input 
@@ -152,12 +151,13 @@ export const SchoolOnboardingWizard: React.FC<SchoolOnboardingWizardProps> = ({ 
                             />
                             <Select 
                                 label="Subscription Plan"
-                                value={formData.subscription_plan}
-                                onChange={e => updateField('subscription_plan', e.target.value as Tenant['subscription_plan'])}
+                                value={formData.plan}
+                                onChange={e => updateField('plan', e.target.value as Tenant['plan'])}
                             >
-                                <option value="Starter">Starter</option>
-                                <option value="Professional">Professional</option>
-                                <option value="Enterprise">Enterprise</option>
+                                <option value="free">Free</option>
+                                <option value="basic">Basic</option>
+                                <option value="pro">Pro</option>
+                                <option value="enterprise">Enterprise</option>
                             </Select>
                         </div>
                     )}
@@ -260,14 +260,14 @@ export const SchoolOnboardingWizard: React.FC<SchoolOnboardingWizardProps> = ({ 
                             </div>
                             <h3 className="font-bold text-2xl text-gray-900">Ready to Launch?</h3>
                             <p className="text-gray-500 max-w-md mx-auto">
-                                You are about to create <strong>{formData.name}</strong> with the <strong>{formData.subscription_plan}</strong> plan.
-                                An admin invite will be sent to <strong>{formData.contact_email}</strong>.
+                                You are about to create <strong>{formData.name}</strong> with the <strong>{formData.plan}</strong> plan.
+                                An admin invite will be sent to <strong>{formData.admin_email}</strong>.
                             </p>
                             
                             <div className="bg-gray-50 p-4 rounded-xl text-left text-sm space-y-2 max-w-sm mx-auto border border-gray-200">
                                 <div className="flex justify-between">
                                     <span className="text-gray-500">Domain:</span>
-                                    <span className="font-bold">{formData.domain}</span>
+                                    <span className="font-bold">{formData.custom_domain}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-500">Theme:</span>

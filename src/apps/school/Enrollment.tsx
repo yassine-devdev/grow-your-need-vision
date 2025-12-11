@@ -160,15 +160,15 @@ export const Enrollment: React.FC = () => {
                                         <td className="py-3 px-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-gyn-blue-light flex items-center justify-center text-gyn-blue-dark font-medium">
-                                                    {enrollment.expand?.student_id?.name?.charAt(0) || 'S'}
+                                                    {enrollment.expand?.student?.name?.charAt(0) || 'S'}
                                                 </div>
                                                 <span className="font-medium text-gray-900">
-                                                    {enrollment.expand?.student_id?.name || 'Unknown'}
+                                                    {enrollment.expand?.student?.name || 'Unknown'}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="py-3 px-4 text-sm text-gray-600">
-                                            {enrollment.expand?.student_id?.email || 'N/A'}
+                                            {enrollment.expand?.student?.email || 'N/A'}
                                         </td>
                                         <td className="py-3 px-4 text-sm text-gray-600">
                                             {new Date(enrollment.created).toLocaleDateString()}

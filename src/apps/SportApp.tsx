@@ -61,7 +61,7 @@ const SportApp: React.FC<SportAppProps> = ({ activeTab, activeSubNav }) => {
             setLoading(true);
             const sportFilter = activeSubNav !== 'Dashboard' ? activeSubNav : undefined;
             
-            const promises = [
+            const promises: Promise<SportMatch[] | SportTeam[] | SportActivity[]>[] = [
                 sportService.getLiveMatches(),
                 sportService.getUpcomingMatches(sportFilter),
                 sportService.getTeams(sportFilter)

@@ -1,18 +1,20 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import MainLayout from './MainLayout';
 import { TEACHER_CONFIG } from '../../data/AppConfigs';
-import TeacherClasses from '../../apps/teacher/Classes';
-import TeacherAssignments from '../../apps/teacher/Assignments';
-import TeacherResources from '../../apps/teacher/Resources';
-import TeacherCommunication from '../../apps/teacher/Communication';
-import Wellness from '../../apps/Wellness';
-import Tools from '../../apps/Tools';
-import TeacherConcierge from '../../apps/teacher/TeacherConcierge';
-// New components
-import AttendanceMarking from '../../apps/teacher/AttendanceMarking';
-import LessonPlanner from '../../apps/teacher/LessonPlanner';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { Spinner } from '../shared/ui/Spinner';
+
+const TeacherClasses = lazy(() => import('../../apps/teacher/Classes'));
+const TeacherAssignments = lazy(() => import('../../apps/teacher/Assignments'));
+const TeacherResources = lazy(() => import('../../apps/teacher/Resources'));
+const TeacherCommunication = lazy(() => import('../../apps/teacher/Communication'));
+const Wellness = lazy(() => import('../../apps/Wellness'));
+const Tools = lazy(() => import('../../apps/Tools'));
+const TeacherConcierge = lazy(() => import('../../apps/teacher/TeacherConcierge'));
+// New components
+const AttendanceMarking = lazy(() => import('../../apps/teacher/AttendanceMarking'));
+const LessonPlanner = lazy(() => import('../../apps/teacher/LessonPlanner'));
 
 const TeacherLayout: React.FC = () => {
   const renderContent = (activeModule: string, activeTab: string, activeSubNav: string) => {
@@ -38,7 +40,13 @@ const TeacherLayout: React.FC = () => {
       }
     })();
 
-    return <ErrorBoundary>{content}</ErrorBoundary>;
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner /></div>}>
+          {content}
+        </Suspense>
+      </ErrorBoundary>
+    );
   };
 
   return <MainLayout config={TEACHER_CONFIG} renderContent={renderContent} role="Teacher" />;

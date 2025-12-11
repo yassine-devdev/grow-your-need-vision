@@ -8,7 +8,7 @@ export const capitalize = (str: string): string => {
   return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-export const debounce = <T extends (...args: never[]) => void>(func: T, wait: number) => {
+export const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: ReturnType<typeof setTimeout>;
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { OwnerIcon } from '../components/shared/OwnerIcons';
 import { DesignEditor } from './creator/DesignEditor';
 import { VideoEditor } from './media/VideoEditor';
+import { CodeEditor } from './creator/CodeEditor';
+import { OfficeSuite } from './creator/OfficeSuite';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 
 interface CreatorStudioProps {
@@ -31,22 +33,14 @@ const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }
                 );
             case 'Coder':
                 return (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                            <OwnerIcon name="CodeBracketIcon" className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                            <h2 className="text-xl font-bold">Code Editor</h2>
-                            <p>Coming Soon</p>
-                        </div>
+                    <div className="w-full h-full">
+                        <CodeEditor />
                     </div>
                 );
             case 'Office':
                 return (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                            <OwnerIcon name="DocumentTextIcon" className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                            <h2 className="text-xl font-bold">Office Suite</h2>
-                            <p>Coming Soon</p>
-                        </div>
+                    <div className="w-full h-full">
+                        <OfficeSuite />
                     </div>
                 );
             default:
@@ -157,7 +151,7 @@ const CreatorStudio: React.FC<CreatorStudioProps> = ({ activeTab, activeSubNav }
                                 <p className="text-[10px] text-gray-400 leading-relaxed mb-3">
                                     Generate layouts or suggestions based on your current selection.
                                 </p>
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => setIsAIModalOpen(true)}
                                     className="w-full py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/50 rounded text-xs font-bold transition-colors"

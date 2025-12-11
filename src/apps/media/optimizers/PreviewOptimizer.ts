@@ -47,7 +47,7 @@ export class PreviewOptimizer {
         }
     }
 
-    static throttleUpdates<T extends (...args: Parameters<T>) => ReturnType<T>>(
+    static throttleUpdates<T extends (...args: any[]) => any>(
         func: T,
         delay: number
     ): (...args: Parameters<T>) => void {

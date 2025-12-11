@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon, Card, Button } from '../components/shared/ui/CommonUI';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
-import { helpService, FAQItem, SupportTicket, KnowledgeArticle } from '../services/helpService';
+import { helpService, FAQItem, SupportTicket, KnowledgeArticle, TicketReply } from '../services/helpService';
 import { useAuth } from '../context/AuthContext';
 import { LoadingScreen } from '../components/shared/LoadingScreen';
 import { motion } from 'framer-motion';
@@ -17,8 +17,12 @@ const HelpCenterApp: React.FC<HelpCenterAppProps> = ({ activeTab, activeSubNav }
     const [faqs, setFaqs] = useState<FAQItem[]>([]);
     const [tickets, setTickets] = useState<SupportTicket[]>([]);
     const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+    const [ticketReplies, setTicketReplies] = useState<TicketReply[]>([]);
+    const [replyMessage, setReplyMessage] = useState('');
 
     // Ticket Form
     const [ticketForm, setTicketForm] = useState({
@@ -54,7 +58,7 @@ const HelpCenterApp: React.FC<HelpCenterAppProps> = ({ activeTab, activeSubNav }
             }
         } catch (error) {
             console.error('Failed to load help data: ', error);
-    } finally {
+        } finally {
             setLoading(false);
         }
     };
@@ -104,6 +108,32 @@ const HelpCenterApp: React.FC<HelpCenterAppProps> = ({ activeTab, activeSubNav }
         } catch (error) {
             console.error('Failed to create ticket:', error);
             alert('Failed to submit ticket. Please try again.');
+        }
+    };
+
+    const handleViewTicket = async (ticket: SupportTicket) => {
+        setSelectedTicket(ticket);
+        try {
+            const replies = await helpService.getTicketReplies(ticket.id);
+            setTicketReplies(replies);
+        } catch (error) {
+            console.error('Failed to load replies:', error);
+        }
+    };
+
+    const handleReply = async () => {
+        if (!user || !selectedTicket || !replyMessage.trim()) return;
+
+        try {
+            await helpService.addTicketReply(selectedTicket.id, user.id, replyMessage);
+            setReplyMessage('');
+
+            // Refresh replies
+            const replies = await helpService.getTicketReplies(selectedTicket.id);
+            setTicketReplies(replies);
+        } catch (error) {
+            console.error('Failed to send reply:', error);
+            alert('Failed to send reply');
         }
     };
 
@@ -322,8 +352,10 @@ const HelpCenterApp: React.FC<HelpCenterAppProps> = ({ activeTab, activeSubNav }
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
+                            onClick={() => handleViewTicket(ticket)}
+                            className="cursor-pointer"
                         >
-                            <Card className="p-6 hover:shadow-lg transition-shadow">
+                            <Card className="p-6 hover:shadow-lg transition-shadow border-l-4 border-l-transparent hover:border-l-blue-500">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex-1">
                                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">
@@ -401,8 +433,106 @@ const HelpCenterApp: React.FC<HelpCenterAppProps> = ({ activeTab, activeSubNav }
             - Step-by-step solution
             - Related documentation links
         - Prevention tips`}
-            contextData={ticketForm}
-      />
+                contextData={ticketForm}
+            />
+
+            {/* Ticket Detail Modal */}
+            {selectedTicket && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden"
+                    >
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                                    {selectedTicket.subject}
+                                </h2>
+                                <div className="flex gap-2 text-sm">
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${getStatusColor(selectedTicket.status)}`}>
+                                        {selectedTicket.status}
+                                    </span>
+                                    <span className="text-gray-500">#{selectedTicket.id.slice(0, 8)}</span>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedTicket(null)}
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            >
+                                <Icon name="XMarkIcon" className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* Messages Area */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50 dark:bg-gray-900/50">
+                            {/* Original Ticket */}
+                            <div className="flex gap-4">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                    <span className="font-bold text-blue-600">ME</span>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 dark:border-gray-700">
+                                        <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                                            {selectedTicket.description}
+                                        </p>
+                                    </div>
+                                    <span className="text-xs text-gray-500 mt-1 ml-2 block">
+                                        {new Date(selectedTicket.created).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Replies */}
+                            {ticketReplies.map(reply => (
+                                <div key={reply.id} className={`flex gap-4 ${reply.is_staff ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                        reply.is_staff ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'
+                                    }`}>
+                                        <span className="font-bold">{reply.is_staff ? 'SP' : 'ME'}</span>
+                                    </div>
+                                    <div className={`flex-1 ${reply.is_staff ? 'text-right' : ''}`}>
+                                        <div className={`inline-block text-left p-4 rounded-2xl shadow-sm border ${
+                                            reply.is_staff 
+                                                ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800 rounded-tr-none' 
+                                                : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-tl-none'
+                                        }`}>
+                                            <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                                                {reply.message}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs text-gray-500 mt-1 mx-2 block">
+                                            {new Date(reply.created).toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Reply Input */}
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            <div className="flex gap-2">
+                                <textarea
+                                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    placeholder="Type your reply..."
+                                    rows={2}
+                                    value={replyMessage}
+                                    onChange={e => setReplyMessage(e.target.value)}
+                                />
+                                <Button 
+                                    variant="primary" 
+                                    className="h-auto"
+                                    onClick={handleReply}
+                                    disabled={!replyMessage.trim()}
+                                >
+                                    <Icon name="PaperAirplaneIcon" className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 };

@@ -16,11 +16,13 @@ export const useSortableData = <T extends Record<string, unknown>>(items: T[], c
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
 
-        if (aValue < bValue) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
+        if (typeof aValue === typeof bValue && (typeof aValue === 'string' || typeof aValue === 'number') && (typeof bValue === 'string' || typeof bValue === 'number')) {
+          if (aValue < bValue) {
+            return sortConfig.direction === 'ascending' ? -1 : 1;
+          }
+          if (aValue > bValue) {
+            return sortConfig.direction === 'ascending' ? 1 : -1;
+          }
         }
         return 0;
       });

@@ -1,20 +1,8 @@
-import React, { Suspense, useCallback } from 'react';
+import React, { Suspense, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import MainLayout from './MainLayout';
-import { NAV_CONFIG } from '../../data/AppConfigs';
+import { MODULE_REGISTRY, getModuleConfig } from '../../modules/registry';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
-
-// Lazy load all application modules for performance
-const OwnerDashboard = React.lazy(() => import('../../apps/dashboards/OwnerDashboard'));
-const TenantMgt = React.lazy(() => import('../../apps/TenantMgt'));
-const PlatformCRM = React.lazy(() => import('../../apps/PlatformCRM'));
-const ToolPlatform = React.lazy(() => import('../../apps/ToolPlatform'));
-const Communication = React.lazy(() => import('../../apps/Communication'));
-const ActivitiesApp = React.lazy(() => import('../../apps/ActivitiesApp'));
-const ConciergeAI = React.lazy(() => import('../../apps/ConciergeAI'));
-const Wellness = React.lazy(() => import('../../apps/Wellness'));
-const Tools = React.lazy(() => import('../../apps/Tools'));
-const PlatformSettings = React.lazy(() => import('../../apps/PlatformSettings'));
 
 type LoadingSpinnerProps = {
   label?: string;
@@ -55,31 +43,6 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   </div>
 );
 
-const UserManagement = React.lazy(() => import('../../apps/owner/UserManagement'));
-
-const MODULE_TITLES: Record<string, string> = {
-  dashboard: 'Owner Overview',
-  school: 'Tenant Management',
-  crm: 'Platform CRM',
-  tool_platform: 'Tool Platform',
-  communication: 'Communication Hub',
-  activities: 'Activities & Events',
-  concierge_ai: 'Concierge AI',
-  wellness: 'Wellness',
-  tools: 'Tools Library',
-  settings: 'Platform Settings',
-  users: 'User Management',
-};
-
-const formatLabel = (value?: string) => {
-  if (!value) return '';
-  return value
-    .replace(/[_-]+/g, ' ')
-    .split(' ')
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
-    .join(' ');
-};
-
 const UnknownModule: React.FC<{ module: string }> = ({ module }) => (
   <motion.div
     className="flex h-full w-full flex-col items-center justify-center px-6 text-center"
@@ -112,43 +75,20 @@ const moduleVariants = {
 };
 
 const OwnerLayout: React.FC = () => {
+  const navConfig = useMemo(() => getModuleConfig(), []);
+
   /**
    * MainLayout will call this render function and pass in
    * the current active module / tab / subnav from the OS.
    */
   const renderContent = useCallback(
     (activeModule: string, activeTab: string, activeSubNav: string) => {
-      const moduleTitle = MODULE_TITLES[activeModule] ?? 'Workspace Module';
+      const moduleDef = MODULE_REGISTRY.find(m => m.id === activeModule);
+      const moduleTitle = moduleDef?.label ?? 'Workspace Module';
       const props = { activeTab, activeSubNav };
 
-      const content = (() => {
-        switch (activeModule) {
-          case 'dashboard':
-            return <OwnerDashboard />;
-          case 'school': // Tenant Mgt
-            return <TenantMgt {...props} />;
-          case 'crm':
-            return <PlatformCRM {...props} />;
-          case 'tool_platform':
-            return <ToolPlatform {...props} />;
-          case 'communication':
-            return <Communication {...props} />;
-          case 'activities':
-            return <ActivitiesApp {...props} />;
-          case 'concierge_ai':
-            return <ConciergeAI {...props} />;
-          case 'wellness':
-            return <Wellness {...props} />;
-          case 'tools':
-            return <Tools {...props} />;
-          case 'settings':
-            return <PlatformSettings {...props} />;
-          case 'users':
-            return <UserManagement />;
-          default:
-            return <UnknownModule module={activeModule} />;
-        }
-      })();
+      const ContentComponent = moduleDef?.component;
+      const content = ContentComponent ? <ContentComponent {...props} /> : <UnknownModule module={activeModule} />;
 
       // Key ensures motion animation when module / tab changes
       const key = `${activeModule || 'unknown'}-${activeTab || 'root'}-${activeSubNav || 'base'}`;
@@ -173,9 +113,8 @@ const OwnerLayout: React.FC = () => {
                     key={key}
                     // Scroll on mobile and desktop (internal scroll)
                     // Dashboard needs to be fixed height (no scroll) for the bento grid to work
-                    className={`h-full w-full px-4 py-4 sm:px-6 sm:py-5 flex flex-col ${
-                      isDashboard ? 'overflow-hidden' : 'overflow-y-auto gyn-scroll'
-                    }`}
+                    className={`h-full w-full px-4 py-4 sm:px-6 sm:py-5 flex flex-col ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto gyn-scroll'
+                      }`}
                     variants={moduleVariants}
                     initial="initial"
                     animate="animate"
@@ -194,7 +133,7 @@ const OwnerLayout: React.FC = () => {
     []
   );
 
-  return <MainLayout config={NAV_CONFIG} renderContent={renderContent} role="Owner" />;
+  return <MainLayout config={navConfig} renderContent={renderContent} role="Owner" />;
 };
 
 export default OwnerLayout;

@@ -44,7 +44,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const newStats = {
                 totalStudents: records.filter(u => u.role === 'Student').length,
                 totalTeachers: records.filter(u => u.role === 'Teacher').length,
-                totalStaff: records.filter(u => u.role === 'Admin').length, // Assuming Admin is staff for now
+                totalStaff: records.filter(u => u.role === 'SchoolAdmin').length, // Assuming Admin is staff for now
                 totalParents: records.filter(u => u.role === 'Parent').length,
             };
             setStats(newStats);

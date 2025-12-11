@@ -165,12 +165,12 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                 } else if (activeTab === 'Tenant Accounts') {
                     let filter = '';
                     if (activeSubNav === 'Active') {
-                        filter = 'status = "Active"';
+                        filter = 'status = "active"';
                     } else if (activeSubNav === 'Onboarding') {
-                        filter = 'status = "Pending" || status = "Trial"';
+                        filter = 'status = "trial"';
                     }
                     const result = await tenantService.getTenants(filter);
-                    setAccounts(result);
+                    setAccounts(result.items);
                 }
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -184,6 +184,16 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
 
     const getDealsByStage = (stage: string) => {
         return deals.filter(d => d.stage === stage);
+    };
+
+    const handleExportDeals = (format: 'pdf' | 'excel') => {
+        console.log(`Exporting deals as ${format}...`);
+        // TODO: Implement export logic
+    };
+
+    const handleExportForecast = (format: 'pdf' | 'excel') => {
+        console.log(`Exporting forecast as ${format}...`);
+        // TODO: Implement export logic
     };
 
     return (
@@ -404,8 +414,8 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <Badge variant={
-                                                account.status === 'Active' ? 'success' :
-                                                    account.status === 'Pending' ? 'warning' :
+                                                account.status === 'active' ? 'success' :
+                                                    account.status === 'trial' ? 'warning' :
                                                         'default'
                                             }>
                                                 {account.status}

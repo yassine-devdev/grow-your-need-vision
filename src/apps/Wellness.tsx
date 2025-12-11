@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Icon, Card, Button, Badge } from '../components/shared/ui/CommonUI';
 import pb from '../lib/pocketbase';
 import { useChat } from '../hooks/useChat';
-import { wellnessService, WellnessLog } from '../services/wellnessService';
+import { wellnessService, WellnessLog, Meal } from '../services/wellnessService';
 import { reportService } from '../services/reportService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 
@@ -19,7 +19,7 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
     const [isMealPlanModalOpen, setIsMealPlanModalOpen] = useState(false);
     const [showLogMealModal, setShowLogMealModal] = useState(false);
 
-    const handleLogMeal = async (meal: any) => {
+    const handleLogMeal = async (meal: Meal) => {
         try {
             const userId = pb.authStore.model?.id;
             if (!userId) return;
@@ -48,7 +48,7 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
                 }];
 
                 // Calculate new total calories
-                const totalCalories = updatedMeals.reduce((sum, m) => sum + (parseInt(m.calories) || 0), 0);
+                const totalCalories = updatedMeals.reduce((sum, m) => sum + (m.calories || 0), 0);
 
                 await wellnessService.updateLog(logToUpdate.id, {
                     meals: updatedMeals,
@@ -575,11 +575,12 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
                             e.preventDefault();
                             const formData = new FormData(e.currentTarget);
                             handleLogMeal({
-                                name: formData.get('name'),
-                                calories: formData.get('calories'),
-                                protein: formData.get('protein'),
-                                carbs: formData.get('carbs'),
-                                fats: formData.get('fats')
+                                name: formData.get('name') as string,
+                                calories: Number(formData.get('calories')),
+                                protein: Number(formData.get('protein')),
+                                carbs: Number(formData.get('carbs')),
+                                fats: Number(formData.get('fats')),
+                                time: new Date().toISOString()
                             });
                         }}>
                             <div className="space-y-4">

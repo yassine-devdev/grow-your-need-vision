@@ -1,3 +1,9 @@
+import React, { useState, useEffect } from 'react';
+import pb from '../../lib/pocketbase';
+import { useToast } from '../../hooks/useToast';
+import { useApiError } from '../../hooks/useApiError';
+import { Button, Card, Icon, EmptyState, Skeleton } from '../../components/shared/ui/CommonUI';
+import { WidgetErrorBoundary } from '../../components/shared/ui/WidgetErrorBoundary';
 
 interface Student {
     id: string;

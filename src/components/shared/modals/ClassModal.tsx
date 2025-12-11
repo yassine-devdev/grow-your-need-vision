@@ -66,7 +66,7 @@ export const ClassModal: React.FC<ClassModalProps> = ({
                 name: classData.name || '',
                 code: classData.code || '',
                 teacher: classData.teacher || '',
-                schedule: classData.schedule || '',
+                schedule: classData.schedule ? JSON.stringify(classData.schedule, null, 2) : '',
                 room: classData.room || ''
             });
         } else {
@@ -97,10 +97,16 @@ export const ClassModal: React.FC<ClassModalProps> = ({
         try {
             if (classData) {
                 // Update existing class
-                await academicsService.updateClass(classData.id, formData);
+                await academicsService.updateClass(classData.id, {
+                    ...formData,
+                    schedule: formData.schedule ? JSON.parse(formData.schedule) : {}
+                });
             } else {
                 // Create new class
-                await academicsService.createClass(formData);
+                await academicsService.createClass({
+                    ...formData,
+                    schedule: formData.schedule ? JSON.parse(formData.schedule) : {}
+                });
             }
 
             onSuccess();

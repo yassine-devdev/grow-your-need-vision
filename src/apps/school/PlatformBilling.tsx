@@ -21,7 +21,7 @@ export const PlatformBilling: React.FC<PlatformBillingProps> = ({ activeSubNav }
             try {
                 if (activeSubNav === 'Invoices') {
                     const result = await billingService.getInvoices();
-                    setInvoices(result);
+                    setInvoices(result.items);
                 }
             } catch (error) {
                 console.error("Failed to fetch billing data", error);
@@ -98,10 +98,10 @@ export const PlatformBilling: React.FC<PlatformBillingProps> = ({ activeSubNav }
                             {invoices.map(inv => (
                                 <Tr key={inv.id}>
                                     <Td><span className="font-mono text-xs text-gray-500">#{inv.id.substring(0,8)}</span></Td>
-                                    <Td><span className="font-bold text-gray-700">Tenant {inv.tenantId.substring(0,5)}...</span></Td>
+                                    <Td><span className="font-bold text-gray-700">Tenant {inv.tenant.substring(0,5)}...</span></Td>
                                     <Td><span className="font-bold text-gray-800">${inv.amount.toFixed(2)}</span></Td>
                                     <Td>
-                                        <Badge variant={inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'danger' : 'warning'}>
+                                        <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}>
                                             {inv.status}
                                         </Badge>
                                     </Td>

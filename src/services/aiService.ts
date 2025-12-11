@@ -1,8 +1,19 @@
 import { RecordModel } from 'pocketbase';
 
+export interface DealContext {
+    title?: string;
+    value?: number;
+    stage?: string;
+}
+
+export interface AIContext {
+    deal?: DealContext;
+    [key: string]: unknown;
+}
+
 export interface AICompletionRequest {
     prompt: string;
-    context?: Record<string, unknown>;
+    context?: AIContext;
     maxTokens?: number;
     temperature?: number;
 }
@@ -91,8 +102,8 @@ class AIService {
                 let content = "";
 
                 // Heuristics for Deal Descriptions (CRM)
-                if (promptLower.includes('deal description') || (request.context && (request.context as any).deal)) {
-                    const deal = (request.context as any)?.deal || {};
+                if (promptLower.includes('deal description') || (request.context && request.context.deal)) {
+                    const deal = request.context?.deal || {};
                     const title = deal.title || "New Opportunity";
                     const value = deal.value || 0;
                     const stage = deal.stage || "Lead";
@@ -136,9 +147,27 @@ class AIService {
     }
 
     async getSystemStats(): Promise<{ latency: string; error_rate: string; load: string; tokens_total: string; tokens_input: string; tokens_output: string; provider: string }> {
-        // In a real scenario, this would fetch from a backend monitoring service or aggregation of logs.
-        // For now, we will calculate based on local usage or return realistic default values if no history.
-        // We can check if we have an API key to determine provider status.
+        try {
+            // Fetch real stats from PocketBase
+            const stats = await pb.collection('ai_stats').getList(1, 1, {
+                sort: '-date'
+            });
+
+            if (stats.items.length > 0) {
+                const latest = stats.items[0];
+                return {
+                    latency: `${latest.avg_latency}ms`,
+                    error_rate: `${latest.error_count > 0 ? ((latest.error_count / latest.total_requests) * 100).toFixed(2) : 0}%`,
+                    load: latest.total_requests > 1000 ? 'High' : 'Normal',
+                    tokens_total: (latest.total_tokens / 1000).toFixed(1) + 'k',
+                    tokens_input: '0', // Not tracked separately in simple stats yet
+                    tokens_output: '0',
+                    provider: this.apiKey ? 'OpenAI (GPT-4)' : 'Local Heuristic Engine'
+                };
+            }
+        } catch (error) {
+            console.warn('Failed to fetch AI stats from DB, using fallback');
+        }
 
         const provider = this.apiKey ? 'OpenAI (GPT-4)' : 'Local Heuristic Engine';
         const load = this.apiKey ? 'Normal' : 'Low'; // Local is always low load

@@ -34,6 +34,11 @@ export const useGamification = () => {
         loading,
         error,
         refreshProgress,
+        addXP: async (amount: number) => {
+            if (!user) return;
+            await multiverseService.awardXp(user.id, amount);
+            refreshProgress();
+        },
         // Helper to check if user meets level requirement
         canAccess: (minLevel: number) => (progress?.level || 1) >= minLevel,
         // Helper to calculate progress to next level

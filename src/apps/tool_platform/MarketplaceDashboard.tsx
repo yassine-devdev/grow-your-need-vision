@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Icon } from '../../components/shared/ui/CommonUI';
 import { marketplaceService, MarketplaceApp } from '../../services/marketplaceService';
+import { DeveloperPortal } from './DeveloperPortal';
 
 export const MarketplaceDashboard: React.FC = () => {
     const [apps, setApps] = useState<MarketplaceApp[]>([]);
     const [loading, setLoading] = useState(true);
+    const [view, setView] = useState<'marketplace' | 'developer'>('marketplace');
 
     useEffect(() => {
         const fetchApps = async () => {
@@ -13,18 +15,24 @@ export const MarketplaceDashboard: React.FC = () => {
             setApps(data);
             setLoading(false);
         };
-        fetchApps();
-    }, []);
+        if (view === 'marketplace') {
+            fetchApps();
+        }
+    }, [view]);
+
+    if (view === 'developer') {
+        return <DeveloperPortal onBack={() => setView('marketplace')} />;
+    }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeIn">
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white">App Marketplace</h2>
                     <p className="text-gray-500">Discover and install integrations to extend your platform.</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline" icon="ArrowUpTrayIcon">Submit App</Button>
+                    <Button variant="outline" icon="CodeBracketIcon" onClick={() => setView('developer')}>Developer Portal</Button>
                     <Button variant="primary" icon="MagnifyingGlassIcon">Browse All</Button>
                 </div>
             </div>
@@ -66,7 +74,7 @@ export const MarketplaceDashboard: React.FC = () => {
                             Create custom integrations and earn revenue by publishing to our global marketplace. Access developer tools and API documentation.
                         </p>
                     </div>
-                    <Button variant="secondary" size="lg" icon="CodeBracketIcon" className="shrink-0">
+                    <Button variant="secondary" size="lg" icon="CodeBracketIcon" className="shrink-0" onClick={() => setView('developer')}>
                         Developer Portal
                     </Button>
                 </div>

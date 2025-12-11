@@ -1,4 +1,4 @@
-import { interpolate } from 'remotion';
+import { interpolate } from '../../../lib/remotion-utils';
 
 export type EffectType = 'blur' | 'brightness' | 'contrast' | 'saturate' | 'grayscale' | 'sepia' | 'hue-rotate' | 'invert';
 

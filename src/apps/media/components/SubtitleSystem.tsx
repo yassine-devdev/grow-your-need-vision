@@ -1,5 +1,6 @@
 import React from 'react';
-import { useCurrentFrame, interpolate } from 'remotion';
+import { useCurrentFrame } from 'remotion';
+import { interpolate } from '../../../lib/remotion-utils';
 
 export interface Subtitle {
     id: string;

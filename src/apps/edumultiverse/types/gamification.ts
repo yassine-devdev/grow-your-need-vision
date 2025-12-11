@@ -6,6 +6,7 @@ export interface Universe {
     description: string;
     icon: string;
     owner?: string;
+    min_level: number;
 }
 
 export interface Timeline {

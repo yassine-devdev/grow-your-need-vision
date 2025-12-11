@@ -10,10 +10,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U medusa -d medusa-store"]
@@ -35,10 +35,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     depends_on:
       medusa-db:
@@ -61,7 +61,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -80,7 +80,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -108,7 +108,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hyperswitch -d hyperswitch"]
@@ -130,7 +130,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     depends_on:
       hyperswitch-db:
@@ -157,7 +157,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -176,7 +176,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
@@ -200,7 +200,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     depends_on:
       plausible-db:
@@ -223,7 +223,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     ports:
       - "9002:80"
@@ -241,7 +241,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     volumes:
       - penpot-assets:/opt/data/assets
@@ -267,7 +267,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     environment:
       PENPOT_PUBLIC_URI: "http://penpot-frontend"
@@ -281,7 +281,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U penpot -d penpot"]
@@ -292,7 +292,7 @@ services:
       POSTGRES_INITDB_ARGS: "--data-checksums"
       POSTGRES_DB: penpot
       POSTGRES_USER: penpot
-      POSTGRES_PASSWORD: penpotpassword
+      POSTGRES_PASSWORD: ${PENPOT_DB_PASSWORD}
     volumes:
       - penpot-postgres-data:/var/lib/postgresql/data
     networks:
@@ -304,7 +304,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -323,7 +323,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
     ports:
       - "8000:8000"
@@ -353,10 +353,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
       interval: 10s
       timeout: 5s
       retries: 3

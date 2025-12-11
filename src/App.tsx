@@ -1,60 +1,64 @@
-import React, { useEffect, Suspense, lazy } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import React, { Suspense, useLayoutEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+
+// Providers
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
 import { OSProvider, useOS } from './context/OSContext';
-import { ToastProvider } from './context/ToastContext';
-import { ModalProvider } from './context/ModalContext';
-import { SoundProvider } from './context/SoundContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { RealtimeProvider } from './context/RealtimeContext';
+import { ModalProvider } from './context/ModalContext';
+import { ToastProvider } from './context/ToastContext';
+import { SoundProvider } from './context/SoundContext';
 import { SchoolProvider } from './apps/school/SchoolContext';
-import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// Components
 import Navigation from './components/Navigation';
+import LoginPage from './components/LoginPage';
 import { LoadingScreen } from './components/shared/LoadingScreen';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { RealtimeStatus } from './components/shared/RealtimeStatus';
 import { GlobalSearch } from './components/shared/GlobalSearch';
-import NotFound from './components/shared/NotFound';
-import RoleBasedRedirect from './components/RoleBasedRedirect';
-import TestChat from './TestChat';
 import { GlobalErrorBoundary } from './components/shared/ui/GlobalErrorBoundary';
+import NotFound from './components/shared/NotFound';
+import TestChat from './TestChat';
 
-// Lazy Loaded Layouts & Pages
-const LoginPage = lazy(() => import('./components/LoginPage'));
-const AdminSchoolLayout = lazy(() => import('./components/layout/AdminSchoolLayout'));
-const TeacherLayout = lazy(() => import('./components/layout/TeacherLayout'));
-const StudentLayout = lazy(() => import('./components/layout/StudentLayout'));
-const ParentLayout = lazy(() => import('./components/layout/ParentLayout'));
-const IndividualLayout = lazy(() => import('./components/layout/IndividualLayout'));
-const OwnerLayout = lazy(() => import('./components/layout/OwnerLayout'));
+// Layouts
+import OwnerLayout from './components/layout/OwnerLayout';
+import AdminSchoolLayout from './components/layout/AdminSchoolLayout';
+import TeacherLayout from './components/layout/TeacherLayout';
+import StudentLayout from './components/layout/StudentLayout';
+import ParentLayout from './components/layout/ParentLayout';
+import IndividualLayout from './components/layout/IndividualLayout';
 
-// EduMultiverse App
+// Owner Apps
+import { TenantOnboardingFlow } from './apps/owner/TenantOnboardingFlow';
+import { TenantDashboard } from './apps/owner/TenantDashboard';
+import { AnalyticsDashboard } from './apps/owner/AnalyticsDashboard';
+import { SupportDashboard } from './apps/owner/SupportDashboard';
+import { OverlayAppsManager } from './apps/owner/OverlayAppsManager';
+
+// EduMultiverse
+import { MultiverseHUD } from './apps/edumultiverse/components/MultiverseHUD';
 import { MultiverseMap } from './apps/edumultiverse/screens/MultiverseMap';
 import { ParallelClassrooms } from './apps/edumultiverse/screens/ParallelClassrooms';
 import { GlitchHunter } from './apps/edumultiverse/screens/GlitchHunter';
 import { TimeLoopMission } from './apps/edumultiverse/screens/TimeLoopMission';
 import { ConceptFusion } from './apps/edumultiverse/screens/ConceptFusion';
 import { QuantumQuiz } from './apps/edumultiverse/screens/QuantumQuiz';
-import { MultiverseHUD } from './apps/edumultiverse/components/MultiverseHUD';
 import { Leaderboard } from './apps/edumultiverse/components/Leaderboard';
-
-// SaaS Owner Features
-import { TenantDashboard } from './apps/owner/TenantDashboard';
-import { AnalyticsDashboard } from './apps/owner/AnalyticsDashboard';
-import { SupportDashboard } from './apps/owner/SupportDashboard';
-import { TenantOnboardingFlow } from './apps/owner/TenantOnboardingFlow';
-import { OverlayAppsManager } from './apps/owner/OverlayAppsManager';
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { sidebarExpanded } = useOS();
   const location = useLocation();
 
-  // Mouse tracking for "flashlight" effect
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
       document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
     };
+
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
@@ -179,27 +183,33 @@ const AppContent: React.FC = () => {
   );
 };
 
+// React Query
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
+
 const App: React.FC = () => {
   return (
-    <Router>
-      <AuthProvider>
-        <RealtimeProvider>
-          <ThemeProvider>
-            <OSProvider>
-              <ToastProvider>
-                <ModalProvider>
-                  <SoundProvider>
-                    <GlobalErrorBoundary>
-                      <AppContent />
-                    </GlobalErrorBoundary>
-                  </SoundProvider>
-                </ModalProvider>
-              </ToastProvider>
-            </OSProvider>
-          </ThemeProvider>
-        </RealtimeProvider>
-      </AuthProvider>
-    </Router>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <AuthProvider>
+          <RealtimeProvider>
+            <ThemeProvider>
+              <OSProvider>
+                <ToastProvider>
+                  <ModalProvider>
+                    <SoundProvider>
+                      <GlobalErrorBoundary>
+                        <AppContent />
+                      </GlobalErrorBoundary>
+                    </SoundProvider>
+                  </ModalProvider>
+                </ToastProvider>
+              </OSProvider>
+            </ThemeProvider>
+          </RealtimeProvider>
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
   );
 };
 

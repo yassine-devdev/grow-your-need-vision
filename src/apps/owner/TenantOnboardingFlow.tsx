@@ -8,7 +8,15 @@ export const TenantOnboardingFlow: React.FC = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
     const [step, setStep] = useState(1);
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        name: string;
+        subdomain: string;
+        admin_email: string;
+        admin_password: string;
+        plan: 'free' | 'basic' | 'pro' | 'enterprise';
+        logo: string;
+        primary_color: string;
+    }>({
         // School info
         name: '',
         subdomain: '',
@@ -16,7 +24,7 @@ export const TenantOnboardingFlow: React.FC = () => {
         admin_password: '',
 
         // Plan selection
-        plan: 'basic' as const,
+        plan: 'basic',
 
         // Customization
         logo: '',
@@ -80,13 +88,13 @@ export const TenantOnboardingFlow: React.FC = () => {
                 admin_email: formData.admin_email,
                 admin_user: '', // Will be set after user creation
                 plan: formData.plan,
-                status: formData.plan === 'free' ? 'trial' : 'active',
-                subscription_status: formData.plan === 'free' ? 'trialing' : 'active',
+                status: formData.plan === 'basic' ? 'trial' : 'active', // Assuming basic is the lowest tier
+                subscription_status: formData.plan === 'basic' ? 'trialing' : 'active',
                 max_students: selectedPlan.students,
                 max_teachers: selectedPlan.teachers,
                 max_storage_gb: selectedPlan.storage,
                 features_enabled: selectedPlan.features,
-                ...(formData.plan === 'free' ? {
+                ...(formData.plan === 'basic' ? {
                     trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
                 } : {}),
                 logo: formData.logo,

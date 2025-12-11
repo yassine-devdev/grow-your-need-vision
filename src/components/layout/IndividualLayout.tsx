@@ -1,22 +1,24 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import MainLayout from './MainLayout';
 import { INDIVIDUAL_CONFIG } from '../../data/AppConfigs';
-import IndividualDashboard from '../../apps/IndividualDashboard';
-import ProjectsApp from '../../apps/ProjectsApp';
-import IndividualLearning from '../../apps/individual/Learning';
-import MarketApp from '../../apps/MarketApp';
-import Wellness from '../../apps/Wellness';
-import PlatformSettings from '../../apps/PlatformSettings';
-import Tools from '../../apps/Tools';
-import ConciergeAI from '../../apps/ConciergeAI';
-// New components
-import Dashboard from '../../apps/individual/Dashboard';
-import Projects from '../../apps/individual/Projects';
-import Goals from '../../apps/individual/Goals';
-import Skills from '../../apps/individual/Skills';
-import Certifications from '../../apps/individual/Certifications';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { Spinner } from '../shared/ui/Spinner';
+
+const IndividualDashboard = lazy(() => import('../../apps/IndividualDashboard'));
+const ProjectsApp = lazy(() => import('../../apps/ProjectsApp'));
+const IndividualLearning = lazy(() => import('../../apps/individual/Learning'));
+const MarketApp = lazy(() => import('../../apps/MarketApp'));
+const Wellness = lazy(() => import('../../apps/Wellness'));
+const PlatformSettings = lazy(() => import('../../apps/PlatformSettings'));
+const Tools = lazy(() => import('../../apps/Tools'));
+const ConciergeAI = lazy(() => import('../../apps/ConciergeAI'));
+// New components
+const Dashboard = lazy(() => import('../../apps/individual/Dashboard'));
+const Projects = lazy(() => import('../../apps/individual/Projects'));
+const Goals = lazy(() => import('../../apps/individual/Goals'));
+const Skills = lazy(() => import('../../apps/individual/Skills'));
+const Certifications = lazy(() => import('../../apps/individual/Certifications'));
 
 const IndividualLayout: React.FC = () => {
   const renderContent = (activeModule: string, activeTab: string, activeSubNav: string) => {
@@ -43,7 +45,13 @@ const IndividualLayout: React.FC = () => {
       }
     })();
 
-    return <ErrorBoundary>{content}</ErrorBoundary>;
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner /></div>}>
+          {content}
+        </Suspense>
+      </ErrorBoundary>
+    );
   };
 
   return <MainLayout config={INDIVIDUAL_CONFIG} renderContent={renderContent} role="Individual" />;

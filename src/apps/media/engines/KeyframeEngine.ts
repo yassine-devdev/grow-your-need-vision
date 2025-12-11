@@ -1,4 +1,4 @@
-import { interpolate } from 'remotion';
+import { interpolate } from '../../../lib/remotion-utils';
 
 export interface Keyframe {
     frame: number;

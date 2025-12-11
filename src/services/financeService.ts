@@ -10,6 +10,48 @@ export interface Expense extends RecordModel {
     approved_by: string;
 }
 
+// Platform Finance Interfaces
+export interface Transaction extends RecordModel {
+    date: string;
+    description: string;
+    amount: number;
+    type: 'income' | 'expense';
+    status: 'Completed' | 'Pending' | 'Failed';
+    category: string;
+    reference_id?: string;
+}
+
+export interface FinancialSummary {
+    totalRevenue: number;
+    pendingInvoices: number;
+    expensesMTD: number;
+    revenueGrowth: number;
+}
+
+export interface RevenueReport {
+    month: string;
+    revenue: number;
+    expenses: number;
+    profit: number;
+}
+
+const MOCK_TRANSACTIONS: Transaction[] = [
+    { id: 't1', collectionId: 'transactions', collectionName: 'transactions', created: '', updated: '', date: '2025-12-01', description: 'Stripe Payout', amount: 4500.00, type: 'income', status: 'Completed', category: 'Sales' },
+    { id: 't2', collectionId: 'transactions', collectionName: 'transactions', created: '', updated: '', date: '2025-11-30', description: 'AWS Infrastructure', amount: 320.50, type: 'expense', status: 'Completed', category: 'Infrastructure' },
+    { id: 't3', collectionId: 'transactions', collectionName: 'transactions', created: '', updated: '', date: '2025-11-29', description: 'School Subscription #8821', amount: 299.00, type: 'income', status: 'Completed', category: 'Subscription' },
+    { id: 't4', collectionId: 'transactions', collectionName: 'transactions', created: '', updated: '', date: '2025-11-28', description: 'Marketing Ads', amount: 150.00, type: 'expense', status: 'Pending', category: 'Marketing' },
+    { id: 't5', collectionId: 'transactions', collectionName: 'transactions', created: '', updated: '', date: '2025-11-28', description: 'Consulting Fee', amount: 1200.00, type: 'income', status: 'Completed', category: 'Services' },
+];
+
+const MOCK_REPORT: RevenueReport[] = [
+    { month: 'Jul', revenue: 12000, expenses: 4000, profit: 8000 },
+    { month: 'Aug', revenue: 15000, expenses: 4500, profit: 10500 },
+    { month: 'Sep', revenue: 18000, expenses: 5000, profit: 13000 },
+    { month: 'Oct', revenue: 22000, expenses: 6000, profit: 16000 },
+    { month: 'Nov', revenue: 25000, expenses: 7000, profit: 18000 },
+    { month: 'Dec', revenue: 28000, expenses: 8000, profit: 20000 },
+];
+
 export const financeService = {
     /**
      * Get all fee structures
@@ -125,5 +167,104 @@ export const financeService = {
             sort: '-date',
             requestKey: null
         });
+    },
+
+    // Platform Finance Methods
+    async getTransactions() {
+        try {
+            const records = await pb.collection('transactions').getFullList<Transaction>({
+                sort: '-date',
+                requestKey: null
+            });
+            return records;
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+            return [];
+        }
+    },
+
+    async createTransaction(data: Partial<Transaction>) {
+        return await pb.collection('transactions').create(data);
+    },
+
+    async deleteTransaction(id: string) {
+        return await pb.collection('transactions').delete(id);
+    },
+
+    async getPlatformSummary(): Promise<FinancialSummary> {
+        try {
+            const transactions = await this.getTransactions();
+            
+            const totalRevenue = transactions
+                .filter(t => t.type === 'income' && t.status === 'Completed')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const pendingInvoices = transactions
+                .filter(t => t.type === 'income' && t.status === 'Pending')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            const lastMonthDate = new Date();
+            lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+            const lastMonth = lastMonthDate.toISOString().slice(0, 7);
+
+            const expensesMTD = transactions
+                .filter(t => t.type === 'expense' && t.date.startsWith(currentMonth))
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const currentMonthRevenue = transactions
+                .filter(t => t.type === 'income' && t.status === 'Completed' && t.date.startsWith(currentMonth))
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const lastMonthRevenue = transactions
+                .filter(t => t.type === 'income' && t.status === 'Completed' && t.date.startsWith(lastMonth))
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            let revenueGrowth = 0;
+            if (lastMonthRevenue > 0) {
+                revenueGrowth = ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+            } else if (currentMonthRevenue > 0) {
+                revenueGrowth = 100; // 100% growth if starting from 0
+            }
+
+            return {
+                totalRevenue,
+                pendingInvoices,
+                expensesMTD,
+                revenueGrowth: parseFloat(revenueGrowth.toFixed(1))
+            };
+        } catch (error) {
+            return {
+                totalRevenue: 0,
+                pendingInvoices: 0,
+                expensesMTD: 0,
+                revenueGrowth: 0
+            };
+        }
+    },
+
+    async getRevenueReport(): Promise<RevenueReport[]> {
+        try {
+            const transactions = await this.getTransactions();
+            const reportMap = new Map<string, RevenueReport>();
+
+            transactions.forEach(t => {
+                const month = t.date.slice(0, 7); // YYYY-MM
+                if (!reportMap.has(month)) {
+                    reportMap.set(month, { month, revenue: 0, expenses: 0, profit: 0 });
+                }
+                const entry = reportMap.get(month)!;
+                if (t.type === 'income' && t.status === 'Completed') {
+                    entry.revenue += t.amount;
+                } else if (t.type === 'expense') {
+                    entry.expenses += t.amount;
+                }
+                entry.profit = entry.revenue - entry.expenses;
+            });
+
+            return Array.from(reportMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+        } catch (error) {
+            return [];
+        }
     }
 };

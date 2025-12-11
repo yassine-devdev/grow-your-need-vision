@@ -35,7 +35,7 @@ const StudentSchedule: React.FC<Props> = ({ activeTab }) => {
   const getClassesForDay = (day: string) => {
     return classes.filter(c => c.schedule && c.schedule[day]).map(c => ({
       ...c,
-      time: c.schedule[day]
+      time: c.schedule![day]
     })).sort((a, b) => a.time.localeCompare(b.time));
   };
 

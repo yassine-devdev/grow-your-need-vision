@@ -28,7 +28,7 @@ export const SubscriptionPlans: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Subscription Plans</h2>
-                <Button variant="primary" leftIcon={<Icon name="Plus" className="w-4 h-4" />}>
+                <Button variant="primary" leftIcon={<Icon name="Plus" className="w-4 h-4" />} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">
                     Create Plan
                 </Button>
             </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon, IconName } from './CommonUI';
+import { OwnerIcon as Icon, IconName } from '../OwnerIcons';
 
 interface EmptyStateProps {
   title: string;

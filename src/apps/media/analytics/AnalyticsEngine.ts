@@ -113,7 +113,7 @@ export class AnalyticsEngine {
         this.events = [];
     }
 
-    export ToCSV(): string {
+    ToCSV(): string {
         const headers = ['Type', 'Timestamp', 'Metadata'];
         const rows = this.events.map(e => [
             e.type,

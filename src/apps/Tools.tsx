@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { OwnerIcon } from '../components/shared/OwnerIcons';
+import { TasksTool } from './tools/TasksTool';
+import { CalendarTool } from './tools/CalendarTool';
 import { useFileStorage } from '../hooks/useFileStorage';
 import { FileTree } from '../components/shared/ui/FileTree';
 import { Icon } from '../components/shared/ui/CommonUI';
-import { Icon } from '../components/shared/ui/CommonUI';
+
 import { ResourcesView } from './tools/ResourcesView';
 import { ReportsApp } from './ReportsApp';
 import pb from '../lib/pocketbase';
@@ -301,6 +302,10 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
 
     const renderToolContent = () => {
         switch (activeTool) {
+            case 'Tasks':
+                return <TasksTool />;
+            case 'Calendar':
+                return <CalendarTool />;
             // --- Teacher Tools ---
             case 'Whiteboard':
                 return (
@@ -483,26 +488,7 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                         )}
                     </div>
                 );
-            case 'Calendar':
-                return (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                        <div className="text-center">
-                            <Icon name="CalendarIcon" className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            <h3 className="text-lg font-bold">Calendar</h3>
-                            <p>Coming soon...</p>
-                        </div>
-                    </div>
-                );
-            case 'Tasks':
-                return (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                        <div className="text-center">
-                            <Icon name="CheckCircleIcon" className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                            <h3 className="text-lg font-bold">Task Manager</h3>
-                            <p>Coming soon...</p>
-                        </div>
-                    </div>
-                );
+
 
             // --- Dev Tools ---
             case 'File Manager':

@@ -1,22 +1,24 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import MainLayout from './MainLayout';
 import { SCHOOL_ADMIN_CONFIG } from '../../data/AppConfigs';
-import SchoolAdminDashboard from '../../apps/dashboards/SchoolAdminDashboard';
-import SchoolCRM from '../../apps/school/crm/SchoolCRM';
-import Academics from '../../apps/school/Academics';
-import Enrollment from '../../apps/school/Enrollment';
-import People from '../../apps/school/People';
-import Finance from '../../apps/school/Finance';
-import Attendance from '../../apps/school/Attendance';
-import Grades from '../../apps/school/Grades';
-import Services from '../../apps/school/Services';
-import Communication from '../../apps/Communication';
-import Wellness from '../../apps/Wellness';
-import PlatformSettings from '../../apps/PlatformSettings';
-import Tools from '../../apps/Tools';
-import SchoolConcierge from '../../apps/school/SchoolConcierge';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { Spinner } from '../shared/ui/Spinner';
+
+const SchoolAdminDashboard = lazy(() => import('../../apps/dashboards/SchoolAdminDashboard'));
+const SchoolCRM = lazy(() => import('../../apps/school/crm/SchoolCRM'));
+const Academics = lazy(() => import('../../apps/school/Academics'));
+const Enrollment = lazy(() => import('../../apps/school/Enrollment'));
+const People = lazy(() => import('../../apps/school/People'));
+const Finance = lazy(() => import('../../apps/school/Finance'));
+const Attendance = lazy(() => import('../../apps/school/Attendance'));
+const Grades = lazy(() => import('../../apps/school/Grades'));
+const Services = lazy(() => import('../../apps/school/Services'));
+const Communication = lazy(() => import('../../apps/Communication'));
+const Wellness = lazy(() => import('../../apps/Wellness'));
+const PlatformSettings = lazy(() => import('../../apps/PlatformSettings'));
+const Tools = lazy(() => import('../../apps/Tools'));
+const SchoolConcierge = lazy(() => import('../../apps/school/SchoolConcierge'));
 
 const AdminSchoolLayout: React.FC = () => {
   const renderContent = (activeModule: string, activeTab: string, activeSubNav: string) => {
@@ -41,7 +43,13 @@ const AdminSchoolLayout: React.FC = () => {
       }
     })();
 
-    return <ErrorBoundary>{content}</ErrorBoundary>;
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner /></div>}>
+          {content}
+        </Suspense>
+      </ErrorBoundary>
+    );
   };
 
   return <MainLayout config={SCHOOL_ADMIN_CONFIG} renderContent={renderContent} role="School Admin" />;

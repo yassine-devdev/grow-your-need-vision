@@ -6,7 +6,7 @@ export interface SchoolClass extends RecordModel {
     room: string;
     academic_year: string;
     teacher?: string;
-    schedule?: string;
+    schedule?: Record<string, string>;
     expand?: {
         teacher?: {
             name: string;

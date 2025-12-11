@@ -1,6 +1,7 @@
 import os
 import time
 from typing import List, Optional, Dict, Any
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,6 +10,8 @@ import openai
 import google.generativeai as genai
 from knowledge_base import KnowledgeBase
 from pocketbase_client import PocketBaseClient
+from client_manager import ClientManager
+from model_router import ModelRouter
 
 # Load environment variables
 # Explicitly look for .env in the parent directory if not found in current
@@ -23,8 +26,6 @@ else:
     load_dotenv() # Fallback to default behavior
     print("Loaded .env from default location (or not found)")
 
-app = FastAPI(title="Concierge AI Service")
-
 # Initialize Knowledge Base & PocketBase
 # In production, we fail if KB cannot be initialized.
 try:
@@ -34,6 +35,27 @@ except Exception as e:
     raise RuntimeError(f"KnowledgeBase initialization failed: {e}")
 
 pb = PocketBaseClient()
+client_manager = ClientManager()
+router = ModelRouter()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    await pb.authenticate()
+    
+    # Ingest docs on startup in background
+    docs_path: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
+    if os.path.exists(docs_path):
+        print(f"Background ingestion started for: {docs_path}")
+        try:
+            count: int = kb.ingest_docs(docs_path)
+            print(f"Startup ingestion complete: {count} chunks.")
+        except Exception as e:
+            print(f"Error during startup ingestion: {e}")
+    yield
+    print("Shutting down AI Service...")
+
+app = FastAPI(title="Concierge AI Service", lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -53,41 +75,6 @@ GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OPEN_WEBUI_BASE_URL: str = os.getenv("OPEN_WEBUI_BASE_URL", "http://localhost:3000/api")
-
-# Initialize Clients
-client: Optional[openai.OpenAI] = None
-genai_model: Optional[genai.GenerativeModel] = None
-
-def get_client() -> None:
-    global client, genai_model
-    
-    if AI_PROVIDER == "openai" and OPENAI_API_KEY:
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    elif AI_PROVIDER == "openrouter" and OPENROUTER_API_KEY:
-        client = openai.OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY,
-        )
-    elif AI_PROVIDER == "groq" and GROQ_API_KEY:
-        client = openai.OpenAI(
-            base_url="https://api.groq.com/openai/v1",
-            api_key=GROQ_API_KEY,
-        )
-    elif AI_PROVIDER == "ollama":
-        client = openai.OpenAI(
-            base_url=OLLAMA_BASE_URL,
-            api_key="ollama", # Required but unused
-        )
-    elif AI_PROVIDER == "openwebui":
-        client = openai.OpenAI(
-            base_url=OPEN_WEBUI_BASE_URL,
-            api_key=OPENAI_API_KEY or "sk-placeholder", # OpenWebUI might require a key structure but not validation
-        )
-    elif AI_PROVIDER == "gemini" and GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-        genai_model = genai.GenerativeModel('gemini-pro')
-
-get_client()
 
 class Message(BaseModel):
     role: str
@@ -113,25 +100,7 @@ class SystemStats(BaseModel):
     tokens_output: str
     provider: str
 
-@app.on_event("startup")
-async def startup_event() -> None:
-    # 1. Authenticate PocketBase
-    await pb.authenticate()
-    
-    # 2. Ingest docs on startup in background
-    # Assuming docs are in ../docs relative to ai_service/
-    docs_path: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
-    if os.path.exists(docs_path):
-        print(f"Background ingestion started for: {docs_path}")
-        # Note: In a real async app, we might want to run this in a separate thread/process
-        # to avoid blocking startup if it takes too long. For now, it's synchronous but fast enough for small docs.
-        try:
-            count: int = kb.ingest_docs(docs_path)
-            print(f"Startup ingestion complete: {count} chunks.")
-        except Exception as e:
-            print(f"Startup ingestion failed: {e}")
-    else:
-        print(f"Docs directory not found at {docs_path}")
+
 
 # Global Stats Tracker
 class ServiceStats:
@@ -254,44 +223,43 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
         if db_results:
             system_prompt += f"\n\n[DATABASE RESULTS]\n{db_results}"
 
-        # 2. Handle Gemini Provider
-        if AI_PROVIDER == "gemini" and genai_model:
-            chat_session = genai_model.start_chat(history=[])
-            # Gemini handles system prompts differently, usually prepended to first message or context
-            # For simplicity, we'll just send the last message with context
-            full_prompt: str = f"{system_prompt}\n\nUser: {request.messages[-1].content}"
-            response = chat_session.send_message(full_prompt)
-            
-            # Estimate tokens (rough approximation for Gemini)
-            input_tokens = len(full_prompt) // 4
-            output_tokens = len(response.text) // 4
-            stats.tokens_in += input_tokens
-            stats.tokens_out += output_tokens
-            
-            return {
-                "response": response.text,
-                "usage": {"total_tokens": input_tokens + output_tokens}, 
-                "provider": AI_PROVIDER
-            }
+        # --- INTELLIGENT ROUTING ---
+        available_providers = client_manager.list_available_providers()
+        route_decision = router.route(request.messages[-1].content, request.context or "General", available_providers)
+        
+        selected_provider = route_decision["provider"]
+        selected_model = route_decision["model"]
+        
+        print(f"Routing Decision: {route_decision}")
 
-        # 3. Handle OpenAI-compatible Providers (OpenAI, OpenRouter, Groq, Ollama)
+        # 2. Handle Gemini Provider
+        if selected_provider == "gemini":
+            genai_model = client_manager.get_client("gemini")
+            if genai_model:
+                chat_session = genai_model.start_chat(history=[])
+                full_prompt: str = f"{system_prompt}\n\nUser: {request.messages[-1].content}"
+                response = chat_session.send_message(full_prompt)
+                
+                input_tokens = len(full_prompt) // 4
+                output_tokens = len(response.text) // 4
+                stats.tokens_in += input_tokens
+                stats.tokens_out += output_tokens
+                
+                return {
+                    "response": response.text,
+                    "usage": {"total_tokens": input_tokens + output_tokens}, 
+                    "provider": f"gemini ({selected_model})"
+                }
+
+        # 3. Handle OpenAI-compatible Providers
+        client = client_manager.get_client(selected_provider)
         if client:
-            model: str = "gpt-3.5-turbo" # Default
-            if AI_PROVIDER == "openrouter":
-                model = request.model or AI_MODEL or "openai/gpt-3.5-turbo"
-            elif AI_PROVIDER == "groq":
-                model = request.model or AI_MODEL or "llama3-8b-8192"
-            elif AI_PROVIDER == "ollama":
-                model = request.model or AI_MODEL or "qwen2.5:1.5b"
-            elif AI_PROVIDER == "openwebui":
-                model = request.model or AI_MODEL or "gpt-3.5-turbo" # OpenWebUI often aliases models
-            
             api_messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
             for msg in request.messages:
                 api_messages.append({"role": msg.role, "content": msg.content})
 
             completion = client.chat.completions.create(
-                model=model,
+                model=selected_model,
                 messages=api_messages
             )
             
@@ -306,13 +274,13 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
                     "completion_tokens": completion.usage.completion_tokens,
                     "total_tokens": completion.usage.total_tokens
                 } if completion.usage else {},
-                "provider": AI_PROVIDER
+                "provider": f"{selected_provider} ({selected_model})"
             }
         
         # 4. Fallback
         stats.error_count += 1
         return {
-            "response": f"I am currently running in offline mode. Provider '{AI_PROVIDER}' is not configured correctly. Please check your .env file.",
+            "response": f"I am currently running in offline mode. Provider '{selected_provider}' is not configured correctly. Please check your .env file.",
             "usage": {"total_tokens": 0},
             "provider": "offline"
         }
@@ -321,6 +289,37 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
         stats.error_count += 1
         print(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+async def ingest_all_knowledge():
+    print("Starting knowledge refresh...")
+    # 1. Ingest local docs
+    docs_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
+    if os.path.exists(docs_path):
+        kb.ingest_docs(docs_path)
+    
+    # 2. Download and ingest from PocketBase
+    records = await pb.get_knowledge_docs()
+    temp_dir = os.path.join(os.path.dirname(__file__), "temp_docs")
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    downloaded_count = 0
+    for record in records:
+        filename = record.get("file")
+        if filename:
+            dest = os.path.join(temp_dir, filename)
+            if await pb.download_file(record["collectionId"], record["id"], filename, dest):
+                downloaded_count += 1
+    
+    if downloaded_count > 0:
+        print(f"Downloaded {downloaded_count} documents from PocketBase.")
+        kb.ingest_docs(temp_dir)
+    
+    print("Knowledge refresh complete.")
+
+@app.post("/refresh-knowledge")
+async def refresh_knowledge(background_tasks: BackgroundTasks):
+    background_tasks.add_task(ingest_all_knowledge)
+    return {"status": "Knowledge refresh started"}
 
 if __name__ == "__main__":
     import uvicorn

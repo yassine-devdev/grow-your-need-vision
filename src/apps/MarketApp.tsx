@@ -428,8 +428,9 @@ const MarketApp: React.FC<MarketAppProps> = ({ activeTab, activeSubNav }) => {
       <AIContentGeneratorModal
         isOpen={isAIModalOpen}
         onClose={() => setIsAIModalOpen(false)}
-        type="text"
-        onGenerate={(content) => console.log(content)}
+        title="Generate Product Description"
+        promptTemplate="Write a product description for {topic}"
+        onSuccess={(content) => console.log(content)}
       />
     </div>
   );

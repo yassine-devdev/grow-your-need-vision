@@ -25,6 +25,12 @@ export interface ChartDataPoint {
     label: string;
     value: number;
     value2?: number; // For comparison
+    type?: 'actual' | 'projected';
+}
+
+export interface CohortData {
+    cohort: string;
+    retention: number[];
 }
 
 export interface AuditLog extends RecordModel {
@@ -66,6 +72,9 @@ export interface OwnerDashboardData {
     topVisitedPages: { label: string; value: number; color: string; subLabel?: string }[];
     topUserAccess: { label: string; value: number; color: string }[];
     expensesByCategory: { label: string; value: number; color: string; percentage: number }[];
+    // Advanced Analytics
+    predictiveRevenue: ChartDataPoint[];
+    cohortRetention: CohortData[];
 }
 
 class OwnerService {
@@ -82,6 +91,8 @@ class OwnerService {
         let topVisitedPages: { label: string; value: number; color: string; subLabel?: string }[] = [];
         let topUserAccess: { label: string; value: number; color: string }[] = [];
         let expensesByCategory: { label: string; value: number; color: string; percentage: number }[] = [];
+        let predictiveRevenue: ChartDataPoint[] = [];
+        let cohortRetention: CohortData[] = [];
 
         try {
             // --- New Analytics Fetching ---
@@ -240,6 +251,48 @@ class OwnerService {
                 console.error("Error fetching tenant growth:", e);
             }
 
+            // 5.5 Predictive Revenue & Cohorts (Advanced Analytics)
+            try {
+                // Predictive Revenue
+                if (revenueHistory.length > 0) {
+                    // Copy existing history as 'actual'
+                    predictiveRevenue = revenueHistory.map(h => ({ ...h, type: 'actual' }));
+                    
+                    // Simple projection: Average of last 3 months
+                    const last3Months = revenueHistory.slice(-3);
+                    const avgRevenue = last3Months.length > 0 ? last3Months.reduce((sum, item) => sum + item.value, 0) / last3Months.length : 0;
+                    const growthRate = 1.05; // Assume 5% growth for projection
+
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const lastDate = new Date(); // Current month is the last one in history
+
+                    for (let i = 1; i <= 3; i++) {
+                        const nextMonth = new Date(lastDate);
+                        nextMonth.setMonth(lastDate.getMonth() + i);
+                        const label = monthNames[nextMonth.getMonth()];
+                        
+                        const projectedValue = avgRevenue * Math.pow(growthRate, i);
+                        predictiveRevenue.push({
+                            label: label,
+                            value: Math.round(projectedValue),
+                            type: 'projected'
+                        });
+                    }
+                }
+
+                // Cohort Retention (Mocked for now)
+                cohortRetention = [
+                    { cohort: 'Aug 2024', retention: [100, 95, 90, 88, 85] },
+                    { cohort: 'Sep 2024', retention: [100, 92, 88, 85] },
+                    { cohort: 'Oct 2024', retention: [100, 94, 91] },
+                    { cohort: 'Nov 2024', retention: [100, 96] },
+                    { cohort: 'Dec 2024', retention: [100] }
+                ];
+
+            } catch (e) {
+                console.error("Error calculating advanced analytics:", e);
+            }
+
             // 6. Activity Feed
             try {
                 // WORKAROUND: Fetch all records and sort in memory because 'created' sort is failing
@@ -336,7 +389,9 @@ class OwnerService {
                 recentActivity: combinedActivity,
                 topVisitedPages: topVisitedPages,
                 topUserAccess: topUserAccess,
-                expensesByCategory: expensesByCategory
+                expensesByCategory: expensesByCategory,
+                predictiveRevenue: predictiveRevenue,
+                cohortRetention: cohortRetention
             };
 
         } catch (err) {

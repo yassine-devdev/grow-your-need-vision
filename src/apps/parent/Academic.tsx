@@ -48,7 +48,7 @@ const ParentAcademic: React.FC<Props> = ({ activeTab, activeSubNav }) => {
         const kids = await parentService.getChildren(user.id);
         setChildren(kids);
         if (kids.length > 0) {
-          setSelectedChild(kids[0].id);
+          setSelectedChild(kids[0]?.id || null);
         }
       }
     } catch (error) {

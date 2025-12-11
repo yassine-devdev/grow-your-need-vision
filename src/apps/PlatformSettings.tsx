@@ -1,9 +1,24 @@
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Icon, Card, Button, Badge } from '../components/shared/ui/CommonUI';
 import { usePlatformSettings } from '../hooks/usePlatformSettings';
 import { useTheme } from '../context/ThemeContext';
 import { SystemSettings } from './owner/SystemSettings';
+import { LoadingScreen } from '../components/shared/LoadingScreen';
+
+// Lazy load content managers
+const ReligionContentManager = React.lazy(() => import('./owner/content-managers/ReligionContentManager').then(module => ({ default: module.ReligionContentManager })));
+const MarketplaceContentManager = React.lazy(() => import('./owner/content-managers/MarketplaceContentManager').then(module => ({ default: module.MarketplaceContentManager })));
+const SportContentManager = React.lazy(() => import('./owner/content-managers/SportContentManager').then(module => ({ default: module.SportContentManager })));
+const GamificationContentManager = React.lazy(() => import('./owner/content-managers/GamificationContentManager').then(module => ({ default: module.GamificationContentManager })));
+const MediaContentManager = React.lazy(() => import('./owner/content-managers/MediaContentManager').then(module => ({ default: module.MediaContentManager })));
+const EventsContentManager = React.lazy(() => import('./owner/content-managers/EventsContentManager').then(module => ({ default: module.EventsContentManager })));
+const HobbiesContentManager = React.lazy(() => import('./owner/content-managers/HobbiesContentManager').then(module => ({ default: module.HobbiesContentManager })));
+const ServicesContentManager = React.lazy(() => import('./owner/content-managers/ServicesContentManager').then(module => ({ default: module.ServicesContentManager })));
+const HelpContentManager = React.lazy(() => import('./owner/content-managers/HelpContentManager').then(module => ({ default: module.HelpContentManager })));
+const CalendarContentManager = React.lazy(() => import('./owner/content-managers/CalendarContentManager').then(module => ({ default: module.CalendarContentManager })));
+const StudioContentManager = React.lazy(() => import('./owner/content-managers/StudioContentManager').then(module => ({ default: module.StudioContentManager })));
+const MessagingContentManager = React.lazy(() => import('./owner/content-managers/MessagingContentManager').then(module => ({ default: module.MessagingContentManager })));
 
 interface PlatformSettingsProps {
   activeTab: string;
@@ -15,6 +30,102 @@ const PlatformSettings: React.FC<PlatformSettingsProps> = ({ activeTab, activeSu
   
   if (activeTab === 'Configuration') {
       return <SystemSettings />;
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Religion') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <ReligionContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Marketplace') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <MarketplaceContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Sport') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <SportContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Gamification') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <GamificationContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Media') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <MediaContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Events') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <EventsContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Hobbies') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <HobbiesContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Services') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <ServicesContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Help Center') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <HelpContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Calendar') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <CalendarContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Studio') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <StudioContentManager />
+          </Suspense>
+      );
+  }
+
+  if (activeTab === 'Backend' && activeSubNav === 'Messaging') {
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <MessagingContentManager />
+          </Suspense>
+      );
   }
 
   // Use activeSubNav to determine which settings group to load
@@ -194,7 +305,7 @@ const PlatformSettings: React.FC<PlatformSettingsProps> = ({ activeTab, activeSu
           {/* Footer Actions */}
           <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
               <Button variant="ghost">Discard Changes</Button>
-              <Button variant="primary">Save Configuration</Button>
+              <Button variant="primary" className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">Save Configuration</Button>
           </div>
       </Card>
     </div>

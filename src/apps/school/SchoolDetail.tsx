@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { OwnerIcon } from '../../components/shared/OwnerIcons';
-import { tenantService, Tenant, TenantUser } from '../../services/tenantService';
+import { tenantService, Tenant } from '../../services/tenantService';
+import { User } from '../../context/AuthContext';
 import { ticketService, Ticket } from '../../services/ticketService';
 import { Button } from '../../components/shared/ui/Button';
 import { Avatar } from '../../components/shared/ui/Avatar';
@@ -16,7 +17,7 @@ interface SchoolDetailProps {
 
 export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) => {
     const [tenant, setTenant] = useState<Tenant | null>(null);
-    const [users, setUsers] = useState<TenantUser[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [activeTab, setActiveTab] = useState<'Overview' | 'Users' | 'Branding' | 'Billing' | 'Support'>('Overview');
     const [loading, setLoading] = useState(true);
@@ -30,12 +31,12 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
             setLoading(true);
             try {
                 const [tData, uData, tickData] = await Promise.all([
-                    tenantService.getTenant(tenantId),
+                    tenantService.getTenantById(tenantId),
                     tenantService.getTenantUsers(tenantId),
                     ticketService.getTicketsByTenant(tenantId)
                 ]);
                 setTenant(tData);
-                setUsers(uData);
+                setUsers(uData.items as unknown as User[]);
                 setTickets(tickData);
             } catch (error) {
                 console.error("Failed to fetch school details", error);
@@ -51,13 +52,13 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
         try {
             const newUser = await tenantService.addTenantUser(tenantId, {
                 email: newUserEmail,
-                role: newUserRole as TenantUser['role'],
+                role: newUserRole as User['role'],
                 name: newUserEmail.split('@')[0], // Placeholder name
-                status: 'Active',
+                status: 'active',
                 username: newUserEmail.split('@')[0] + Math.floor(Math.random() * 1000)
             });
             if (newUser) {
-                setUsers([newUser, ...users]);
+                setUsers([newUser as unknown as User, ...users]);
             }
             setNewUserEmail('');
         } catch (error) {
@@ -86,7 +87,7 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                 <div className="flex-1">
                     <h1 className="text-2xl font-black text-gray-900 flex items-center gap-3">
                         {tenant.name}
-                        <Badge variant={tenant.status === 'Active' ? 'success' : 'warning'}>{tenant.status}</Badge>
+                        <Badge variant={tenant.status === 'active' ? 'success' : 'warning'}>{tenant.status}</Badge>
                     </h1>
                     <p className="text-gray-500 text-sm">{tenant.domain} • {tenant.contact_email}</p>
                 </div>
@@ -156,7 +157,7 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                                     <option value="Parent">Parent</option>
                                 </Select>
                             </div>
-                            <Button variant="primary" onClick={handleAddUser}>Add User</Button>
+                            <Button variant="primary" onClick={handleAddUser} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">Add User</Button>
                         </div>
 
                         <Table>

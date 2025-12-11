@@ -22,7 +22,7 @@ export interface Schedule {
   frequency?: 'Weekly' | 'Bi-weekly' | 'Monthly';
 }
 
-export interface Activity {
+export interface EventActivity {
   id: string;
   name: string;
   description: string;
@@ -38,7 +38,7 @@ export const eventService = {
   // Events
   async getEvents(filter?: string) {
     try {
-      const records = await pb.collection('events').getList<Event>(1, 50, {
+      const records = await pb.collection('events').getFullList<Event>({
         sort: 'start_time',
         filter: filter || '',
         expand: 'organizer',
@@ -46,14 +46,7 @@ export const eventService = {
       return records;
     } catch (error) {
       console.error('Error fetching events:', error);
-      // Return empty structure matching ListResult
-      return { 
-          page: 1,
-          perPage: 50,
-          totalItems: 0,
-          totalPages: 0,
-          items: [] 
-      };
+      return [];
     }
   },
 
@@ -84,10 +77,41 @@ export const eventService = {
     }
   },
 
+  // Calendar Events
+  async getCalendarEvents(userId: string) {
+    try {
+      return await pb.collection('calendar_events').getFullList({
+        filter: `user = "${userId}"`,
+        sort: 'start'
+      });
+    } catch (error) {
+      console.error('Error fetching calendar events:', error);
+      return [];
+    }
+  },
+
+  async createCalendarEvent(data: any) {
+    try {
+      return await pb.collection('calendar_events').create(data);
+    } catch (error) {
+      console.error('Error creating calendar event:', error);
+      return null;
+    }
+  },
+
+  async deleteCalendarEvent(id: string) {
+    try {
+      return await pb.collection('calendar_events').delete(id);
+    } catch (error) {
+      console.error('Error deleting calendar event:', error);
+      return false;
+    }
+  },
+
   // Activities
   async getActivities() {
     try {
-      const records = await pb.collection('activities').getList<Activity>(1, 50, {
+      const records = await pb.collection('activities').getList<EventActivity>(1, 50, {
         sort: '-created',
       });
       return records;
@@ -103,18 +127,18 @@ export const eventService = {
     }
   },
 
-  async createActivity(data: Partial<Activity>) {
+  async createActivity(data: Partial<EventActivity>) {
     try {
-      return await pb.collection('activities').create<Activity>(data);
+      return await pb.collection('activities').create<EventActivity>(data);
     } catch (error) {
       console.error('Error creating activity:', error);
       return null;
     }
   },
   
-  async updateActivity(id: string, data: Partial<Activity>) {
+  async updateActivity(id: string, data: Partial<EventActivity>) {
     try {
-      return await pb.collection('activities').update<Activity>(id, data);
+      return await pb.collection('activities').update<EventActivity>(id, data);
     } catch (error) {
       console.error('Error updating activity:', error);
       return null;

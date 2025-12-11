@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load test environment variables
 dotenv.config({ path: path.resolve(__dirname, '.env.test') });
@@ -13,7 +17,7 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
     use: {
-        baseURL: 'http://localhost:5173',
+        baseURL: 'http://localhost:3001',
         trace: 'on-first-retry',
     },
     projects: [
@@ -29,7 +33,7 @@ export default defineConfig({
     ],
     webServer: {
         command: 'pnpm dev:client',
-        url: 'http://localhost:5173',
+        url: 'http://localhost:3001',
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,
     },

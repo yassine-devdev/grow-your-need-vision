@@ -7,7 +7,7 @@ export interface Invoice {
     stripe_invoice_id: string;
     amount: number;
     currency: string;
-    status: 'paid' | 'pending' | 'failed' | 'cancelled';
+    status: 'paid' | 'pending' | 'failed' | 'cancelled' | 'overdue';
     pdf_url?: string;
     period_start: string;
     period_end: string;

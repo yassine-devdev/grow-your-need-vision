@@ -1,25 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { OwnerIcon } from '../shared/OwnerIcons';
 import OwnerTabs from './OwnerTabs';
 import { OVERLAY_CONFIG } from '../../data/AppConfigs';
 import { useOS } from '../../context/OSContext'; // Import useOS
+import { Spinner } from '../shared/ui/Spinner';
 
 // Import App Components
-import CreatorStudio from '../../apps/CreatorStudio';
-import AppSettings from '../../apps/AppSettings';
-import MessagingApp from '../../apps/MessagingApp';
-import MediaApp from '../../apps/MediaApp';
-import MarketApp from '../../apps/MarketApp';
-import ServicesApp from '../../apps/ServicesApp';
-import SportApp from '../../apps/SportApp';
-import ReligionApp from '../../apps/ReligionApp';
-import TravelApp from '../../apps/TravelApp';
-import ActivitiesApp from '../../apps/ActivitiesApp';
-import EventsApp from '../../apps/EventsApp';
-import GamificationApp from '../../apps/GamificationApp';
-import HobbiesApp from '../../apps/HobbiesApp';
-import HelpCenterApp from '../../apps/HelpCenterApp';
-import UserProfile from '../../apps/UserProfile';
+const CreatorStudio = lazy(() => import('../../apps/CreatorStudio'));
+const AppSettings = lazy(() => import('../../apps/AppSettings'));
+const MessagingApp = lazy(() => import('../../apps/MessagingApp'));
+const MediaApp = lazy(() => import('../../apps/MediaApp'));
+const MarketApp = lazy(() => import('../../apps/MarketApp'));
+const ServicesApp = lazy(() => import('../../apps/ServicesApp'));
+const SportApp = lazy(() => import('../../apps/SportApp'));
+const ReligionApp = lazy(() => import('../../apps/ReligionApp'));
+const TravelApp = lazy(() => import('../../apps/TravelApp'));
+const ActivitiesApp = lazy(() => import('../../apps/ActivitiesApp'));
+const EventsApp = lazy(() => import('../../apps/EventsApp'));
+const GamificationApp = lazy(() => import('../../apps/GamificationApp'));
+const HobbiesApp = lazy(() => import('../../apps/HobbiesApp'));
+const HelpCenterApp = lazy(() => import('../../apps/HelpCenterApp'));
+const UserProfile = lazy(() => import('../../apps/UserProfile'));
 
 interface OverlayProps {
   appName: string | null;
@@ -29,6 +30,7 @@ interface OverlayProps {
 const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
   const [activeTab, setActiveTab] = useState<string>('');
   const [activeSubNav, setActiveSubNav] = useState<string>('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const { minimizeAppByName } = useOS();
   
   // In the future, useOS could provide window state here
@@ -75,7 +77,14 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
   };
 
   const renderAppContent = () => {
-    const props = { activeTab, activeSubNav };
+    const props = { 
+        activeTab, 
+        activeSubNav,
+        onNavigate: (tab: string, subNav?: string) => {
+            setActiveTab(tab);
+            if (subNav) setActiveSubNav(subNav);
+        }
+    };
     switch (appName) {
         case 'User Profile': return <UserProfile {...props} />;
         case 'Creator Studio': return <CreatorStudio {...props} />;
@@ -110,6 +119,15 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
              <div className="h-16 bg-gradient-to-b from-gray-50 to-gray-100 border-b border-gray-200 flex items-center justify-between px-6 shrink-0 relative z-40 shadow-sm select-none">
                   {/* Left: App Icon & Title */}
                   <div className="flex items-center gap-3 w-80 z-50">
+                      {subnavItems.length > 0 && (
+                          <button 
+                              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                              className={`p-2 rounded-lg transition-colors ${isSidebarOpen ? 'bg-gray-200 text-gray-700' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
+                              title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+                          >
+                              <OwnerIcon name="MenuIcon" className="w-5 h-5" />
+                          </button>
+                      )}
                       <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-200 flex items-center justify-center">
                         <OwnerIcon name={getAppIconName(appName)} className="w-6 h-6 text-gray-700" />
                       </div>
@@ -125,6 +143,12 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
 
                   {/* Right: Window Controls */}
                   <div className="flex items-center justify-end gap-2 w-80 z-50">
+                      <button 
+                        className="w-9 h-9 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-700 flex items-center justify-center transition-all border border-transparent hover:border-gray-300"
+                        title="App Settings"
+                      >
+                          <OwnerIcon name="CogIcon" className="w-5 h-5" />
+                      </button>
                       <button 
                         onClick={() => appName && minimizeAppByName(appName)}
                         className="w-9 h-9 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-700 flex items-center justify-center transition-all border border-transparent hover:border-gray-300"
@@ -145,8 +169,8 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
              {/* 2. Main Body */}
              <div className="flex-1 flex overflow-hidden relative z-0 bg-[#f8f9fa]">
                 {/* Left Sidebar */}
-                {subnavItems.length > 0 && (
-                    <div className="w-64 bg-[#f1f3f5] border-r border-gray-200 flex flex-col pt-4">
+                {subnavItems.length > 0 && isSidebarOpen && (
+                    <div className="w-64 bg-[#f1f3f5] border-r border-gray-200 flex flex-col pt-4 animate-slideRight">
                         <div className="px-4 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Navigation</div>
                         <div className="flex-1 overflow-y-auto px-2 space-y-1">
                             {subnavItems.map(item => (
@@ -165,7 +189,9 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
                 {/* Content */}
                 <main className="flex-1 overflow-y-auto relative no-scrollbar bg-white">
                     <div className="p-8 min-h-full">
-                        {renderAppContent()}
+                        <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner /></div>}>
+                            {renderAppContent()}
+                        </Suspense>
                     </div>
                 </main>
              </div>

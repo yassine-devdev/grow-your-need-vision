@@ -61,6 +61,14 @@ export const gamificationService = {
         });
     },
 
+    createAchievement: async (data: Partial<Achievement>) => {
+        return await pb.collection('gamification_achievements').create(data);
+    },
+
+    updateAchievement: async (id: string, data: Partial<Achievement>) => {
+        return await pb.collection('gamification_achievements').update(id, data);
+    },
+
     getUserAchievements: async (userId: string) => {
         return await pb.collection('user_achievements').getFullList<UserAchievement>({
             filter: `user = "${userId}"`,
@@ -88,7 +96,7 @@ export const gamificationService = {
     // Leaderboard
     getGlobalLeaderboard: async (limit: number = 100) => {
         try {
-            const users = await pb.collection('user_progress').getFullList({
+            const users = await pb.collection('gamification_progress').getFullList({
                 sort: '-current_xp',
                 limit,
                 expand: 'user'
@@ -130,6 +138,14 @@ export const gamificationService = {
             filter: 'available = true',
             sort: 'cost_xp'
         });
+    },
+
+    createReward: async (data: Partial<Reward>) => {
+        return await pb.collection('gamification_rewards').create(data);
+    },
+
+    updateReward: async (id: string, data: Partial<Reward>) => {
+        return await pb.collection('gamification_rewards').update(id, data);
     },
 
     getUserRewards: async (userId: string) => {

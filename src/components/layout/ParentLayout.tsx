@@ -1,20 +1,22 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import MainLayout from './MainLayout';
 import { PARENT_CONFIG } from '../../data/AppConfigs';
-import ParentDashboard from '../../apps/dashboards/ParentDashboard';
-import ParentAcademic from '../../apps/parent/Academic';
-import ParentFinance from '../../apps/parent/Finance';
-import ParentCommunication from '../../apps/parent/Communication';
-import Wellness from '../../apps/Wellness';
-import Tools from '../../apps/Tools';
-import ParentConcierge from '../../apps/parent/ParentConcierge';
-// New components
-import Dashboard from '../../apps/parent/Dashboard';
-import Attendance from '../../apps/parent/Attendance';
-import Grades from '../../apps/parent/Grades';
-import Schedule from '../../apps/parent/Schedule';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { Spinner } from '../shared/ui/Spinner';
+
+const ParentDashboard = lazy(() => import('../../apps/dashboards/ParentDashboard'));
+const ParentAcademic = lazy(() => import('../../apps/parent/Academic'));
+const ParentFinance = lazy(() => import('../../apps/parent/Finance'));
+const ParentCommunication = lazy(() => import('../../apps/parent/Communication'));
+const Wellness = lazy(() => import('../../apps/Wellness'));
+const Tools = lazy(() => import('../../apps/Tools'));
+const ParentConcierge = lazy(() => import('../../apps/parent/ParentConcierge'));
+// New components
+const Dashboard = lazy(() => import('../../apps/parent/Dashboard'));
+const Attendance = lazy(() => import('../../apps/parent/Attendance'));
+const Grades = lazy(() => import('../../apps/parent/Grades'));
+const Schedule = lazy(() => import('../../apps/parent/Schedule'));
 
 const ParentLayout: React.FC = () => {
   const renderContent = (activeModule: string, activeTab: string, activeSubNav: string) => {
@@ -40,7 +42,13 @@ const ParentLayout: React.FC = () => {
       }
     })();
 
-    return <ErrorBoundary>{content}</ErrorBoundary>;
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner /></div>}>
+          {content}
+        </Suspense>
+      </ErrorBoundary>
+    );
   };
 
   return <MainLayout config={PARENT_CONFIG} renderContent={renderContent} role="Parent" />;

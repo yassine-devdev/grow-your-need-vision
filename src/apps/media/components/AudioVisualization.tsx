@@ -1,5 +1,6 @@
 import React from 'react';
-import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { useCurrentFrame, useVideoConfig } from 'remotion';
+import { interpolate } from '../../../lib/remotion-utils';
 
 export interface WaveformProps {
     audioUrl: string;

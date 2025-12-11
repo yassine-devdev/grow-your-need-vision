@@ -70,6 +70,14 @@ export const helpService = {
         });
     },
 
+    createFAQ: async (data: Partial<FAQItem>) => {
+        return await pb.collection('help_faqs').create(data);
+    },
+
+    deleteFAQ: async (id: string) => {
+        return await pb.collection('help_faqs').delete(id);
+    },
+
     markFAQHelpful: async (faqId: string) => {
         const faq = await pb.collection('help_faqs').getOne(faqId);
         return await pb.collection('help_faqs').update(faqId, {
@@ -85,6 +93,13 @@ export const helpService = {
     },
 
     // Support Tickets
+    getAllTickets: async () => {
+        return await pb.collection('support_tickets').getFullList<SupportTicket>({
+            sort: '-created',
+            expand: 'user,assigned_to'
+        });
+    },
+
     getUserTickets: async (userId: string) => {
         return await pb.collection('support_tickets').getFullList<SupportTicket>({
             filter: `user = "${userId}"`,
@@ -170,8 +185,8 @@ export const helpService = {
 
             return {
                 totalTickets: tickets.length,
-                openTickets: tickets.filter((t: SupportTicket) => t.status === 'Open').length,
-                resolvedTickets: tickets.filter((t: SupportTicket) => t.status === 'Resolved').length,
+                openTickets: tickets.filter((t) => (t as unknown as SupportTicket).status === 'Open').length,
+                resolvedTickets: tickets.filter((t) => (t as unknown as SupportTicket).status === 'Resolved').length,
                 totalArticles: articles.length
             };
         } catch (error) {

@@ -1,4 +1,4 @@
-import { interpolate, spring } from 'remotion';
+import { interpolate, spring } from '../../../lib/remotion-utils';
 
 export type TransitionType = 'fade' | 'slide' | 'zoom' | 'wipe' | 'dissolve' | 'blur';
 

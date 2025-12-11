@@ -12,6 +12,9 @@ export interface MediaItem {
   year?: number;
   thumbnail?: string;
   video_url?: string;
+  embed_url?: string;
+  cast?: string[];
+  director?: string;
   created: string;
 }
 

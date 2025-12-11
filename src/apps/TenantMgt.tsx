@@ -67,10 +67,9 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
         const fetchTenants = async () => {
             setLoading(true);
             try {
-                let result;
                 // Fetch all tenants for now as specific methods are not implemented
                 const response = await tenantService.getTenants();
-                setTenants(response.items as unknown as Tenant[]);
+                setTenants(response.items);
             } catch (error) {
                 console.error('Failed to fetch tenants:', error);
             } finally {
@@ -110,7 +109,7 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
             <div className="w-full max-w-7xl mx-auto space-y-8 animate-fadeIn">
                 <div className="flex items-end justify-between relative">
                     <div className="z-10">
-                        <Heading1>Platform Billing</Heading1>
+                        <Heading1 className="bg-[#002366] text-white px-4 py-2 rounded-lg inline-block shadow-lg">Platform Billing</Heading1>
                         <Text variant="muted" className="mt-2 font-medium">Manage Subscriptions, Invoices, and Gateways</Text>
                     </div>
                 </div>
@@ -124,10 +123,10 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
             {/* Header Section */}
             <div className="flex items-end justify-between relative">
                 <div className="z-10">
-                    <Heading1>Tenant Management</Heading1>
+                    <Heading1 className="bg-[#002366] text-white px-4 py-2 rounded-lg inline-block shadow-lg">Tenant Management</Heading1>
                     <Text variant="muted" className="mt-2 font-medium">Manage Schools, Individuals, and Billing Plans</Text>
                 </div>
-                <Button variant="primary" size="lg" leftIcon={<Icon name="PlusCircleIcon" className="w-4 h-4" />} onClick={toggleWizard}>
+                <Button variant="primary" size="lg" leftIcon={<Icon name="PlusCircleIcon" className="w-4 h-4" />} onClick={toggleWizard} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-lg">
                     Add New {activeSubNav || 'Tenant'}
                 </Button>
             </div>
@@ -209,7 +208,7 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                                                 <Avatar
                                                     size="md"
                                                     initials={tenant.name.substring(0, 2).toUpperCase()}
-                                                    status={tenant.status === 'Active' ? 'online' : 'busy'}
+                                                    status={tenant.status === 'active' ? 'online' : 'busy'}
                                                 />
                                                 <div>
                                                     <div className="font-bold text-gray-800 text-sm group-hover:text-gyn-blue-dark transition-colors">
@@ -225,7 +224,7 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                                             </span>
                                         </Td>
                                         <Td>
-                                            <Badge variant={tenant.status === 'Suspended' ? 'danger' : 'success'}>
+                                            <Badge variant={tenant.status === 'suspended' ? 'danger' : 'success'}>
                                                 {tenant.status}
                                             </Badge>
                                         </Td>
@@ -253,15 +252,15 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                                                         icon: 'Eye',
                                                         onClick: () => setSelectedTenantId(tenant.id)
                                                     },
-                                                    tenant.status === 'Active' ? {
+                                                    tenant.status === 'active' ? {
                                                         label: 'Suspend Tenant',
                                                         icon: 'Pause',
-                                                        onClick: () => handleUpdateStatus(tenant.id, 'Suspended'),
+                                                        onClick: () => handleUpdateStatus(tenant.id, 'suspended'),
                                                         danger: true
                                                     } : {
                                                         label: 'Activate Tenant',
                                                         icon: 'Play',
-                                                        onClick: () => handleUpdateStatus(tenant.id, 'Active')
+                                                        onClick: () => handleUpdateStatus(tenant.id, 'active')
                                                     },
                                                     {
                                                         label: 'Delete Tenant',
@@ -309,8 +308,8 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                 promptTemplate={`Analyze the current tenant list status.
         
         Total Tenants: ${tenants.length}
-        Active: ${tenants.filter(t => t.status === 'Active').length}
-        Suspended: ${tenants.filter(t => t.status === 'Suspended').length}
+        Active: ${tenants.filter(t => t.status === 'active').length}
+        Suspended: ${tenants.filter(t => t.status === 'suspended').length}
         
         Provide:
         - Health Score

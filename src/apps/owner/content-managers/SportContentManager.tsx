@@ -21,14 +21,22 @@ export const SportContentManager: React.FC = () => {
         description: ''
     });
 
-    const [matchFormData, setMatchFormData] = useState({
+    const [matchFormData, setMatchFormData] = useState<{
+        home_team: string;
+        away_team: string;
+        sport: string;
+        date: string;
+        time: string;
+        venue: string;
+        status: 'Scheduled' | 'Live' | 'Finished' | 'Cancelled';
+    }>({
         home_team: '',
         away_team: '',
         sport: '',
         date: '',
         time: '',
         venue: '',
-        status: 'scheduled'
+        status: 'Scheduled'
     });
 
     const [venueFormData, setVenueFormData] = useState({
@@ -86,8 +94,8 @@ export const SportContentManager: React.FC = () => {
         try {
             await sportService.createMatch({
                 ...matchFormData,
-                home_score: 0,
-                away_score: 0
+                score_home: 0,
+                score_away: 0
             });
             showToast('Match added successfully!', 'success');
             setIsAddModalOpen(false);
@@ -119,7 +127,7 @@ export const SportContentManager: React.FC = () => {
     };
 
     const resetMatchForm = () => {
-        setMatchFormData({ home_team: '', away_team: '', sport: '', date: '', time: '', venue: '', status: 'scheduled' });
+        setMatchFormData({ home_team: '', away_team: '', sport: '', date: '', time: '', venue: '', status: 'Scheduled' });
     };
 
     const resetVenueForm = () => {

@@ -40,7 +40,7 @@ class Analytics {
      * Track a custom event
      */
     track(eventName: string, category: string, properties?: Record<string, any>): void {
-        if (!this.should Track()) return;
+        if (!this.shouldTrack()) return;
 
         const event: AnalyticsEvent = {
             name: eventName,

@@ -52,12 +52,23 @@ export class VideoExportService {
         // Simulate a delay to show UI feedback
         if (onProgress) onProgress(10);
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         throw new Error(
-            "Client-side video rendering is not supported in this build. " +
-            "The @remotion/renderer package requires a Node.js environment. " +
-            "Please use the backend service or the 'scripts/render-video.js' script."
+            "Client-side rendering is limited. Please use 'Save Project' to download your composition, " +
+            "which can be rendered using our server-side tools."
         );
+    }
+
+    static async downloadCompositionJson(data: any, filename: string): Promise<void> {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 
     static async downloadVideo(url: string, filename: string): Promise<void> {

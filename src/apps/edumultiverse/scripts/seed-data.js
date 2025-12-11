@@ -1,12 +1,16 @@
+import 'dotenv/config';
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://127.0.0.1:8090');
 
 async function seedData() {
     console.log("🌱 Seeding EduMultiverse Data...");
 
     try {
-        await pb.admins.authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await pb.admins.authWithPassword(
+            process.env.POCKETBASE_ADMIN_EMAIL || 'owner@growyourneed.com',
+            process.env.POCKETBASE_ADMIN_PASSWORD || 'Darnag123456789@'
+        );
     } catch (e) {
         console.error("❌ Auth failed.");
         return;

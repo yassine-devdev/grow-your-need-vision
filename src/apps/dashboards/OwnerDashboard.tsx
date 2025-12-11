@@ -1,245 +1,247 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, Variants } from 'framer-motion';
-import { useOwnerDashboard } from '../../hooks/useOwnerDashboard';
-import { KPICard } from './components/KPICard';
-import { AlertList } from './components/AlertList';
-import { ActivityFeed } from './components/ActivityFeed';
-import { SimpleLineChart } from './components/SimpleLineChart';
-import { SegmentedBarChart } from './components/SegmentedBarChart';
-import { DonutChart } from './components/DonutChart';
-import { Icon, Button } from '../../components/shared/ui/CommonUI';
-import { LoadingScreen } from '../../components/shared/LoadingScreen';
+import { Card, Button, Icon } from '../../components/shared/ui/CommonUI';
+import { Link, useNavigate } from 'react-router-dom';
+import { AnalyticsDashboard } from '../owner/AnalyticsDashboard';
+import { motion } from 'framer-motion';
 
-const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.1
-        }
-    }
-};
+interface OwnerDashboardProps {
+    activeTab?: string;
+}
 
-const itemVariants: Variants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-        y: 0,
-        opacity: 1,
-        transition: {
-            type: "spring",
-            stiffness: 100,
-            damping: 15
-        }
-    }
-};
-
-const OwnerDashboard: React.FC = () => {
+const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' }) => {
     const navigate = useNavigate();
-    const { data, loading, error, refresh, refreshing } = useOwnerDashboard();
 
-    const handleExport = () => {
-        if (!data) return;
+    const modules = [
+        {
+            title: 'Tenant Management',
+            description: 'Manage schools, subscriptions, and domains',
+            icon: 'BuildingOfficeIcon',
+            link: '/admin/school',
+            color: 'blue'
+        },
+        {
+            title: 'Analytics',
+            description: 'Platform-wide usage and revenue stats',
+            icon: 'ChartBarIcon',
+            link: '/admin/dashboard/Analytics',
+            color: 'green'
+        },
+        {
+            title: 'Support',
+            description: 'Handle support tickets and inquiries',
+            icon: 'LifebuoyIcon',
+            link: '/owner/support',
+            color: 'purple'
+        },
+        {
+            title: 'Overlay Apps',
+            description: 'Manage global content for overlay apps',
+            icon: 'Squares2X2Icon',
+            link: '/owner/overlay-apps',
+            color: 'orange'
+        }
+    ];
 
-        const headers = ['Metric', 'Value', 'Change', 'Change Label', 'Trend'];
-        const rows = [
-            [data.kpis.mrr.label, data.kpis.mrr.value, `${data.kpis.mrr.change}%`, data.kpis.mrr.changeLabel, data.kpis.mrr.trend],
-            [data.kpis.activeTenants.label, data.kpis.activeTenants.value, data.kpis.activeTenants.change, data.kpis.activeTenants.changeLabel, data.kpis.activeTenants.trend],
-            [data.kpis.ltv.label, data.kpis.ltv.value, `${data.kpis.ltv.change}%`, data.kpis.ltv.changeLabel, data.kpis.ltv.trend],
-            [data.kpis.churn.label, data.kpis.churn.value, `${data.kpis.churn.change}%`, data.kpis.churn.changeLabel, data.kpis.churn.trend]
-        ];
+    const renderOverview = () => (
+        <div className="h-full flex flex-col gap-4 overflow-hidden p-2">
+            {/* Header - Compact & Stylish */}
+            <div className="flex items-center justify-between shrink-0 px-2">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">
+                        OWNER CONTROL
+                    </h1>
+                    <p className="text-xs md:text-sm text-gray-500 font-medium tracking-wide uppercase">
+                        System Overview & Administration
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                     <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/5 border border-emerald-500/20 rounded-full">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"/>
+                        <span className="text-[10px] font-bold text-emerald-600 tracking-wider">SYSTEM ONLINE</span>
+                     </div>
+                </div>
+            </div>
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
+            {/* Main Bento Grid - Fixed Height, No Scroll */}
+            <div className="flex-1 min-h-0 grid grid-cols-2 md:grid-cols-4 grid-rows-6 md:grid-rows-3 gap-3 md:gap-4">
+                
+                {/* 1. Tenant Management (Top Left - Large) */}
+                <Link to="/admin/school" className="col-span-2 row-span-2 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-xl transition-all duration-500">
+                    {/* Fancy Background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-purple-600/5 group-hover:opacity-100 transition-opacity"/>
+                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-500"/>
+                    
+                    <div className="relative h-full p-6 flex flex-col justify-between z-10">
+                        <div className="flex justify-between items-start">
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
+                                <Icon name="BuildingOfficeIcon" className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                <span className="text-xs font-bold text-gray-600 dark:text-gray-300">12 Active</span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Tenant Management</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[80%] leading-relaxed">
+                                Manage school instances, subscriptions, domains, and onboarding pipelines.
+                            </p>
+                        </div>
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
+                        {/* Mini List or Stats */}
+                        <div className="grid grid-cols-2 gap-2 mt-4">
+                             <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                                <div className="text-xs text-gray-400 uppercase font-bold">Onboarding</div>
+                                <div className="text-lg font-black text-blue-600">3</div>
+                             </div>
+                             <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                                <div className="text-xs text-gray-400 uppercase font-bold">Renewal</div>
+                                <div className="text-lg font-black text-purple-600">5</div>
+                             </div>
+                        </div>
+                    </div>
+                </Link>
 
-        link.setAttribute('href', url);
-        link.setAttribute('download', `platform_overview_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+                {/* 2. Analytics (Top Middle - Tall) */}
+                <Link to="/admin/dashboard/Analytics" className="col-span-1 md:col-span-1 row-span-2 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-xl transition-all duration-500">
+                     <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent"/>
+                     <div className="relative h-full p-5 flex flex-col z-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                                <Icon name="ChartBarIcon" className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <Icon name="ArrowUpRightIcon" className="w-4 h-4 text-gray-400 group-hover:text-emerald-500 transition-colors"/>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-1">Analytics</h3>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-auto">+24.5% Growth</p>
+                        
+                        {/* Visual Chart Representation */}
+                        <div className="h-32 flex items-end justify-between gap-1 mt-4">
+                            {[40, 70, 45, 90, 60, 80].map((h, i) => (
+                                <div key={i} className="w-full bg-gray-100 dark:bg-gray-800 rounded-t-md relative overflow-hidden group-hover:bg-emerald-500/10 transition-colors">
+                                    <div style={{ height: `${h}%` }} className="absolute bottom-0 w-full bg-emerald-500 rounded-t-md opacity-80 group-hover:opacity-100 transition-all duration-500"/>
+                                </div>
+                            ))}
+                        </div>
+                     </div>
+                </Link>
 
-    if (loading) return <div className="h-96 flex items-center justify-center"><LoadingScreen /></div>;
-    if (error) return (
-        <div className="p-8 text-center">
-            <p className="text-red-500 mb-4">{error}</p>
-            <Button variant="primary" onClick={refresh}>Try Again</Button>
+                {/* 3. System Health (Top Right - Compact) */}
+                <div className="col-span-1 md:col-span-1 row-span-1 relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 shadow-inner">
+                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"/>
+                    <div className="relative h-full p-5 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">System Status</span>
+                        </div>
+                        <div className="text-2xl font-black text-gray-900 dark:text-white font-mono">99.9%</div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div className="bg-green-500 h-full w-[99.9%] rounded-full"/>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 4. Support (Middle Right - Compact) */}
+                <Link to="/owner/support" className="col-span-1 md:col-span-1 row-span-1 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:border-purple-500/50 transition-all">
+                    <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all"/>
+                    <div className="relative h-full p-5 flex flex-col justify-between">
+                        <div className="flex justify-between items-start">
+                            <Icon name="LifebuoyIcon" className="w-6 h-6 text-purple-500" />
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">5</span>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Support</h3>
+                            <p className="text-[10px] text-gray-500">Pending Tickets</p>
+                        </div>
+                    </div>
+                </Link>
+
+                {/* 5. Overlay Apps (Bottom Left - Wide) */}
+                <Link to="/owner/overlay-apps" className="col-span-2 md:col-span-2 row-span-1 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-lg transition-all">
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"/>
+                    <div className="relative h-full p-5 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl">
+                                <Icon name="Squares2X2Icon" className="w-6 h-6 text-orange-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overlay Apps</h3>
+                                <p className="text-xs text-gray-500">Manage global app registry & versions</p>
+                            </div>
+                        </div>
+                        <div className="hidden md:flex -space-x-2">
+                            {[1,2,3].map(i => (
+                                <div key={i} className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white dark:border-gray-900 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                    v{i}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </Link>
+
+                {/* 6. Quick Actions (Bottom Right - Wide) */}
+                <div className="col-span-2 md:col-span-2 row-span-1 grid grid-cols-2 gap-3">
+                    <button onClick={() => navigate('/admin/school')} className="group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 transition-all flex flex-col items-center justify-center gap-2">
+                        <Icon name="PlusCircleIcon" className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-bold text-gray-600">Add Tenant</span>
+                    </button>
+                    <button className="group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 transition-all flex flex-col items-center justify-center gap-2">
+                        <Icon name="MegaphoneIcon" className="w-6 h-6 text-pink-500 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-bold text-gray-600">Broadcast</span>
+                    </button>
+                </div>
+
+            </div>
         </div>
     );
-    if (!data) return null;
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'Analytics':
+                return <AnalyticsDashboard />;
+            case 'Market':
+                return (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
+                            <Icon name="ShoppingBagIcon" className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Marketplace</h2>
+                        <p className="text-gray-500 max-w-md">The marketplace is currently under maintenance. Please check back later.</p>
+                    </div>
+                );
+            case 'System':
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">System Diagnostics</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <Card className="p-6 border-l-4 border-l-green-500">
+                                <h3 className="text-lg font-bold mb-2">API Services</h3>
+                                <p className="text-green-600 font-mono">ONLINE (v2.4.0)</p>
+                                <p className="text-xs text-gray-400 mt-2">Uptime: 99.98%</p>
+                            </Card>
+                            <Card className="p-6 border-l-4 border-l-blue-500">
+                                <h3 className="text-lg font-bold mb-2">Database</h3>
+                                <p className="text-blue-600 font-mono">CONNECTED</p>
+                                <p className="text-xs text-gray-400 mt-2">Latency: 24ms</p>
+                            </Card>
+                            <Card className="p-6 border-l-4 border-l-purple-500">
+                                <h3 className="text-lg font-bold mb-2">Storage</h3>
+                                <p className="text-purple-600 font-mono">HEALTHY</p>
+                                <p className="text-xs text-gray-400 mt-2">Usage: 45%</p>
+                            </Card>
+                        </div>
+                    </div>
+                );
+            case 'Overview':
+            default:
+                return renderOverview();
+        }
+    };
 
     return (
-        <motion.div 
-            className="h-full flex flex-col space-y-2 pb-2 overflow-hidden"
-            initial="hidden"
-            animate="visible"
-            variants={containerVariants}
-        >
-            {/* Header with Embedded KPIs */}
-            <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-end gap-2 shrink-0 px-1">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tighter mb-0.5">
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-800 to-slate-600">Platform</span>
-                        <span className="text-emerald-500">.</span>
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-600 via-slate-400 to-slate-300">Overview</span>
-                    </h1>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-600/80">Super Admin Control Center</p>
-                </div>
-
-                <div className="flex gap-2">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-3 rounded-lg bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 shadow-sm transition-all hover:scale-105 text-xs"
-                        onClick={refresh}
-                        leftIcon={<Icon name="ArrowPath" className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />}
-                    >
-                        Refresh
-                    </Button>
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        className="h-8 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white font-bold border-none shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] transition-all hover:scale-105 text-xs"
-                        leftIcon={<Icon name="ArrowDownTrayIcon" className="w-3 h-3" />}
-                        onClick={handleExport}
-                    >
-                        Export
-                    </Button>
-                </div>
-            </motion.div>
-
-            {/* Bento Grid Layout */}
-            <motion.div 
-                className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 grid-rows-[auto_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 min-h-0"
-                variants={containerVariants}
-            >
-                
-                {/* KPI Cards - Top Row */}
-                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
-                    <KPICard kpi={data.kpis.mrr} icon="Banknotes" />
-                </motion.div>
-                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
-                    <KPICard kpi={data.kpis.activeTenants} icon="UserGroup" />
-                </motion.div>
-                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
-                    <KPICard kpi={data.kpis.ltv} icon="ChartBar" />
-                </motion.div>
-                <motion.div variants={itemVariants} className="lg:col-span-1 h-[85px]">
-                    <KPICard kpi={data.kpis.churn} icon="ArrowPath" />
-                </motion.div>
-
-                {/* Revenue Growth - Large Feature Block */}
-                <motion.div variants={itemVariants} className="lg:col-span-3 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <div className="flex justify-between items-start mb-2 shrink-0">
-                        <div>
-                            <h3 className="text-base font-bold text-slate-800">Revenue Trajectory</h3>
-                            <p className="text-slate-400 text-[10px] font-medium mt-0.5">Monthly Recurring Revenue Growth</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <select className="bg-slate-50 border-none text-slate-600 text-[10px] font-bold rounded-lg px-2 py-1 outline-none cursor-pointer hover:bg-slate-100 transition-colors">
-                                <option>Last 6 Months</option>
-                                <option>Last Year</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div className="flex-1 w-full min-h-0 relative">
-                        {/* Decorative background elements for the chart */}
-                        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-emerald-50/30 to-transparent pointer-events-none" />
-                        <SimpleLineChart data={data.revenueHistory} color="#10B981" height="100%" />
-                    </div>
-                </motion.div>
-
-                {/* Live Feed - Right Sidebar */}
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <div className="flex items-center justify-between mb-2 shrink-0">
-                        <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Live Feed
-                        </h3>
-                        <span className="text-[9px] font-bold tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">REAL-TIME</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto pr-1 -mr-1 custom-scrollbar">
-                        <ActivityFeed activities={data.recentActivity} />
-                    </div>
-                </motion.div>
-
-                {/* Analytics Row - New */}
-                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <SegmentedBarChart 
-                        title="Top Visited Pages" 
-                        subtitle="by URL path"
-                        data={data.topVisitedPages} 
-                    />
-                </motion.div>
-
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <SegmentedBarChart 
-                        title="Top Users Access" 
-                        subtitle="by Source"
-                        data={data.topUserAccess}
-                        totalLabel="Total Users"
-                    />
-                </motion.div>
-
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[1.5rem] p-4 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <DonutChart 
-                        title="Total Expenses" 
-                        data={data.expensesByCategory}
-                    />
-                </motion.div>
-
-                {/* Tenant Acquisition - Bottom Left */}
-                <motion.div variants={itemVariants} className="lg:col-span-2 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col justify-between">
-                    <div className="flex justify-between items-center mb-2 shrink-0">
-                        <h3 className="text-lg font-bold text-slate-800">Tenant Acquisition</h3>
-                        <div className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
-                    </div>
-                    <div className="flex-1 min-h-0 w-full">
-                        <SimpleLineChart data={data.tenantGrowth} color="#A855F7" height="100%" />
-                    </div>
-                </motion.div>
-
-                {/* System Health - Bottom Middle */}
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-white rounded-[2rem] p-6 relative overflow-hidden shadow-[0_2px_20px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col">
-                    <div className="flex justify-between items-center mb-4 shrink-0">
-                        <h3 className="text-lg font-bold text-slate-800">System Health</h3>
-                        <span className="bg-rose-50 text-rose-600 text-[10px] font-bold px-2 py-1 rounded-lg">
-                            {data.alerts.filter(a => a.severity === 'critical').length} Issues
-                        </span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <AlertList alerts={data.alerts} />
-                    </div>
-                </motion.div>
-
-                {/* Controls - Bottom Right */}
-                <motion.div variants={itemVariants} className="lg:col-span-1 bg-emerald-50/50 rounded-[2rem] p-6 relative overflow-hidden border border-emerald-100/50 flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 shrink-0">
-                        <Icon name="CommandLineIcon" className="w-5 h-5 text-emerald-600" />
-                        Controls
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3 flex-1">
-                        <button onClick={() => navigate('/admin/settings/configuration')} className="bg-white hover:bg-emerald-50 p-3 rounded-2xl border border-emerald-100/50 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 text-center group/btn shadow-sm h-full">
-                            <Icon name="Cog6ToothIcon" className="w-5 h-5 text-slate-400 group-hover/btn:text-emerald-600 transition-colors" />
-                            <span className="text-[10px] text-slate-500 font-bold group-hover/btn:text-emerald-700">Settings</span>
-                        </button>
-                        <button onClick={() => navigate('/admin/tool_platform/logs')} className="bg-white hover:bg-emerald-50 p-3 rounded-2xl border border-emerald-100/50 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2 text-center group/btn shadow-sm h-full">
-                            <Icon name="DocumentTextIcon" className="w-5 h-5 text-slate-400 group-hover/btn:text-emerald-600 transition-colors" />
-                            <span className="text-[10px] text-slate-500 font-bold group-hover/btn:text-emerald-700">Logs</span>
-                        </button>
-                    </div>
-                </motion.div>
-
-            </motion.div>
-        </motion.div>
+        <div className="h-full px-6 py-4">
+            {renderContent()}
+        </div>
     );
 };
 

@@ -48,46 +48,236 @@ export interface ReligiousResource {
     created: string;
 }
 
+export interface NameOfAllah {
+    id: string;
+    number: number;
+    arabic: string;
+    transliteration: string;
+    meaning: string;
+    description?: string;
+}
+
+export interface Dua {
+    id: string;
+    title: string;
+    arabic: string;
+    transliteration?: string;
+    translation: string;
+    category: 'Morning' | 'Evening' | 'Travel' | 'Home' | 'Prayer' | 'General';
+    reference?: string;
+}
+
+export interface Hadith {
+    id: string;
+    collection: string;
+    book_number?: number;
+    hadith_number?: number;
+    text_en: string;
+    text_ar?: string;
+    chapter?: string;
+}
+
 export const religionService = {
     // Prayer Times
-    getPrayerTimes: async (date: string, location: string = 'Default') => {
+    getPrayerTimes: async (date: string, location: string = 'Mecca'): Promise<PrayerTime | null> => {
         return await pb.collection('prayer_times').getFirstListItem<PrayerTime>(
             `date = "${date}" && location = "${location}"`
         ).catch(() => null);
     },
 
-    getTodayPrayers: async () => {
+    createPrayerTime: async (data: Partial<PrayerTime>) => {
+        return await pb.collection('prayer_times').create(data);
+    },
+
+    updatePrayerTime: async (id: string, data: Partial<PrayerTime>) => {
+        return await pb.collection('prayer_times').update(id, data);
+    },
+
+    deletePrayerTime: async (id: string) => {
+        return await pb.collection('prayer_times').delete(id);
+    },
+
+    getTodayPrayers: async (city: string = 'Mecca', country: string = 'Saudi Arabia'): Promise<PrayerTime | null> => {
         const today = new Date().toISOString().split('T')[0];
-        return await religionService.getPrayerTimes(today);
+
+        // Try local DB first
+        const localData = await religionService.getPrayerTimes(today, city);
+        if (localData) return localData;
+
+        // Fetch from API
+        try {
+            const response = await fetch(`http://api.aladhan.com/v1/timingsByCity?city=${city}&country=${country}&method=4`);
+            const data = await response.json();
+
+            if (data.code === 200) {
+                const timings = data.data.timings;
+                return {
+                    id: 'temp',
+                    date: today,
+                    fajr: timings.Fajr,
+                    dhuhr: timings.Dhuhr,
+                    asr: timings.Asr,
+                    maghrib: timings.Maghrib,
+                    isha: timings.Isha,
+                    location: city,
+                    created: new Date().toISOString()
+                } as PrayerTime;
+            }
+        } catch (error) {
+            console.error('Error fetching prayer times:', error);
+        }
+
+        return null;
+    },
+
+    getNextPrayer: (prayers: PrayerTime) => {
+        if (!prayers) return null;
+
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+
+        const timeToMinutes = (timeStr: string) => {
+            const [time, modifier] = timeStr.split(' ');
+            let [hours, minutes] = time.split(':').map(Number);
+            // Handle 12h format if API returns it (Aladhan usually returns 24h but check)
+            // Aladhan returns 24h usually.
+            return hours * 60 + minutes;
+        };
+
+        const times = [
+            { name: 'Fajr', time: prayers.fajr, minutes: timeToMinutes(prayers.fajr) },
+            { name: 'Dhuhr', time: prayers.dhuhr, minutes: timeToMinutes(prayers.dhuhr) },
+            { name: 'Asr', time: prayers.asr, minutes: timeToMinutes(prayers.asr) },
+            { name: 'Maghrib', time: prayers.maghrib, minutes: timeToMinutes(prayers.maghrib) },
+            { name: 'Isha', time: prayers.isha, minutes: timeToMinutes(prayers.isha) }
+        ];
+
+        // Find next prayer
+        for (const prayer of times) {
+            if (prayer.minutes > currentTime) {
+                return {
+                    name: prayer.name,
+                    time: prayer.time,
+                    minutesUntil: prayer.minutes - currentTime
+                };
+            }
+        }
+
+        // If no prayer left today, next is Fajr tomorrow
+        // Simple approximation: 24h + Fajr time - current time
+        const fajrTomorrow = times[0];
+        return {
+            name: 'Fajr',
+            time: fajrTomorrow.time,
+            minutesUntil: (24 * 60) - currentTime + fajrTomorrow.minutes
+        };
     },
 
     // Events
-    getUpcomingEvents: async () => {
+    getUpcomingEvents: async (): Promise<ReligiousEvent[]> => {
         const today = new Date().toISOString().split('T')[0];
         return await pb.collection('religious_events').getFullList<ReligiousEvent>({
             filter: `date >= "${today}"`,
             sort: 'date,time'
-        });
+        }).catch(() => []);
     },
 
-    getEventsByType: async (eventType: string) => {
+    getEventsByType: async (eventType: string): Promise<ReligiousEvent[]> => {
         return await pb.collection('religious_events').getFullList<ReligiousEvent>({
             filter: `event_type = "${eventType}"`,
             sort: '-date'
-        });
+        }).catch(() => []);
     },
 
     createEvent: async (data: Partial<ReligiousEvent>) => {
         return await pb.collection('religious_events').create(data);
     },
 
+    updateEvent: async (id: string, data: Partial<ReligiousEvent>) => {
+        return await pb.collection('religious_events').update(id, data);
+    },
+
+    deleteEvent: async (id: string) => {
+        return await pb.collection('religious_events').delete(id);
+    },
+
     // Quran
-    getVerseOfTheDay: async () => {
-        // Get a random verse - in production, this would be more sophisticated
-        const verses = await pb.collection('quran_verses').getList<QuranVerse>(1, 1, {
-            sort: '-created'
-        });
-        return verses.items[0] || null;
+    getAllSurahs: async (): Promise<any[]> => {
+        try {
+            const response = await fetch('http://api.alquran.cloud/v1/surah');
+            const data = await response.json();
+            return data.data;
+        } catch (error) {
+            console.error('Failed to fetch surahs', error);
+            // Fallback to partial list if offline
+            return [
+                { number: 1, name: "Al-Fatihah", englishName: "The Opener", englishNameTranslation: "The Opening", numberOfAyahs: 7, revelationType: "Meccan" },
+                { number: 2, name: "Al-Baqarah", englishName: "Al-Baqarah", englishNameTranslation: "The Cow", numberOfAyahs: 286, revelationType: "Medinan" },
+                { number: 36, name: "Ya-Sin", englishName: "Ya Sin", englishNameTranslation: "Ya Sin", numberOfAyahs: 83, revelationType: "Meccan" },
+                { number: 55, name: "Ar-Rahman", englishName: "Ar-Rahman", englishNameTranslation: "The Beneficent", numberOfAyahs: 78, revelationType: "Medinan" },
+                { number: 67, name: "Al-Mulk", englishName: "Al-Mulk", englishNameTranslation: "The Sovereignty", numberOfAyahs: 30, revelationType: "Meccan" },
+                { number: 112, name: "Al-Ikhlas", englishName: "Al-Ikhlas", englishNameTranslation: "The Sincerity", numberOfAyahs: 4, revelationType: "Meccan" },
+                { number: 113, name: "Al-Falaq", englishName: "Al-Falaq", englishNameTranslation: "The Daybreak", numberOfAyahs: 5, revelationType: "Meccan" },
+                { number: 114, name: "An-Nas", englishName: "An-Nas", englishNameTranslation: "Mankind", numberOfAyahs: 6, revelationType: "Meccan" }
+            ];
+        }
+    },
+
+    getSurahDetails: async (number: number): Promise<any> => {
+        try {
+            // Fetch Arabic and English Translation
+            const response = await fetch(`http://api.alquran.cloud/v1/surah/${number}/editions/quran-uthmani,en.asad`);
+            const data = await response.json();
+            return {
+                arabic: data.data[0],
+                translation: data.data[1]
+            };
+        } catch (error) {
+            console.error('Failed to fetch surah details', error);
+            return null;
+        }
+    },
+
+    // Deprecated: Use getAllSurahs instead
+    getSurahList: (): { number: number; name: string; english: string }[] => {
+        return [
+            { number: 1, name: "Al-Fatihah", english: "The Opener" },
+            { number: 2, name: "Al-Baqarah", english: "The Cow" },
+            { number: 3, name: "Ali 'Imran", english: "Family of Imran" },
+            { number: 4, name: "An-Nisa", english: "The Women" },
+            { number: 5, name: "Al-Ma'idah", english: "The Table Spread" },
+            { number: 6, name: "Al-An'am", english: "The Cattle" },
+            { number: 7, name: "Al-A'raf", english: "The Heights" },
+            { number: 8, name: "Al-Anfal", english: "The Spoils of War" },
+            { number: 9, name: "At-Tawbah", english: "The Repentance" },
+            { number: 10, name: "Yunus", english: "Jonah" },
+            { number: 11, name: "Hud", english: "Hud" },
+            { number: 12, name: "Yusuf", english: "Joseph" },
+            { number: 13, name: "Ar-Ra'd", english: "The Thunder" },
+            { number: 14, name: "Ibrahim", english: "Abraham" },
+            { number: 15, name: "Al-Hijr", english: "The Rocky Tract" },
+            { number: 16, name: "An-Nahl", english: "The Bee" },
+            { number: 17, name: "Al-Isra", english: "The Night Journey" },
+            { number: 18, name: "Al-Kahf", english: "The Cave" },
+            { number: 36, name: "Ya-Sin", english: "Ya Sin" },
+            { number: 55, name: "Ar-Rahman", english: "The Beneficent" },
+            { number: 56, name: "Al-Waqi'ah", english: "The Inevitable" },
+            { number: 67, name: "Al-Mulk", english: "The Sovereignty" },
+            { number: 112, name: "Al-Ikhlas", english: "The Sincerity" },
+            { number: 113, name: "Al-Falaq", english: "The Daybreak" },
+            { number: 114, name: "An-Nas", english: "Mankind" }
+        ];
+    },
+
+    getVerseOfTheDay: async (): Promise<QuranVerse | null> => {
+        try {
+            const verses = await pb.collection('quran_verses').getList<QuranVerse>(1, 1, {
+                sort: '@random'
+            });
+            return verses.items[0] || null;
+        } catch (e) {
+            return null;
+        }
     },
 
     searchVerses: async (query: string) => {
@@ -104,6 +294,18 @@ export const religionService = {
         });
     },
 
+    createQuranVerse: async (data: Partial<QuranVerse>) => {
+        return await pb.collection('quran_verses').create(data);
+    },
+
+    updateQuranVerse: async (id: string, data: Partial<QuranVerse>) => {
+        return await pb.collection('quran_verses').update(id, data);
+    },
+
+    deleteQuranVerse: async (id: string) => {
+        return await pb.collection('quran_verses').delete(id);
+    },
+
     // Resources
     getResources: async (category?: string) => {
         const filter = category ? `category = "${category}"` : '';
@@ -116,31 +318,168 @@ export const religionService = {
     searchResources: async (query: string) => {
         return await pb.collection('religious_resources').getFullList<ReligiousResource>({
             filter: `title ~ "${query}" || description ~ "${query}" || content ~ "${query}"`,
-            limit: 50
         });
     },
 
-    // Helper - Get next prayer
-    getNextPrayer: () => {
-        const now = new Date();
-        const currentTime = now.getHours() * 60 + now.getMinutes();
+    createResource: async (data: Partial<ReligiousResource>) => {
+        return await pb.collection('religious_resources').create(data);
+    },
 
-        // Sample prayer times (should come from API/database)
-        const prayers = [
-            { name: 'Fajr', time: '04:30', minutes: 4 * 60 + 30 },
-            { name: 'Dhuhr', time: '12:15', minutes: 12 * 60 + 15 },
-            { name: 'Asr', time: '15:45', minutes: 15 * 60 + 45 },
-            { name: 'Maghrib', time: '18:20', minutes: 18 * 60 + 20 },
-            { name: 'Isha', time: '20:00', minutes: 20 * 60 }
-        ];
+    updateResource: async (id: string, data: Partial<ReligiousResource>) => {
+        return await pb.collection('religious_resources').update(id, data);
+    },
 
-        const nextPrayer = prayers.find(p => p.minutes > currentTime) || prayers[0];
-        let minutesUntil = nextPrayer.minutes - currentTime;
-        if (minutesUntil < 0) minutesUntil += 24 * 60; // Next day
+    deleteResource: async (id: string) => {
+        return await pb.collection('religious_resources').delete(id);
+    },
 
-        return {
-            ...nextPrayer,
-            minutesUntil
+    // Names of Allah
+    getNamesOfAllah: async () => {
+        return await pb.collection('names_of_allah').getFullList<NameOfAllah>({
+            sort: 'number'
+        });
+    },
+
+    // Hadiths
+    // Qibla Direction
+    getQiblaDirection: async (latitude: number, longitude: number): Promise<any> => {
+        try {
+            const response = await fetch(`http://api.aladhan.com/v1/qibla/${latitude}/${longitude}`);
+            const data = await response.json();
+            if (data.code === 200) {
+                return data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to fetch Qibla direction', error);
+            return null;
+        }
+    },
+
+    // Hadith API (Random Hadith Generator)
+    getRandomHadith: async (): Promise<any> => {
+        try {
+            // Using a public Hadith API (e.g., from github raw or similar)
+            // For stability, we'll use a known endpoint or fallback
+            const response = await fetch('https://random-hadith-generator.vercel.app/bukhari/');
+            const data = await response.json();
+            return {
+                text_en: data.data.hadith_english,
+                text_ar: data.data.hadith_arabic || '', // Some APIs might not have Arabic
+                collection: data.data.book,
+                chapter: data.data.chapterName
+            };
+        } catch (error) {
+            console.error('Failed to fetch random hadith', error);
+            return null;
+        }
+    },
+
+    getHadithOfTheDay: async () => {
+        try {
+            const hadiths = await pb.collection('hadiths').getList<Hadith>(1, 1, {
+                sort: '@random'
+            });
+            return hadiths.items[0] || null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    // Duas
+    getDuas: async (category?: string) => {
+        const filter = category ? `category = "${category}"` : '';
+        return await pb.collection('duas').getFullList<Dua>({
+            filter,
+            sort: 'title'
+        });
+    },
+
+    // Soul Prescription (Mood-based)
+    getSoulPrescription: (mood: 'Anxious' | 'Sad' | 'Angry' | 'Happy' | 'Confused' | 'Grateful') => {
+        const prescriptions = {
+            'Anxious': {
+                verse: { arabic: 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ', translation: 'Unquestionably, by the remembrance of Allah hearts are assured.', reference: 'Surah Ar-Rad 13:28' },
+                dua: { arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ', translation: 'O Allah, I seek refuge in You from anxiety and sorrow.' }
+            },
+            'Sad': {
+                verse: { arabic: 'لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا', translation: 'Allah does not burden a soul beyond that it can bear.', reference: 'Surah Al-Baqarah 2:286' },
+                dua: { arabic: 'إِنَّمَا أَشْكُو بَثِّي وَhُزْنِي إِلَى اللَّهِ', translation: 'I only complain of my suffering and my grief to Allah.' }
+            },
+            'Angry': {
+                verse: { arabic: 'وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ', translation: '...and who restrain anger and who pardon the people.', reference: 'Surah Ali Imran 3:134' },
+                dua: { arabic: 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ', translation: 'I seek refuge in Allah from Satan the outcast.' }
+            },
+            'Happy': {
+                verse: { arabic: 'لَئِن شَكَرْتُمْ لَأَزِيدَنَّكُمْ', translation: 'If you are grateful, I will surely increase you [in favor].', reference: 'Surah Ibrahim 14:7' },
+                dua: { arabic: 'الْحَمْدُ لِلَّهِ الَّذِي بِنِعْمَتِهِ تَتِمُّ الصَّالِحَاتُ', translation: 'Praise be to Allah by Whose grace good deeds are completed.' }
+            },
+            'Confused': {
+                verse: { arabic: 'وَعَسَىٰ أَن تَكْرَهُوا شَيْئًا وَهُوَ خَيْرٌ لَّكُمْ', translation: 'But perhaps you hate a thing and it is good for you.', reference: 'Surah Al-Baqarah 2:216' },
+                dua: { arabic: 'اللَّهُمَّ خِرْ لِي وَاخْتَرْ لِي', translation: 'O Allah, make a choice for me and select for me.' }
+            },
+            'Grateful': {
+                verse: { arabic: 'فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ', translation: 'So remember Me; I will remember you. And be grateful to Me and do not deny Me.', reference: 'Surah Al-Baqarah 2:152' },
+                dua: { arabic: 'رَبِّ أَوْزِعْنِي أَنْ أَشْكُرَ نِعْمَتَكَ', translation: 'My Lord, enable me to be grateful for Your favor.' }
+            }
         };
+        return prescriptions[mood] || prescriptions['Happy'];
+    },
+
+    // Inheritance Calculator (Simplified Logic)
+    calculateInheritance: (assets: number, relatives: { spouse: 'Husband' | 'Wife' | 'None', sons: number, daughters: number, father: boolean, mother: boolean }) => {
+        let shares: { relation: string, share: number, amount: number, note: string }[] = [];
+        let remaining = 1; // 100%
+
+        // 1. Spouse
+        if (relatives.spouse === 'Husband') {
+            const share = (relatives.sons > 0 || relatives.daughters > 0) ? 0.25 : 0.5;
+            shares.push({ relation: 'Husband', share, amount: assets * share, note: 'Fixed Share' });
+            remaining -= share;
+        } else if (relatives.spouse === 'Wife') {
+            const share = (relatives.sons > 0 || relatives.daughters > 0) ? 0.125 : 0.25;
+            shares.push({ relation: 'Wife', share, amount: assets * share, note: 'Fixed Share' });
+            remaining -= share;
+        }
+
+        // 2. Parents
+        if (relatives.father) {
+            const share = (relatives.sons > 0) ? 0.1666 : 0; // Simplified: Father gets 1/6 if there are children
+            // Note: Father logic is complex (can be residuary), keeping simple for MVP
+            if (share > 0) {
+                shares.push({ relation: 'Father', share, amount: assets * share, note: 'Fixed Share (1/6)' });
+                remaining -= share;
+            }
+        }
+        if (relatives.mother) {
+            const share = (relatives.sons > 0 || relatives.daughters > 0) ? 0.1666 : 0.3333;
+            shares.push({ relation: 'Mother', share, amount: assets * share, note: 'Fixed Share' });
+            remaining -= share;
+        }
+
+        // 3. Children (Residuary)
+        if (remaining > 0 && (relatives.sons > 0 || relatives.daughters > 0)) {
+            const totalShares = (relatives.sons * 2) + relatives.daughters;
+            const unitShare = remaining / totalShares;
+
+            if (relatives.sons > 0) {
+                shares.push({
+                    relation: 'Sons',
+                    share: unitShare * 2 * relatives.sons,
+                    amount: assets * (unitShare * 2 * relatives.sons),
+                    note: `Residuary (2 shares each for ${relatives.sons} sons)`
+                });
+            }
+            if (relatives.daughters > 0) {
+                shares.push({
+                    relation: 'Daughters',
+                    share: unitShare * relatives.daughters,
+                    amount: assets * (unitShare * relatives.daughters),
+                    note: `Residuary (1 share each for ${relatives.daughters} daughters)`
+                });
+            }
+        }
+
+        return shares;
     }
 };

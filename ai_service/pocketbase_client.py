@@ -57,6 +57,33 @@ class PocketBaseClient:
         except Exception:
             return []
 
+    async def get_knowledge_docs(self) -> List[Dict[str, Any]]:
+        """Fetches all records from knowledge_docs collection."""
+        try:
+            response = await self.client.get("/api/collections/knowledge_docs/records?sort=-created")
+            if response.status_code == 200:
+                return response.json().get("items", [])
+            return []
+        except Exception as e:
+            print(f"Error fetching knowledge docs: {e}")
+            return []
+
+    async def download_file(self, collection_id: str, record_id: str, filename: str, dest_path: str) -> bool:
+        """Downloads a file from PocketBase to local destination."""
+        try:
+            url = f"/api/files/{collection_id}/{record_id}/{filename}"
+            response = await self.client.get(url)
+            if response.status_code == 200:
+                with open(dest_path, "wb") as f:
+                    f.write(response.content)
+                return True
+            print(f"Failed to download {filename}: {response.status_code}")
+            return False
+        except Exception as e:
+            print(f"Error downloading file {filename}: {e}")
+            return False
+
+
     async def search_collection(self, collection: str, filter_str: str = "", limit: int = 5) -> List[Dict[str, Any]]:
         """Searches a specific collection."""
         try:

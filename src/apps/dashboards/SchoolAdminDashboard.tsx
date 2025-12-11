@@ -78,7 +78,7 @@ const SchoolAdminDashboard: React.FC<DashboardProps> = ({ activeTab }) => {
             </div>
 
             {/* KPI Cards - Luxury Glass & Metal */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 shrink-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 shrink-0">
                 {[
                     { label: 'Total Students', value: stats.totalStudents.toLocaleString(), sub: 'Active Enrolled', icon: 'UserGroup', color: 'text-hud-primary', bg: 'from-hud-primary/20 to-blue-900/20' },
                     { label: 'Total Teachers', value: stats.totalTeachers.toLocaleString(), sub: 'Full-time Staff', icon: 'UserIcon', color: 'text-purple-400', bg: 'from-purple-500/20 to-indigo-900/20' },
@@ -116,9 +116,9 @@ const SchoolAdminDashboard: React.FC<DashboardProps> = ({ activeTab }) => {
             </div>
 
             {/* Main Content Area */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 flex-1 min-h-0">
-                {/* Main Chart Section - Holographic Display */}
-                <div className="md:col-span-2 relative group h-full flex flex-col">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 min-h-0">
+                {/* Left Column: Monthly Revenue Chart (2/3 width) */}
+                <div className="md:col-span-2 relative group h-full flex flex-col min-h-0">
                     {/* Holographic Container */}
                     <div className="absolute inset-0 bg-white rounded-2xl border border-gray-200 shadow-sm"></div>
 
@@ -129,19 +129,19 @@ const SchoolAdminDashboard: React.FC<DashboardProps> = ({ activeTab }) => {
                     <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-blue-500 rounded-br-lg opacity-20 group-hover:opacity-50 transition-opacity"></div>
 
                     <div className="relative p-4 md:p-6 z-10 h-full flex flex-col">
-                        <div className="flex justify-between items-center mb-4 md:mb-6 shrink-0">
+                        <div className="flex justify-between items-center mb-4 shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-50 rounded border border-blue-100 text-blue-600 shadow-sm">
                                     <Icon name="PresentationChartLineIcon" className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base md:text-lg font-black text-gray-800 tracking-wide uppercase">{activeTab} Analytics</h3>
-                                    <p className="text-[10px] text-blue-500 font-mono uppercase tracking-widest">Real-time Data Stream</p>
+                                    <h3 className="text-base md:text-lg font-black text-gray-800 tracking-wide uppercase">Monthly Revenue</h3>
+                                    <p className="text-[10px] text-blue-500 font-mono uppercase tracking-widest">Financial Performance</p>
                                 </div>
                             </div>
                             <div className="flex gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
-                                <button className="px-3 py-1 md:px-4 md:py-1.5 text-[10px] font-bold rounded bg-transparent text-gray-500 hover:text-gray-800 hover:bg-white transition-all uppercase tracking-wider">Weekly</button>
-                                <button className="px-3 py-1 md:px-4 md:py-1.5 text-[10px] font-bold rounded bg-white text-blue-600 border border-gray-200 shadow-sm uppercase tracking-wider">Monthly</button>
+                                <button className="px-3 py-1 text-[10px] font-bold rounded bg-white text-blue-600 border border-gray-200 shadow-sm uppercase tracking-wider">Monthly</button>
+                                <button className="px-3 py-1 text-[10px] font-bold rounded bg-transparent text-gray-500 hover:text-gray-800 hover:bg-white transition-all uppercase tracking-wider">Yearly</button>
                             </div>
                         </div>
 
@@ -163,42 +163,86 @@ const SchoolAdminDashboard: React.FC<DashboardProps> = ({ activeTab }) => {
                     </div>
                 </div>
 
-                {/* Alerts / Activity Feed - System Log */}
-                <div className="relative group h-full flex flex-col min-h-0">
-                    <div className="absolute inset-0 bg-white rounded-2xl border border-gray-200 shadow-sm"></div>
-
-                    {/* Top Bar Decoration */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-blue-500 shadow-sm"></div>
-
-                    <div className="relative p-4 md:p-6 z-10 h-full flex flex-col overflow-hidden">
-                        <div className="flex items-center gap-3 mb-4 md:mb-6 pb-4 border-b border-gray-100 shrink-0">
-                            <Icon name="BellIcon" className="w-5 h-5 text-blue-600 animate-pulse" />
-                            <h3 className="text-base md:text-lg font-black text-gray-800 tracking-wide uppercase">System Logs</h3>
-                        </div>
-
-                        <div className="space-y-4 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0">
-                            {activities.length > 0 ? activities.map((alert, i) => (
-                                <div key={i} className="group/item relative pl-4 py-2 border-l-2 border-gray-200 hover:border-blue-500 transition-colors">
-                                    <div className="absolute left-[-5px] top-3 w-2 h-2 rounded-full bg-white border border-gray-300 group-hover/item:border-blue-500 group-hover/item:bg-blue-500 transition-all"></div>
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className={`text-[9px] font-black uppercase tracking-widest ${alert.type === 'Info' ? 'text-blue-600' : alert.type === 'Success' ? 'text-green-600' : 'text-yellow-600'}`}>
-                                            [{alert.type}]
-                                        </span>
-                                        <span className="text-[9px] text-gray-400 font-mono">{timeAgo(alert.timestamp)}</span>
+                {/* Right Column: Stacked Components (1/3 width) */}
+                <div className="flex flex-col gap-4 h-full min-h-0">
+                    
+                    {/* Top: Student Distribution */}
+                    <div className="relative group flex-1 min-h-0 flex flex-col">
+                        <div className="absolute inset-0 bg-white rounded-2xl border border-gray-200 shadow-sm"></div>
+                        <div className="relative p-4 z-10 h-full flex flex-col">
+                            <div className="flex items-center gap-3 mb-3 shrink-0">
+                                <div className="p-1.5 bg-purple-50 rounded border border-purple-100 text-purple-600">
+                                    <Icon name="PieChartIcon" className="w-4 h-4" />
+                                </div>
+                                <h3 className="text-sm font-black text-gray-800 tracking-wide uppercase">Student Distribution</h3>
+                            </div>
+                            
+                            <div className="flex-1 flex items-center justify-center min-h-0">
+                                {/* Placeholder for Distribution Chart */}
+                                <div className="w-full space-y-3">
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between text-xs font-medium text-gray-600">
+                                            <span>Primary</span>
+                                            <span>45%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-2">
+                                            <div className="bg-purple-500 h-2 rounded-full" style={{ width: '45%' }}></div>
+                                        </div>
                                     </div>
-                                    <p className="text-xs font-medium text-gray-500 group-hover/item:text-gray-800 transition-colors font-mono leading-relaxed">{alert.message}</p>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between text-xs font-medium text-gray-600">
+                                            <span>Secondary</span>
+                                            <span>30%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-2">
+                                            <div className="bg-blue-500 h-2 rounded-full" style={{ width: '30%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between text-xs font-medium text-gray-600">
+                                            <span>High School</span>
+                                            <span>25%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-2">
+                                            <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '25%' }}></div>
+                                        </div>
+                                    </div>
                                 </div>
-                            )) : (
-                                <div className="text-center py-12 text-gray-400 text-xs font-mono border border-dashed border-gray-200 rounded">
-                            // NO LOGS FOUND
-                                </div>
-                            )}
+                            </div>
                         </div>
+                    </div>
 
-                        <div className="mt-auto pt-4 shrink-0">
-                            <Button variant="ghost" className="w-full text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 uppercase tracking-widest transition-all">
-                                Access Full Log Database
-                            </Button>
+                    {/* Bottom: Recent Activity (System Logs) */}
+                    <div className="relative group flex-1 min-h-0 flex flex-col">
+                        <div className="absolute inset-0 bg-white rounded-2xl border border-gray-200 shadow-sm"></div>
+                        
+                        {/* Top Bar Decoration */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-[2px] bg-blue-500 shadow-sm"></div>
+
+                        <div className="relative p-4 z-10 h-full flex flex-col overflow-hidden">
+                            <div className="flex items-center gap-3 mb-3 pb-2 border-b border-gray-100 shrink-0">
+                                <Icon name="BellIcon" className="w-4 h-4 text-blue-600 animate-pulse" />
+                                <h3 className="text-sm font-black text-gray-800 tracking-wide uppercase">Recent Activity</h3>
+                            </div>
+
+                            <div className="space-y-3 overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-0">
+                                {activities.length > 0 ? activities.map((alert, i) => (
+                                    <div key={i} className="group/item relative pl-3 py-1.5 border-l-2 border-gray-200 hover:border-blue-500 transition-colors">
+                                        <div className="absolute left-[-5px] top-2.5 w-1.5 h-1.5 rounded-full bg-white border border-gray-300 group-hover/item:border-blue-500 group-hover/item:bg-blue-500 transition-all"></div>
+                                        <div className="flex justify-between items-start mb-0.5">
+                                            <span className={`text-[8px] font-black uppercase tracking-widest ${alert.type === 'Info' ? 'text-blue-600' : alert.type === 'Success' ? 'text-green-600' : 'text-yellow-600'}`}>
+                                                [{alert.type}]
+                                            </span>
+                                            <span className="text-[8px] text-gray-400 font-mono">{timeAgo(alert.timestamp)}</span>
+                                        </div>
+                                        <p className="text-[10px] font-medium text-gray-500 group-hover/item:text-gray-800 transition-colors font-mono leading-relaxed line-clamp-2">{alert.message}</p>
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-8 text-gray-400 text-xs font-mono border border-dashed border-gray-200 rounded">
+                                // NO LOGS FOUND
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { NAV_CONFIG } from '../data/AppConfigs';
+import { getModuleConfig } from '../modules/registry';
 import pb from '../lib/pocketbase';
 import { billingService } from '../services/billingService';
-import { toolService } from '../services/toolService';
+import { toolService, Tool } from '../services/toolService';
 import { Button, Card, Badge, Modal, Icon } from '../components/shared/ui/CommonUI';
 import { MarketingDashboard } from './tool_platform/MarketingDashboard';
 import { FinanceDashboard } from './tool_platform/FinanceDashboard';
@@ -14,15 +14,6 @@ import { LogsDashboard } from './tool_platform/LogsDashboard';
 interface ToolPlatformProps {
     activeTab: string;
     activeSubNav: string;
-}
-
-interface Tool {
-    id: string;
-    name: string;
-    description: string;
-    category: string;
-    status: 'active' | 'beta' | 'maintenance';
-    icon: string;
 }
 
 const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) => {
@@ -40,12 +31,13 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
             try {
                 const usersResult = await pb.collection('users').getList(1, 1);
                 const userCount = usersResult.totalItems;
-                const revenueStats = await billingService.getRevenueStats();
+                const billingStats = await billingService.getBillingStats();
+                const navConfig = getModuleConfig();
 
                 setStats({
                     dailyEvents: userCount * 12,
-                    revenue: revenueStats.totalRevenue,
-                    activeModules: Object.keys(NAV_CONFIG.tool_platform.subnav).length
+                    revenue: billingStats.mrr,
+                    activeModules: Object.keys(navConfig.tool_platform.subnav).length
                 });
             } catch (e) {
                 console.error("Failed to fetch stats", e);

@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Card, Button, Icon } from '../../components/shared/ui/CommonUI';
-import { MediaContentManager } from './content-managers/MediaContentManager';
-import { SportContentManager } from './content-managers/SportContentManager';
+import { LoadingScreen } from '../../components/shared/LoadingScreen';
+
+// Lazy load content managers
+const MediaContentManager = React.lazy(() => import('./content-managers/MediaContentManager').then(module => ({ default: module.MediaContentManager })));
+const SportContentManager = React.lazy(() => import('./content-managers/SportContentManager').then(module => ({ default: module.SportContentManager })));
+const ReligionContentManager = React.lazy(() => import('./content-managers/ReligionContentManager').then(module => ({ default: module.ReligionContentManager })));
 
 export const OverlayAppsManager: React.FC = () => {
     const [selectedApp, setSelectedApp] = useState<string>('media');
@@ -30,12 +34,14 @@ export const OverlayAppsManager: React.FC = () => {
             case 'sport':
                 return <SportContentManager />;
 
+            case 'religion':
+                return <ReligionContentManager />;
+
             // Placeholders for other apps
             case 'gamification':
             case 'travel':
             case 'help':
             case 'hobbies':
-            case 'religion':
             case 'services':
             case 'activities':
             case 'events':
@@ -77,8 +83,8 @@ export const OverlayAppsManager: React.FC = () => {
                             key={app.id}
                             onClick={() => setSelectedApp(app.id)}
                             className={`w-full text-left p-4 rounded-lg transition-all ${selectedApp === app.id
-                                    ? `bg-${app.color}-100 dark:bg-${app.color}-900/30 border-2 border-${app.color}-500`
-                                    : 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                ? `bg-${app.color}-100 dark:bg-${app.color}-900/30 border-2 border-${app.color}-500`
+                                : 'bg-white dark:bg-gray-800 border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                 }`}
                         >
                             <div className="flex items-center gap-3">
@@ -87,8 +93,8 @@ export const OverlayAppsManager: React.FC = () => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className={`font-bold truncate ${selectedApp === app.id
-                                            ? `text-${app.color}-900 dark:text-${app.color}-100`
-                                            : 'text-gray-900 dark:text-white'
+                                        ? `text-${app.color}-900 dark:text-${app.color}-100`
+                                        : 'text-gray-900 dark:text-white'
                                         }`}>
                                         {app.name}
                                     </h3>
@@ -119,7 +125,9 @@ export const OverlayAppsManager: React.FC = () => {
 
             {/* Main Content Area */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-800">
-                {renderContentManager()}
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingScreen /></div>}>
+                    {renderContentManager()}
+                </Suspense>
             </div>
         </div>
     );

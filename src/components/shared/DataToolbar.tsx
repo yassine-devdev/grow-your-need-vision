@@ -259,7 +259,7 @@ export const DataToolbar: React.FC<DataToolbarProps> = ({
                                                 <button
                                                     onClick={() => {
                                                         setSearchTerm(view.filter);
-                                                        onSearch(view.filter);
+                                                        onSearch?.(view.filter);
                                                         if (onLoadView) onLoadView(view);
                                                         setShowViewsMenu(false);
                                                     }}

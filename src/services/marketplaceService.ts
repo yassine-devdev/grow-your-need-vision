@@ -23,5 +23,26 @@ export const marketplaceService = {
             console.error('Error fetching marketplace apps:', error);
             return [];
         }
+    },
+
+    async getMyApps(userId: string) {
+        try {
+            return await pb.collection('marketplace_apps').getFullList<MarketplaceApp>({
+                filter: `provider = "${userId}"`,
+                sort: '-created',
+            });
+        } catch (error) {
+            console.error('Error fetching my apps:', error);
+            return [];
+        }
+    },
+
+    async submitApp(data: Partial<MarketplaceApp>) {
+        try {
+            return await pb.collection('marketplace_apps').create(data);
+        } catch (error) {
+            console.error('Error submitting app:', error);
+            throw error;
+        }
     }
 };

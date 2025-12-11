@@ -561,12 +561,13 @@ export const OVERLAY_CONFIG: Record<string, { tabs: string[], subnav: Record<str
         }
     },
     'Religion': {
-        tabs: ['Quran', 'Hadith', 'Prayer', 'Knowledge', 'Community', 'Ramadan'],
+        tabs: ['Dashboard', 'Quran', 'Hadith', 'Prayer', 'Knowledge', 'Community', 'Ramadan'],
         subnav: {
+            'Dashboard': ['Overview', 'Daily', 'Settings'],
             'Quran': ['Read', 'Tafsir', 'Memorization', 'Audio'],
             'Hadith': ['Collections', 'Seerah', 'Fiqh'],
             'Prayer': ['Times', 'Qibla', 'Tracker', 'Duas'],
-            'Knowledge': ['History', 'Scholars'],
+            'Knowledge': ['History', 'Scholars', 'Inheritance'],
             'Community': ['Mosques', 'Groups', 'Events'],
             'Ramadan': ['Tracker', 'Hajj Guide', 'Zakat']
         }

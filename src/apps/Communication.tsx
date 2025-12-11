@@ -165,7 +165,10 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                 sender: currentUser.id,
                 recipient: finalRecipientId,
                 content: `Subject: ${subject}\n\n${content}`,
-                read_at: undefined
+                read_at: undefined,
+                archived: false,
+                trashed: false,
+                starred: false
             });
 
             addToast('Message sent successfully', 'success');
@@ -177,11 +180,55 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
 
             // Refresh if we are in Sent
             if (activeSubNav === 'Sent') {
-                // trigger fetch
+                // trigger fetch - handled by subscription or re-fetch logic if needed
+                // For now, the subscription should handle it if it listens to 'messages'
             }
         } catch (e) {
             console.error(e);
             addToast('Failed to send message', 'error');
+        }
+    };
+
+    const handleArchive = async (msg: Message, e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        try {
+            await pb.collection('messages').update(msg.id, { archived: !msg.archived });
+            addToast(msg.archived ? 'Message unarchived' : 'Message archived', 'success');
+            if (activeSubNav !== 'All') {
+                 setMessages(prev => prev.filter(m => m.id !== msg.id));
+                 if (selectedMessage?.id === msg.id) setSelectedMessage(null);
+            }
+        } catch (error) {
+            addToast('Failed to update message', 'error');
+        }
+    };
+
+    const handleTrash = async (msg: Message, e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        try {
+            await pb.collection('messages').update(msg.id, { trashed: !msg.trashed });
+            addToast(msg.trashed ? 'Message restored' : 'Message moved to trash', 'success');
+            if (activeSubNav !== 'All') {
+                setMessages(prev => prev.filter(m => m.id !== msg.id));
+                if (selectedMessage?.id === msg.id) setSelectedMessage(null);
+            }
+        } catch (error) {
+            addToast('Failed to update message', 'error');
+        }
+    };
+
+    const handleStar = async (msg: Message, e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        try {
+            const newStatus = !msg.starred;
+            await pb.collection('messages').update(msg.id, { starred: newStatus });
+            // Update local state immediately for better UX
+            setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, starred: newStatus } : m));
+            if (selectedMessage?.id === msg.id) {
+                setSelectedMessage(prev => prev ? { ...prev, starred: newStatus } : null);
+            }
+        } catch (error) {
+            addToast('Failed to update message', 'error');
         }
     };
 
@@ -220,6 +267,7 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                             variant="primary"
                             onClick={() => setIsComposeOpen(true)}
                             icon="PencilIcon"
+                            className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md"
                         >
                             Compose
                         </Button>
@@ -276,15 +324,33 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-baseline mb-1">
                                                 <h4 className={`text-sm font-bold group-hover:text-gyn-blue-dark dark:group-hover:text-blue-400 transition-colors ${!isRead ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-slate-300'}`}>{senderName}</h4>
-                                                <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-slate-800 px-2 py-0.5 rounded-full group-hover:bg-white dark:group-hover:bg-slate-600 group-hover:shadow-sm transition-all">
-                                                    {new Date(msg.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={(e) => handleStar(msg, e)}
+                                                        className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors ${msg.starred ? 'text-yellow-400' : 'text-gray-300 dark:text-slate-600 hover:text-yellow-400'}`}
+                                                    >
+                                                        <Icon name={msg.starred ? "StarIcon" : "StarIcon"} className="w-4 h-4" />
+                                                    </button>
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-slate-800 px-2 py-0.5 rounded-full group-hover:bg-white dark:group-hover:bg-slate-600 group-hover:shadow-sm transition-all">
+                                                        {new Date(msg.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <p className={`text-sm font-bold mb-1 ${!isRead ? 'text-gray-800 dark:text-slate-200' : 'text-gray-500 dark:text-slate-400'}`}>{getSubject(msg.content)}</p>
                                             <p className="text-xs text-gray-400 line-clamp-1 group-hover:text-gray-500 dark:group-hover:text-slate-400 transition-colors">
                                                 {getBody(msg.content)}
                                             </p>
                                         </div>
+                                    </div>
+                                    
+                                    {/* Hover Actions */}
+                                    <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg p-1 shadow-sm">
+                                        <button onClick={(e) => handleArchive(msg, e)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-600 rounded text-gray-500 dark:text-slate-400" title={msg.archived ? "Unarchive" : "Archive"}>
+                                            <Icon name="ArchiveBoxIcon" className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={(e) => handleTrash(msg, e)} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded text-gray-500 hover:text-red-500 dark:text-slate-400" title="Delete">
+                                            <Icon name="TrashIcon" className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
                             )
@@ -299,8 +365,9 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                     <div className="h-16 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between px-6 shrink-0 bg-white/50 dark:bg-slate-800/50">
                         <div className="flex gap-2">
                             <button onClick={() => setSelectedMessage(null)} className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400"><Icon name="ArrowLeftIcon" className="w-5 h-5" /></button>
-                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Archive"><Icon name="ArchiveBoxIcon" className="w-5 h-5" /></button>
-                            <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Delete"><Icon name="TrashIcon" className="w-5 h-5" /></button>
+                            <button onClick={() => handleArchive(selectedMessage)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title={selectedMessage.archived ? "Unarchive" : "Archive"}><Icon name="ArchiveBoxIcon" className="w-5 h-5" /></button>
+                            <button onClick={() => handleTrash(selectedMessage)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Delete"><Icon name="TrashIcon" className="w-5 h-5" /></button>
+                            <button onClick={() => handleStar(selectedMessage)} className={`p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg ${selectedMessage.starred ? 'text-yellow-400' : 'text-gray-500 dark:text-slate-400'}`} title="Star"><Icon name="StarIcon" className="w-5 h-5" /></button>
                         </div>
                         <div className="flex gap-2">
                             <button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-400" title="Reply"><Icon name="ArrowUturnLeftIcon" className="w-5 h-5" /></button>
@@ -401,23 +468,52 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
         </div>
     );
 }; const SocialMediaView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
+    const { addToast } = useToast();
     const [posts, setPosts] = useState<SocialPost[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    
+    // Form State
+    const [platform, setPlatform] = useState<'Facebook' | 'Twitter' | 'Instagram' | 'LinkedIn'>('Twitter');
+    const [content, setContent] = useState('');
+    const [scheduledFor, setScheduledFor] = useState('');
+
+    const fetchPosts = async () => {
+        setLoading(true);
+        try {
+            const result = await communicationService.getSocialPosts();
+            setPosts(result.items);
+        } catch (error) {
+            console.error("Failed to fetch social posts", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchPosts = async () => {
-            setLoading(true);
-            try {
-                const result = await communicationService.getSocialPosts();
-                setPosts(result.items);
-            } catch (error) {
-                console.error("Failed to fetch social posts", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchPosts();
     }, []);
+
+    const handleCreatePost = async () => {
+        try {
+            await communicationService.createSocialPost({
+                platform,
+                content,
+                scheduled_for: scheduledFor || undefined,
+                status: scheduledFor ? 'Scheduled' : 'Draft',
+                likes: 0,
+                comments: 0,
+                shares: 0
+            });
+            addToast('Post created successfully', 'success');
+            setIsCreateOpen(false);
+            setContent('');
+            setScheduledFor('');
+            fetchPosts();
+        } catch (error) {
+            addToast('Failed to create post', 'error');
+        }
+    };
 
     return (
         <div className="h-full flex flex-col gap-6 animate-fadeIn">
@@ -426,7 +522,7 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                     <h2 className="text-2xl font-black text-gyn-blue-dark dark:text-blue-400">Social Media Manager</h2>
                     <p className="text-gray-500 dark:text-slate-400">Manage posts across all platforms.</p>
                 </div>
-                <Button variant="primary" icon="PlusCircle">
+                <Button variant="primary" icon="PlusCircle" onClick={() => setIsCreateOpen(true)} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">
                     Create Post
                 </Button>
             </div>
@@ -464,8 +560,17 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                             posts.map(post => (
                                 <div key={post.id} className="flex gap-4 group">
                                     <div className="flex flex-col items-center gap-2 pt-2">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                            <Icon name="ChatBubbleLeftRight" className="w-5 h-5" />
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${
+                                            post.platform === 'Facebook' ? 'bg-blue-600' :
+                                            post.platform === 'Twitter' ? 'bg-sky-500' :
+                                            post.platform === 'LinkedIn' ? 'bg-blue-700' :
+                                            'bg-pink-600'
+                                        }`}>
+                                            <Icon name={
+                                                post.platform === 'Facebook' ? 'HandThumbUpIcon' : // Fallback icons if brand icons missing
+                                                post.platform === 'Twitter' ? 'ChatBubbleLeftRight' :
+                                                'ShareIcon'
+                                            } className="w-5 h-5" />
                                         </div>
                                         <div className="w-0.5 h-full bg-gray-100 dark:bg-slate-700 group-last:hidden"></div>
                                     </div>
@@ -480,7 +585,7 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                                             </div>
                                             <span className="text-xs text-gray-400">{post.scheduled_for ? new Date(post.scheduled_for).toLocaleString() : 'Draft'}</span>
                                         </div>
-                                        <p className="text-sm text-gray-600 dark:text-slate-300 mb-3">
+                                        <p className="text-sm text-gray-600 dark:text-slate-300 mb-3 whitespace-pre-wrap">
                                             {post.content}
                                         </p>
                                         {post.image && (
@@ -522,28 +627,105 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
                     </Card>
                 </div>
             </div>
+
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                title="Create Social Post"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Platform</label>
+                        <select 
+                            value={platform}
+                            onChange={(e) => setPlatform(e.target.value as any)}
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
+                        >
+                            <option value="Twitter">Twitter</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="LinkedIn">LinkedIn</option>
+                            <option value="Instagram">Instagram</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content</label>
+                        <textarea 
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white min-h-[100px]"
+                            placeholder="What's on your mind?"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Schedule (Optional)</label>
+                        <input 
+                            type="datetime-local"
+                            value={scheduledFor}
+                            onChange={(e) => setScheduledFor(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
+                        />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                        <Button variant="primary" onClick={handleCreatePost}>
+                            {scheduledFor ? 'Schedule Post' : 'Save Draft'}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };
 
 const CommunityView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
+    const { addToast } = useToast();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    // Form State
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [tags, setTags] = useState('');
+
+    const fetchPosts = async () => {
+        setLoading(true);
+        try {
+            const result = await communityService.getPosts();
+            setPosts(result.items);
+        } catch (error) {
+            console.error("Failed to fetch community posts", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchPosts = async () => {
-            setLoading(true);
-            try {
-                const result = await communityService.getPosts();
-                setPosts(result.items);
-            } catch (error) {
-                console.error("Failed to fetch community posts", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchPosts();
     }, []);
+
+    const handleCreateTopic = async () => {
+        try {
+            const currentUser = pb.authStore.model;
+            if (!currentUser) return;
+
+            await communityService.createPost({
+                title,
+                content,
+                author: currentUser.id,
+                likes: 0,
+                tags: tags.split(',').map(t => t.trim()).filter(t => t)
+            });
+            addToast('Topic created successfully', 'success');
+            setIsCreateOpen(false);
+            setTitle('');
+            setContent('');
+            setTags('');
+            fetchPosts();
+        } catch (error) {
+            addToast('Failed to create topic', 'error');
+        }
+    };
 
     return (
         <div className="h-full flex flex-col animate-fadeIn">
@@ -554,6 +736,9 @@ const CommunityView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => 
                 </div>
                 <div className="flex gap-2">
                     <input type="text" placeholder="Search topics..." className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm w-64 dark:text-white" />
+                    <Button variant="primary" icon="PlusCircle" onClick={() => setIsCreateOpen(true)} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">
+                        New Topic
+                    </Button>
                 </div>
             </div>
 
@@ -617,6 +802,48 @@ const CommunityView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => 
                     )}
                 </div>
             </Card>
+
+            <Modal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                title="Start New Discussion"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Topic Title</label>
+                        <input 
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
+                            placeholder="What would you like to discuss?"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content</label>
+                        <textarea 
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white min-h-[150px]"
+                            placeholder="Elaborate on your topic..."
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Tags (comma separated)</label>
+                        <input 
+                            type="text"
+                            value={tags}
+                            onChange={(e) => setTags(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
+                            placeholder="e.g. feature-request, bug, general"
+                        />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                        <Button variant="primary" onClick={handleCreateTopic}>Post Topic</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

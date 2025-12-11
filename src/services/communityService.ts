@@ -16,7 +16,7 @@ export interface Post {
 export const communityService = {
   async getPosts() {
     try {
-      const records = await pb.collection('posts').getList<Post>(1, 50, {
+      const records = await pb.collection('community_posts').getList<Post>(1, 50, {
         sort: '-created',
         expand: 'author',
       });
@@ -35,7 +35,7 @@ export const communityService = {
 
   async createPost(data: Partial<Post>) {
     try {
-      return await pb.collection('posts').create<Post>(data);
+      return await pb.collection('community_posts').create<Post>(data);
     } catch (error) {
       console.error('Failed to create post:', error);
       return null;
@@ -44,8 +44,8 @@ export const communityService = {
   
   async likePost(id: string) {
     try {
-      const post = await pb.collection('posts').getOne<Post>(id);
-      return await pb.collection('posts').update<Post>(id, { likes: post.likes + 1 });
+      const post = await pb.collection('community_posts').getOne<Post>(id);
+      return await pb.collection('community_posts').update<Post>(id, { likes: post.likes + 1 });
     } catch (error) {
       console.error('Failed to like post:', error);
       return null;

@@ -13,7 +13,7 @@ export interface PerformanceSnapshot {
 }
 
 export class PerformanceMonitor {
-    private snapshots: PerformanceSnapshot[] = new Map();
+    private snapshots: PerformanceSnapshot[] = [];
     private maxSnapshots: number = 1000;
     private performanceObserver: PerformanceObserver | null = null;
 

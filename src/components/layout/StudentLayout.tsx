@@ -1,17 +1,18 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import MainLayout from './MainLayout';
 import { STUDENT_CONFIG } from '../../data/AppConfigs';
-import StudentCourses from '../../apps/student/Courses';
-import StudentAssignments from '../../apps/student/Assignments';
-import ActivitiesApp from '../../apps/ActivitiesApp';
-import Wellness from '../../apps/Wellness';
-import Tools from '../../apps/Tools';
-import StudentConcierge from '../../apps/student/StudentConcierge';
-// New components
-import Dashboard from '../../apps/student/Dashboard';
-import ResourceLibrary from '../../apps/student/ResourceLibrary';
-
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { Spinner } from '../shared/ui/Spinner';
+
+const StudentCourses = lazy(() => import('../../apps/student/Courses'));
+const StudentAssignments = lazy(() => import('../../apps/student/Assignments'));
+const ActivitiesApp = lazy(() => import('../../apps/ActivitiesApp'));
+const Wellness = lazy(() => import('../../apps/Wellness'));
+const Tools = lazy(() => import('../../apps/Tools'));
+const StudentConcierge = lazy(() => import('../../apps/student/StudentConcierge'));
+// New components
+const Dashboard = lazy(() => import('../../apps/student/Dashboard'));
+const ResourceLibrary = lazy(() => import('../../apps/student/ResourceLibrary'));
 
 const StudentLayout: React.FC = () => {
     const renderContent = (activeModule: string, activeTab: string, activeSubNav: string) => {
@@ -39,7 +40,9 @@ const StudentLayout: React.FC = () => {
 
         return (
             <ErrorBoundary>
-                {content}
+                <Suspense fallback={<div className="flex items-center justify-center h-full"><Spinner /></div>}>
+                    {content}
+                </Suspense>
             </ErrorBoundary>
         );
     };

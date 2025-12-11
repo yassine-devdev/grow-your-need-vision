@@ -46,5 +46,23 @@ export const professionalService = {
       console.error('Error creating service:', error);
       return null;
     }
+  },
+
+  async updateService(id: string, data: Partial<ServiceOffering>) {
+    try {
+      return await pb.collection('services').update<ServiceOffering>(id, data);
+    } catch (error) {
+      console.error('Error updating service:', error);
+      return null;
+    }
+  },
+
+  async deleteService(id: string) {
+    try {
+      return await pb.collection('services').delete(id);
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      return false;
+    }
   }
 };

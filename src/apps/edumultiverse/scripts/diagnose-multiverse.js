@@ -1,6 +1,7 @@
+import 'dotenv/config';
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://127.0.0.1:8090');
 
 async function diagnose() {
     console.log("🔍 Starting EduMultiverse Diagnostic...");
@@ -16,25 +17,23 @@ async function diagnose() {
 
     // 2. Auth Check
     try {
-        await pb.admins.authWithPassword('admin@example.com', 'password123');
-        console.log("✅ Admin Auth: OK (admin@example.com)");
+        await pb.admins.authWithPassword(
+            process.env.POCKETBASE_ADMIN_EMAIL || 'owner@growyourneed.com',
+            process.env.POCKETBASE_ADMIN_PASSWORD || 'Darnag123456789@'
+        );
+        console.log("✅ Admin Auth: OK");
     } catch (e) {
-        try {
-            await pb.admins.authWithPassword('test@example.com', '1234567890');
-            console.log("✅ Admin Auth: OK (test@example.com)");
-        } catch (err) {
-            console.error("❌ Admin Auth: FAILED. Could not authenticate with known defaults.");
-            return;
-        }
+        console.error("❌ Admin Auth: FAILED. Check credentials in .env");
+        return;
     }
 
     // 3. Schema Check
     const requiredCollections = [
-        'universes', 
-        'timelines', 
-        'missions', 
-        'glitches', 
-        'multiverse_profiles', 
+        'universes',
+        'timelines',
+        'missions',
+        'glitches',
+        'multiverse_profiles',
         'mission_runs'
     ];
 
@@ -58,7 +57,7 @@ async function diagnose() {
     try {
         const collections = await pb.collections.getFullList();
         const existingNames = collections.map(c => c.name);
-        
+
         for (const name of requiredCollections) {
             if (existingNames.includes(name)) {
                 console.log(`  ✅ ${name}: Found`);

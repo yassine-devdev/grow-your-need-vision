@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 /**
  * E2E Tests for Role-Based Authentication
@@ -49,7 +49,7 @@ const TEST_USERS = {
 /**
  * Helper function to perform login
  */
-async function loginAsUser(page, email: string, password: string) {
+async function loginAsUser(page: Page, email: string, password: string) {
     // Navigate to login page (HashRouter)
     await page.goto('/#/login', { waitUntil: 'networkidle' });
 
@@ -63,7 +63,7 @@ async function loginAsUser(page, email: string, password: string) {
     // Click login button and wait for navigation
     // We expect the hash to change from #/login to something else (e.g. #/admin)
     await Promise.all([
-        page.waitForURL((url) => !url.hash.includes('#/login'), { timeout: 10000 }),
+        page.waitForURL((url: URL) => !url.hash.includes('#/login'), { timeout: 10000 }),
         page.click('button[type="submit"]'),
     ]);
 
@@ -83,7 +83,7 @@ test.describe('Role-Based Authentication E2E Tests', () => {
     test('Owner should login and redirect to /admin dashboard', async ({ page }) => {
         const user = TEST_USERS.owner;
 
-        await loginAsUser(page, user.email, user.password);
+        await loginAsUser(page, user.email!, user.password!);
 
         // Verify we're on the correct dashboard with retry
         await expect(page).toHaveURL(new RegExp(user.expectedRoute));
@@ -97,7 +97,7 @@ test.describe('Role-Based Authentication E2E Tests', () => {
     test('Admin should login and redirect to /school-admin dashboard', async ({ page }) => {
         const user = TEST_USERS.admin;
 
-        await loginAsUser(page, user.email, user.password);
+        await loginAsUser(page, user.email!, user.password!);
 
         // Verify we're on the correct dashboard with retry
         await expect(page).toHaveURL(new RegExp(user.expectedRoute));
@@ -111,7 +111,7 @@ test.describe('Role-Based Authentication E2E Tests', () => {
     test('Teacher should login and redirect to /teacher dashboard', async ({ page }) => {
         const user = TEST_USERS.teacher;
 
-        await loginAsUser(page, user.email, user.password);
+        await loginAsUser(page, user.email!, user.password!);
 
         // Verify we're on the correct dashboard with retry
         await expect(page).toHaveURL(new RegExp(user.expectedRoute));
@@ -125,7 +125,7 @@ test.describe('Role-Based Authentication E2E Tests', () => {
     test('Student should login and redirect to /student dashboard', async ({ page }) => {
         const user = TEST_USERS.student;
 
-        await loginAsUser(page, user.email, user.password);
+        await loginAsUser(page, user.email!, user.password!);
 
         // Verify we're on the correct dashboard with retry
         await expect(page).toHaveURL(new RegExp(user.expectedRoute));
@@ -139,7 +139,7 @@ test.describe('Role-Based Authentication E2E Tests', () => {
     test('Parent should login and redirect to /parent dashboard', async ({ page }) => {
         const user = TEST_USERS.parent;
 
-        await loginAsUser(page, user.email, user.password);
+        await loginAsUser(page, user.email!, user.password!);
 
         // Verify we're on the correct dashboard with retry
         await expect(page).toHaveURL(new RegExp(user.expectedRoute));
@@ -153,7 +153,7 @@ test.describe('Role-Based Authentication E2E Tests', () => {
     test('Individual should login and redirect to /individual dashboard', async ({ page }) => {
         const user = TEST_USERS.individual;
 
-        await loginAsUser(page, user.email, user.password);
+        await loginAsUser(page, user.email!, user.password!);
 
         // Verify we're on the correct dashboard with retry
         await expect(page).toHaveURL(new RegExp(user.expectedRoute));

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Icon, Button, Card, Modal, EmptyState, Skeleton } from '../components/shared/ui/CommonUI';
+import { Icon, Button, Card, Modal, EmptyState, Skeleton, SkeletonCard } from '../components/shared/ui/CommonUI';
+import { VideoPlayer } from '../components/shared/ui/VideoPlayer';
 import { mediaService, MediaItem, TVChannel, M3UPlaylist } from '../services/mediaService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +18,7 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
     const [playlists, setPlaylists] = useState<M3UPlaylist[]>([]);
     const [featuredItem, setFeaturedItem] = useState<MediaItem | null>(null);
     const [selectedChannel, setSelectedChannel] = useState<TVChannel | null>(null);
+    const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
     const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -149,8 +151,8 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
                             ))}
                         </div>
                     ) : (
-                        <EmptyState 
-                            title="No channels available" 
+                        <EmptyState
+                            title="No channels available"
                             description="Add an M3U playlist to get started"
                             icon="TvIcon"
                             actionLabel="Add M3U Playlist"
@@ -245,7 +247,7 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
             {featuredItem && (
                 <div className="relative h-[450px] rounded-3xl overflow-hidden mb-10 group shadow-2xl border border-white/5">
                     <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black z-0">
-                        <div 
+                        <div
                             className="absolute inset-0 bg-cover bg-center opacity-60 group-hover:scale-105 transition-transform duration-[20s]"
                             style={{ backgroundImage: `url('${featuredItem.thumbnail || 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80'}')` }}
                         ></div>
@@ -271,7 +273,12 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
                         </p>
 
                         <div className="flex gap-4">
-                            <Button variant="primary" size="lg" className="bg-white text-black hover:bg-gray-200 border-none">
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                className="bg-white text-black hover:bg-gray-200 border-none"
+                                onClick={() => setSelectedMedia(featuredItem)}
+                            >
                                 <Icon name="PlayIcon" className="w-6 h-6 fill-black mr-2" /> Play Now
                             </Button>
                             <Button variant="outline" size="lg" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20">
@@ -315,8 +322,8 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
                         ))
                     ) : mediaItems.length === 0 ? (
                         <div className="col-span-full">
-                            <EmptyState 
-                                title="No media found" 
+                            <EmptyState
+                                title="No media found"
                                 description="Check back later for new content."
                                 icon="FilmIcon"
                             />
@@ -333,15 +340,18 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
                                         </div>
                                     )}
 
-                                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4">
+                                    <div
+                                        className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4"
+                                        onClick={() => setSelectedMedia(item)}
+                                    >
                                         <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center">
                                             <Icon name="PlayIcon" className="w-6 h-6 text-white fill-white ml-1" />
                                         </div>
                                         <div className="flex gap-2">
-                                            <button className="p-2 bg-white/20 rounded-full hover:bg-white/40">
+                                            <button className="p-2 bg-white/20 rounded-full hover:bg-white/40" onClick={(e) => e.stopPropagation()}>
                                                 <Icon name="PlusCircleIcon" className="w-4 h-4" />
                                             </button>
-                                            <button className="p-2 bg-white/20 rounded-full hover:bg-white/40">
+                                            <button className="p-2 bg-white/20 rounded-full hover:bg-white/40" onClick={(e) => e.stopPropagation()}>
                                                 <Icon name="HandThumbUpIcon" className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -373,15 +383,11 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
             >
                 {selectedChannel && (
                     <div className="bg-black aspect-video relative group">
-                        <video 
-                            src={selectedChannel.stream_url} 
-                            controls 
-                            autoPlay 
-                            className="w-full h-full"
+                        <VideoPlayer
+                            src={selectedChannel.stream_url}
                             poster={selectedChannel.logo}
-                        >
-                            Your browser does not support the video tag.
-                        </video>
+                            autoPlay={true}
+                        />
                         <div className="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
                             LIVE
                         </div>
@@ -392,6 +398,32 @@ const MediaApp: React.FC<MediaAppProps> = ({ activeTab, activeSubNav }) => {
                     </div>
                 )}
             </Modal>
+
+            {/* Media Player Modal */}
+            {selectedMedia && (
+                <Modal
+                    isOpen={!!selectedMedia}
+                    onClose={() => setSelectedMedia(null)}
+                    title={selectedMedia.title}
+                    size="xl"
+                >
+                    <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                        <VideoPlayer
+                            src={selectedMedia.video_url || 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}
+                            poster={selectedMedia.thumbnail}
+                            autoPlay={true}
+                        />
+                    </div>
+                    <div className="mt-4">
+                        <p className="text-gray-600 dark:text-gray-300">{selectedMedia.description}</p>
+                        <div className="flex gap-2 mt-2">
+                            {selectedMedia.genre.map(g => (
+                                <span key={g} className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">{g}</span>
+                            ))}
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             <AIContentGeneratorModal
                 isOpen={isAIModalOpen}

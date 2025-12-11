@@ -33,7 +33,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
         maxSize,
         maxFiles,
         acceptedTypes: accept.split(',').map(t => t.trim()),
-        onUpload,
+        onUpload: onUpload as any,
         autoUpload: true,
     });
 

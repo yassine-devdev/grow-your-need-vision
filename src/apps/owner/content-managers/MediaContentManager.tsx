@@ -354,7 +354,7 @@ export const MediaContentManager: React.FC = () => {
                     resetPlaylistForm();
                 }}
                 title={`Add ${activeTab === 'movies' ? 'Media' : activeTab === 'channels' ? 'Channel' : 'Playlist'}`}
-                size="large"
+                size="lg"
             >
                 {activeTab === 'movies' && (
                     <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
@@ -509,7 +509,16 @@ export const MediaContentManager: React.FC = () => {
                                     Upload Video (Local File)
                                 </label>
                                 <FileUploader
-                                    onUploadComplete={(url) => setFormData({ ...formData, video_url: url })}
+                                    onUpload={async (files: File[]) => {
+                                        // Simulate upload
+                                        console.log('Uploading files:', files);
+                                        if (files.length > 0) {
+                                            // In a real app, you would upload to storage here
+                                            // const url = await mediaService.uploadVideo(files[0]);
+                                            const url = URL.createObjectURL(files[0]);
+                                            setFormData({ ...formData, video_url: url });
+                                        }
+                                    }}
                                     accept="video/*"
                                     maxSize={500 * 1024 * 1024} // 500MB
                                 />

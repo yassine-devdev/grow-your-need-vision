@@ -115,6 +115,20 @@ export const VideoEditor: React.FC = () => {
         await VideoExportService.downloadVideo(url, `video-${Date.now()}.${format}`);
     };
 
+    const handleSaveProject = async (): Promise<void> => {
+        const projectData = {
+            version: '1.0.0',
+            timestamp: new Date().toISOString(),
+            state: getTemplateProps(),
+            settings: {
+                durationInFrames: state.durationInFrames,
+                fps: state.fps,
+                templateType: state.templateType
+            }
+        };
+        await VideoExportService.downloadCompositionJson(projectData, `project-${Date.now()}.json`);
+    };
+
     const TemplateComponent = TEMPLATE_COMPONENTS[state.templateType];
 
     return (
@@ -124,6 +138,13 @@ export const VideoEditor: React.FC = () => {
                 <div className="flex gap-2">
                     <Button
                         icon="ArrowDownTrayIcon"
+                        variant="secondary"
+                        onClick={handleSaveProject}
+                    >
+                        Save Project
+                    </Button>
+                    <Button
+                        icon="Film"
                         variant="primary"
                         onClick={handleExport}
                         disabled={exporting}
@@ -138,8 +159,8 @@ export const VideoEditor: React.FC = () => {
                 <div className="lg:col-span-2 flex flex-col gap-4">
                     <div className="bg-black rounded-xl overflow-hidden shadow-2xl flex items-center justify-center aspect-video">
                         <Player
-                            component={TemplateComponent}
-                            inputProps={getTemplateProps()}
+                            component={TemplateComponent as any}
+                            inputProps={getTemplateProps() as any}
                             durationInFrames={state.durationInFrames}
                             compositionWidth={1920}
                             compositionHeight={1080}

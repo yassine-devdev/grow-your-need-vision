@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,22 +17,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'pnpm'
-
-    - name: Install pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
+        cache: 'npm'
 
     - name: Install dependencies
-      run: pnpm install
+      run: npm ci
 
-    - name: Run Linting
-      run: pnpm run lint
-      continue-on-error: true # Don't fail build on lint errors for now
+    - name: Lint
+      run: npm run lint
 
-    - name: Run Unit Tests
-      run: pnpm run test:unit
-      
-    - name: Build Application
-      run: pnpm run build
+    - name: Unit Tests
+      run: npm run test:unit
+
+    - name: Build
+      run: npm run build

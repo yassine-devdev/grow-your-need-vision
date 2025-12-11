@@ -22,7 +22,7 @@ test.describe('Platform CRM', () => {
         }
     } catch (e) {
         // Ignore timeout if no error is visible
-        if (!e.message.includes('Login failed')) {
+        if (e instanceof Error && !e.message.includes('Login failed')) {
             // continue
         } else {
             throw e;

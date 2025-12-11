@@ -89,7 +89,7 @@ export const ReportsApp: React.FC = () => {
                             <tr key={schedule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <td className="px-6 py-4 font-bold text-gray-800 dark:text-white">{schedule.name}</td>
                                 <td className="px-6 py-4">
-                                    <Badge variant="secondary">{schedule.frequency}</Badge>
+                                    <Badge variant="neutral">{schedule.frequency}</Badge>
                                 </td>
                                 <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{schedule.recipients}</td>
                                 <td className="px-6 py-4 text-gray-500">{schedule.lastRun}</td>

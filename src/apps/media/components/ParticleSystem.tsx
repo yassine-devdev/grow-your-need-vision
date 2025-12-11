@@ -1,5 +1,6 @@
 import React from 'react';
-import { interpolate, useCurrentFrame } from 'remotion';
+import { useCurrentFrame } from 'remotion';
+import { interpolate } from '../../../lib/remotion-utils';
 
 export interface ParticleProps {
     x: number;

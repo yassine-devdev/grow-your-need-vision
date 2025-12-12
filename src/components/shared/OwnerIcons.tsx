@@ -456,6 +456,14 @@ export const OwnerIcon: React.FC<IconProps> = ({ className, name }) => {
     ),
 
     CurrencyDollarIcon: <path d="M12 2 V22 M17 5 H9.5 C8.5 5 7.5 5.5 7.5 7 C7.5 9 9 10 10.5 10.5 L13.5 11.5 C15 12 16.5 13 16.5 15 C16.5 16.5 15.5 17 14.5 17 H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
+    
+    // Missing Icons & Aliases
+    Money: <path d="M12 2 V22 M17 5 H9.5 C8.5 5 7.5 5.5 7.5 7 C7.5 9 9 10 10.5 10.5 L13.5 11.5 C15 12 16.5 13 16.5 15 C16.5 16.5 15.5 17 14.5 17 H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
+    TrendingDown: <path d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    ExclamationTriangle: <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    ExclamationCircle: <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    CheckCircle: <path d="M9 12 L11 14 L15 10 M21 12 A9 9 0 1 1 12 3 A9 9 0 0 1 21 12 Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />,
+
     UserGroup: (
       <g>
         <path d="M17 21 V19 C17 16.79 15.21 15 13 15 H5 C2.79 15 1 16.79 1 19 V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -596,6 +604,39 @@ export const OwnerIcon: React.FC<IconProps> = ({ className, name }) => {
     CalculatorIcon: <path d="M15.75 15.75l-2.489-2.489m0 0a3.375 3.375 0 10-4.773-4.773 3.375 3.375 0 004.774 4.774zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
     BookmarkIcon: <path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
     
+    // Missing Icons from Audit
+    BeakerIcon: <path d="M10.5 1.5H13.5V4.5H10.5V1.5ZM4.5 19.5C4.5 20.3284 5.17157 21 6 21H18C18.8284 21 19.5 20.3284 19.5 19.5V13.5L15 6H9L4.5 13.5V19.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    PhoneIcon: <path d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    CameraIcon: <path d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316zM16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    MapIcon: <path d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.159.69.159 1.006 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    LightBulbIcon: <path d="M12 18v-1.578c0-1.667.928-3.204 2.43-4.022 1.833-.998 2.757-3.052 2.263-5.035a6.002 6.002 0 00-7.386 0c-.494 1.983.43 4.037 2.263 5.035 1.502.818 2.43 2.355 2.43 4.022V18m-2.25 2.25h4.5m-6.75-2.25h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    LocationMarker: <path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    ExclamationTriangleIcon: <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    KeyIcon: <path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    UserCircleIcon: <path d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    CreditCardIcon: <path d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    DotsVertical: (
+      <g>
+        <circle cx="12" cy="5" r="1.5" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+      </g>
+    ),
+    FaceSmileIcon: <path d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Additional Missing Icons
+    MicrophoneIcon: <path d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    PaperAirplaneIcon: <path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    PaintBrushIcon: <path d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    ServerIcon: <path d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m0 0l-2.25-1.313M21 14.25l-2.25-1.313M3 14.25l2.25-1.313m0 0l2.25 1.313M3 14.25v2.25l2.25 1.313" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    RocketLaunchIcon: <path d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    Footprints: <path d="M19.19 12.79a5.23 5.23 0 00-3.57-1.46 5.23 5.23 0 00-3.57 1.46l-1.41 1.41a5.23 5.23 0 000 7.4 5.23 5.23 0 007.4 0 5.23 5.23 0 000-7.4l-1.41-1.41zM7.07 11.21a5.23 5.23 0 003.57 1.46 5.23 5.23 0 003.57-1.46l1.41-1.41a5.23 5.23 0 000-7.4 5.23 5.23 0 00-7.4 0 5.23 5.23 0 000 7.4l1.41 1.41z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Aliases
+    BookOpen: <path d="M4 6 C4 6 6 4 12 4 C18 4 20 6 20 6 V20 C20 20 18 18 12 18 C6 18 4 20 4 20 V6 Z M12 4 V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />,
+    Users: <path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    Fire: <path d="M12 2C12 2 5 8 5 13C5 17 8 20 12 20C16 20 19 17 19 13C19 8 12 2 12 2ZM12 18C10 18 8 16 8 13C8 11 10 8 12 6C14 8 16 11 16 13C16 16 14 18 12 18Z" fill="currentColor" />,
+    Trophy: <path d="M8 4 H16 M8 4 V10 C8 12 10 14 12 14 C14 14 16 12 16 10 V4 M12 14 V18 M8 20 H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />,
   };
   
   // Smart mapping for generic icons requested in config

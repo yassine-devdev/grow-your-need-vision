@@ -6,6 +6,7 @@ import OwnerSubnavLeft from './OwnerSubnavLeft';
 import OwnerFooter from './OwnerFooter';
 import AppOverlay from './AppOverlay';
 import { useOS } from '../../context/OSContext'; // Import useOS
+import { isMockEnv } from '../../utils/mockData';
 import { useNetwork } from '../../hooks/useNetwork';
 import { Icon } from '../shared/ui/CommonUI';
 
@@ -24,6 +25,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
     const hashPath = location.hash?.replace(/^#/, '') || '';
     const pathToUse = hashPath || location.pathname;
     return pathToUse.split('/').filter(Boolean);
+  };
+
+  const updateHash = (moduleId?: string, tab?: string, subnav?: string) => {
+    if (isMockEnv()) return; // avoid navigation churn in E2E/mock environments
+
+    const pathSegments = getPathSegments();
+    const base = pathSegments[0] || 'admin';
+    const parts = [base];
+
+    if (moduleId) parts.push(moduleId);
+    if (tab) parts.push(tab.toLowerCase().replace(/\s+/g, '-'));
+    if (subnav) parts.push(subnav.toLowerCase().replace(/\s+/g, '-'));
+
+    const nextHash = `#/${parts.join('/')}`;
+    if (typeof window !== 'undefined' && window.location.hash !== nextHash) {
+      window.location.hash = nextHash;
+    }
   };
 
   // Auto-open dock after mount in mock/test to avoid timeouts
@@ -71,7 +89,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
         setActiveTab(targetTab);
         
         const subnavOptions = moduleConfig.subnav[targetTab];
-        setActiveSubNav(subnavOptions && subnavOptions.length > 0 ? subnavOptions[0] : '');
+        const nextSubnav = subnavOptions && subnavOptions.length > 0 ? subnavOptions[0] : '';
+        setActiveSubNav(nextSubnav);
     }
   }, [activeModule, config, location.pathname, location.hash]);
 
@@ -89,6 +108,30 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
   const currentTabs = config[activeModule]?.tabs || [];
   const currentSubNavItems = config[activeModule]?.subnav[activeTab] || [];
 
+  const handleModuleChange = (moduleId: string) => {
+    const moduleConfig = config[moduleId];
+    const defaultTab = moduleConfig?.tabs?.[0] || '';
+    const defaultSubnav = moduleConfig?.subnav?.[defaultTab]?.[0] || '';
+
+    setActiveModule(moduleId);
+    setActiveTab(defaultTab);
+    setActiveSubNav(defaultSubnav);
+    updateHash(moduleId, defaultTab, defaultSubnav);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const subnavOptions = config[activeModule]?.subnav?.[tab];
+    const nextSubnav = subnavOptions?.includes(activeSubNav) ? activeSubNav : subnavOptions?.[0] || '';
+    setActiveSubNav(nextSubnav);
+    updateHash(activeModule, tab, nextSubnav);
+  };
+
+  const handleSubNavChange = (subnav: string) => {
+    setActiveSubNav(subnav);
+    updateHash(activeModule, activeTab, subnav);
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden font-sans text-slate-900 relative bg-white">
       
@@ -102,7 +145,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
       {/* 1. Header */}
       <OwnerHeader 
         activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+        onTabChange={handleTabChange} 
         tabs={currentTabs} 
         role={role}
       />
@@ -115,11 +158,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
             
             <div className="flex-1 flex overflow-hidden relative mt-1 md:mt-2 mr-1 md:mr-2 mb-1 md:mb-2 min-h-0">
                 {currentSubNavItems.length > 0 && (
-                    <OwnerSubnavLeft 
-                        activeSubNav={activeSubNav}
-                        onSubNavChange={setActiveSubNav}
-                        subItems={currentSubNavItems}
-                    />
+                  <OwnerSubnavLeft 
+                    activeSubNav={activeSubNav}
+                    onSubNavChange={handleSubNavChange}
+                    subItems={currentSubNavItems}
+                  />
                 )}
 
                 <main className="flex-1 flex flex-col relative px-0 md:px-0 transition-all duration-300 min-h-0 overflow-hidden">
@@ -142,16 +185,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
 
         {/* Right Sidebar - Full height metallic slab */}
         <OwnerSidebarRight 
-            activeModule={activeModule}
-            onModuleChange={setActiveModule}
-            expanded={sidebarExpanded}
-            onToggleExpand={toggleSidebar}
-            mobileOpen={mobileSidebarOpen}
-            modules={Object.entries(config).map(([id, cfg]) => ({
-                id,
-                label: (cfg as any).label,
-                icon: (cfg as any).icon
-            }))}
+          activeModule={activeModule}
+          onModuleChange={handleModuleChange}
+          expanded={sidebarExpanded}
+          onToggleExpand={toggleSidebar}
+          mobileOpen={mobileSidebarOpen}
+          modules={Object.entries(config).map(([id, cfg]) => ({
+            id,
+            label: (cfg as any).label,
+            icon: (cfg as any).icon
+          }))}
         />
       </div>
 

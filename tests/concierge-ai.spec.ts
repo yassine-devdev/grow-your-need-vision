@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, getTestCredentials } from '../src/test/helpers/auth';
 
 test.describe('Concierge AI', () => {
   test.setTimeout(60000);
@@ -8,6 +9,8 @@ test.describe('Concierge AI', () => {
     page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
     page.on('pageerror', err => console.log(`BROWSER ERROR: ${err.message}`));
 
+    const ownerCreds = getTestCredentials('owner');
+
     // Mock Network Requests
     await page.route('**/api/collections/users/auth-refresh', async route => {
       await route.fulfill({
@@ -16,10 +19,10 @@ test.describe('Concierge AI', () => {
         body: JSON.stringify({
           token: 'mock-token',
           record: {
-            id: 'owner123',
-            email: 'owner@growyourneed.com',
+            id: ownerCreds.id,
+            email: ownerCreds.email,
             name: 'Owner User',
-            role: 'owner',
+            role: ownerCreds.role,
             avatar: ''
           }
         })
@@ -27,13 +30,13 @@ test.describe('Concierge AI', () => {
     });
 
     // Mock User Presence Update (Heartbeat)
-    await page.route('**/api/collections/users/records/owner123', async route => {
+    await page.route(`**/api/collections/users/records/${ownerCreds.id}`, async route => {
       if (route.request().method() === 'PATCH') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            id: 'owner123',
+            id: ownerCreds.id,
             lastActive: new Date().toISOString()
           })
         });
@@ -69,7 +72,7 @@ test.describe('Concierge AI', () => {
             id: 'msg_new_' + Date.now(),
             role: postData.role,
             content: postData.content,
-            user: 'owner123',
+            user: ownerCreds.id,
             created: new Date().toISOString()
           })
         });
@@ -89,11 +92,6 @@ test.describe('Concierge AI', () => {
       }
     });
 
-    // Login as Owner
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', 'owner@growyourneed.com');
-    await page.fill('input[type="password"]', 'Darnag123456789@');
-    
     // Mock login response
     await page.route('**/api/collections/users/auth-with-password', async route => {
       await route.fulfill({
@@ -102,17 +100,17 @@ test.describe('Concierge AI', () => {
         body: JSON.stringify({
           token: 'mock-token',
           record: {
-            id: 'owner123',
-            email: 'owner@growyourneed.com',
+            id: ownerCreds.id,
+            email: ownerCreds.email,
             name: 'Owner User',
-            role: 'owner'
+            role: ownerCreds.role
           }
         })
       });
     });
 
-    await page.click('button:has-text("Sign In")');
-    await page.waitForURL(/.*\/admin/);
+    // Login as Owner using helper
+    await loginAs(page, 'owner');
     await expect(page.locator('.animate-spin')).not.toBeVisible();
   });
 

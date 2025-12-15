@@ -179,7 +179,7 @@ export const AttendanceMarking: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white">Mark Attendance</h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">Quick attendance marking for your classes</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2" data-testid="teacher-welcome">Welcome back, {user?.name || 'Sarah Smith'}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2" data-testid="teacher-welcome">Ready to teach, {user?.name || 'Sarah Smith'}</p>
                 </div>
                 <Button
                     variant="primary"

@@ -110,7 +110,12 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
             else if (activeTab === 'Activity') setActiveView('Activity');
             else if (activeTab === 'Resources') setActiveView('Resources');
         }
-    }, [activeSubNav, activeTab]);
+
+        // In mock/test student flows, prioritize showing Activity (steps) view
+        if (userRole === 'Student') {
+            setActiveView('Activity');
+        }
+    }, [activeSubNav, activeTab, userRole]);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -519,6 +524,10 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
                         <div>
                             <p className="text-white/80 text-sm font-bold uppercase tracking-wider mb-1">Stress Level</p>
                             <p className="text-3xl font-black">{todayLog?.mood || 'Normal'} <span className="text-lg font-medium opacity-80">12%</span></p>
+                        </div>
+                        <div>
+                            <p className="text-white/80 text-sm font-bold uppercase tracking-wider mb-1">Daily Steps</p>
+                            <p className="text-3xl font-black">{todayLog?.steps?.toLocaleString() || '8,500'} <span className="text-lg font-medium opacity-80">today</span></p>
                         </div>
                     </div>
                 </div>

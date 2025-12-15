@@ -16,6 +16,7 @@ export const FinancialReports: React.FC<FinancialReportsProps> = ({ stats }) => 
 
     return (
         <div className="space-y-6">
+            <Heading2 className="text-lg">Financial Overview</Heading2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800">
                     <Heading2 className="text-blue-700 dark:text-blue-300">${stats.totalRevenue.toLocaleString()}</Heading2>

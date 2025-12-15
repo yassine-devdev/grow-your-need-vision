@@ -81,7 +81,6 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
                 <div className="flex items-center justify-between shrink-0 px-2">
                     <div>
                         <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.35em]">OWNER CONTROL</p>
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em]">Platform Overview</p>
                         <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">
                             Super Admin Control Center
                         </h1>

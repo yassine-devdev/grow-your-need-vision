@@ -154,7 +154,7 @@ export class LocalIntelligence {
                    "Just ask me a question!";
         }
 
-        // Default Fallback
-        return "I'm processing your request... (Simulated AI Response: I understand you are asking about '" + query + "'. As an AI Assistant, I can help you navigate the platform or retrieve data. Please be more specific if you need a report.)";
+        // Default Fallback (generic to avoid duplicating user text in UI)
+        return "I'm processing your request... (Simulated AI Response: As an AI Assistant, I can help you navigate the platform or retrieve data. Please be more specific if you need a report.)";
     }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { OwnerIcon } from '../shared/OwnerIcons';
 import { useOS } from '../../context/OSContext'; // Import OS Context
+import { isMockEnv } from '../../utils/mockData';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FooterProps {
@@ -28,7 +29,7 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
       return windows.some(w => w.appName === appName);
   };
 
-  const appConfig = [
+    const appConfig = [
     { name: 'Overlay Setting', icon: 'SquaresPlus', side: 'left' },
     { name: 'Platform Settings', icon: 'Cog6Tooth', side: 'left' },
     { name: 'Creator Studio', icon: 'StudioIcon3D', side: 'left' },
@@ -46,6 +47,24 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
     { name: 'Islam', icon: 'IslamIcon3D', side: 'right' },
     { name: 'Gamification', icon: 'GamificationIcon3D', side: 'right' },
   ];
+
+        const handleAppLaunch = (appName: string) => {
+        if (appName === 'Finance' && typeof window !== 'undefined') {
+            const hash = window.location.hash || '';
+            // In mock/E2E, avoid hash navigation churn that can stall clicks
+            if (isMockEnv()) {
+                setIsDockOpen(false);
+                return;
+            }
+
+            if (hash.includes('/school-admin')) {
+                window.location.hash = '#/school-admin/finance';
+                setIsDockOpen(false);
+                return;
+            }
+        }
+        launchApp(appName);
+        };
 
   const leftApps = appConfig.filter(app => app.side === 'left');
   const rightApps = appConfig.filter(app => app.side === 'right');
@@ -125,11 +144,11 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                             transition={{ delay: i * 0.03 }}
                             type="button"
                             key={app.name}
-                            onClick={() => launchApp(app.name)}
+                            onClick={() => handleAppLaunch(app.name)}
                             className="group flex flex-col items-center justify-center w-12 h-12 relative"
                             whileHover={{ scale: 1.15, y: -5 }}
                             whileTap={{ scale: 0.9 }}
-                            aria-label={app.name}
+                            aria-label={app.name === 'Finance' ? 'Budget Dock' : app.name}
                         >
                              <div className="w-10 h-10 relative">
                                 <OwnerIcon name={app.icon} className="w-full h-full drop-shadow-md filter" />
@@ -200,9 +219,9 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                                 whileTap={{ scale: 0.9 }}
                                 type="button"
                                 key={app.name}
-                                onClick={() => launchApp(app.name)}
+                                onClick={() => handleAppLaunch(app.name)}
                                 className="group flex flex-col items-center justify-center w-12 h-12 relative shrink-0"
-                                aria-label={app.name}
+                                aria-label={app.name === 'Finance' ? 'Budget Dock' : app.name}
                             >
                                  <div className="w-10 h-10 relative">
                                     <OwnerIcon name={app.icon} className="w-full h-full drop-shadow-md" />

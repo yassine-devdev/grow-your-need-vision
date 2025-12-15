@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import Stripe from 'stripe';
-import { logAudit } from './auditLogger.js';
+import { logAudit, auditMiddleware, getAuditStats, flushAuditBuffer } from './auditLogger.js';
 import { storeReceipt } from './receiptService.js';
 import PDFDocument from 'pdfkit';
 import { randomUUID } from 'crypto';
@@ -219,6 +219,9 @@ if (process.env.SENTRY_DSN) {
     app.use(Sentry.Handlers.requestHandler());
 }
 
+// Add audit middleware to automatically track request context
+app.use(auditMiddleware);
+
 // Observability: add request id + per-route latency and structured log
 app.use((req, res, next) => {
     const start = process.hrtime.bigint();
@@ -240,6 +243,7 @@ app.use((req, res, next) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
+    const auditStats = getAuditStats();
     res.json({
         status: 'ok',
         service: 'payment-server',
@@ -253,6 +257,10 @@ app.get('/api/health', (req, res) => {
                 const errors = requestMetrics.errors.get(route) || 0;
                 return { route, count, avgMs: Number(avg.toFixed ? avg.toFixed(2) : avg), errors };
             })
+        },
+        audit: {
+            buffered: auditStats.buffered,
+            bySeverity: auditStats.bySeverity
         }
     });
 });
@@ -979,6 +987,38 @@ app.get('/api/admin/audit', requireApiKey, requireTenant, requireAdmin, async (r
     }
 });
 
+// Audit statistics endpoint (admin only)
+app.get('/api/admin/audit/stats', requireApiKey, requireAdmin, async (req, res) => {
+    try {
+        const stats = getAuditStats();
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching audit stats:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Flush buffered audit logs (admin only)
+app.post('/api/admin/audit/flush', requireApiKey, requireAdmin, async (req, res) => {
+    try {
+        const result = await flushAuditBuffer();
+        await logAudit({
+            action: 'audit.buffer.flush',
+            resourceType: 'audit',
+            resourceId: 'buffer',
+            tenantId: 'platform',
+            userId: req.header('x-user-id') || 'admin',
+            severity: 'medium',
+            metadata: result,
+            req
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Error flushing audit buffer:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 app.get('/api/admin/audit/export', requireApiKey, requireTenant, requireAdmin, async (req, res) => {
     try {
         const { action, userId, from, to, severity } = req.query;
@@ -1146,6 +1186,228 @@ app.get('/api/school/finance/payroll', requireApiKey, requireTenant, async (req,
 // WEBHOOKS
 // ==========================================
 
+// Webhook retry configuration
+const WEBHOOK_RETRY_CONFIG = {
+    maxRetries: 3,
+    retryDelay: 1000, // 1 second
+    backoffMultiplier: 2
+};
+
+// In-memory store for webhook idempotency (use Redis in production)
+const processedWebhooks = new Map();
+
+// Clean up old webhook IDs every hour
+setInterval(() => {
+    const oneHourAgo = Date.now() - 3600000;
+    for (const [id, timestamp] of processedWebhooks.entries()) {
+        if (timestamp < oneHourAgo) {
+            processedWebhooks.delete(id);
+        }
+    }
+}, 3600000);
+
+/**
+ * Process webhook with retry logic
+ */
+async function processWebhookWithRetry(event, retryCount = 0) {
+    try {
+        switch (event.type) {
+            case 'payment_intent.succeeded':
+                const paymentIntent = event.data.object;
+                console.log('PaymentIntent was successful!', paymentIntent.id);
+                
+                // Update database status
+                if (PB_URL && PB_TOKEN) {
+                    try {
+                        await pbUpdate('payment_intents', paymentIntent.id, {
+                            status: 'succeeded',
+                            amount_received: paymentIntent.amount_received,
+                            updated: new Date().toISOString()
+                        });
+                    } catch (dbError) {
+                        console.error('Failed to update payment intent in database:', dbError);
+                        throw dbError; // Trigger retry
+                    }
+                }
+                
+                // Log to audit system
+                await logAudit({
+                    action: 'webhook.payment_intent.succeeded',
+                    resourceType: 'payment_intent',
+                    resourceId: paymentIntent.id,
+                    tenantId: paymentIntent.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        amount: paymentIntent.amount_received,
+                        currency: paymentIntent.currency,
+                        customer: paymentIntent.customer
+                    },
+                    severity: 'low'
+                });
+                break;
+
+            case 'invoice.payment_succeeded':
+                const invoice = event.data.object;
+                console.log('Invoice payment succeeded!', invoice.id);
+                
+                // Update invoice status
+                if (PB_URL && PB_TOKEN) {
+                    try {
+                        await pbUpdate('invoices', invoice.id, {
+                            status: 'Paid',
+                            paid_at: new Date(invoice.status_transitions.paid_at * 1000).toISOString(),
+                            updated: new Date().toISOString()
+                        });
+                    } catch (dbError) {
+                        console.error('Failed to update invoice in database:', dbError);
+                        throw dbError; // Trigger retry
+                    }
+                }
+                
+                // Log to audit system
+                await logAudit({
+                    action: 'webhook.invoice.payment_succeeded',
+                    resourceType: 'invoice',
+                    resourceId: invoice.id,
+                    tenantId: invoice.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        amount: invoice.amount_paid,
+                        currency: invoice.currency,
+                        customer: invoice.customer,
+                        subscription: invoice.subscription
+                    },
+                    severity: 'low'
+                });
+                break;
+
+            case 'customer.subscription.created':
+            case 'customer.subscription.updated':
+            case 'customer.subscription.deleted':
+                const subscription = event.data.object;
+                console.log('Subscription status update:', subscription.id, subscription.status);
+                
+                // Update subscription status
+                if (PB_URL && PB_TOKEN) {
+                    try {
+                        const subscriptionData = {
+                            status: subscription.status,
+                            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+                            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                            cancel_at_period_end: subscription.cancel_at_period_end,
+                            updated: new Date().toISOString()
+                        };
+                        
+                        if (subscription.canceled_at) {
+                            subscriptionData.canceled_at = new Date(subscription.canceled_at * 1000).toISOString();
+                        }
+                        
+                        await pbUpdate('subscriptions', subscription.id, subscriptionData);
+                    } catch (dbError) {
+                        console.error('Failed to update subscription in database:', dbError);
+                        throw dbError; // Trigger retry
+                    }
+                }
+                
+                // Log to audit system
+                await logAudit({
+                    action: `webhook.subscription.${event.type.split('.').pop()}`,
+                    resourceType: 'subscription',
+                    resourceId: subscription.id,
+                    tenantId: subscription.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        status: subscription.status,
+                        customer: subscription.customer,
+                        plan: subscription.items?.data?.[0]?.price?.id,
+                        cancel_at_period_end: subscription.cancel_at_period_end
+                    },
+                    severity: event.type === 'customer.subscription.deleted' ? 'medium' : 'low'
+                });
+                break;
+
+            case 'payment_intent.payment_failed':
+                const failedPayment = event.data.object;
+                console.error('Payment failed:', failedPayment.id, failedPayment.last_payment_error?.message);
+                
+                // Log failed payment
+                await logAudit({
+                    action: 'webhook.payment_intent.failed',
+                    resourceType: 'payment_intent',
+                    resourceId: failedPayment.id,
+                    tenantId: failedPayment.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        error: failedPayment.last_payment_error?.message,
+                        amount: failedPayment.amount,
+                        currency: failedPayment.currency
+                    },
+                    severity: 'high'
+                });
+                break;
+
+            case 'charge.dispute.created':
+                const dispute = event.data.object;
+                console.error('Dispute created:', dispute.id);
+                
+                // Log dispute with high severity
+                await logAudit({
+                    action: 'webhook.dispute.created',
+                    resourceType: 'dispute',
+                    resourceId: dispute.id,
+                    tenantId: 'platform',
+                    metadata: {
+                        amount: dispute.amount,
+                        currency: dispute.currency,
+                        reason: dispute.reason,
+                        status: dispute.status
+                    },
+                    severity: 'critical'
+                });
+                break;
+
+            default:
+                console.log(`Unhandled event type ${event.type}`);
+                // Log unhandled events for monitoring
+                await logAudit({
+                    action: 'webhook.unhandled',
+                    resourceType: 'webhook',
+                    resourceId: event.id,
+                    tenantId: 'platform',
+                    metadata: {
+                        type: event.type
+                    },
+                    severity: 'low'
+                });
+        }
+        
+        return { success: true };
+    } catch (error) {
+        console.error(`Error processing webhook event (attempt ${retryCount + 1}):`, error);
+        
+        // Retry logic for transient failures
+        if (retryCount < WEBHOOK_RETRY_CONFIG.maxRetries) {
+            const delay = WEBHOOK_RETRY_CONFIG.retryDelay * Math.pow(WEBHOOK_RETRY_CONFIG.backoffMultiplier, retryCount);
+            console.log(`Retrying webhook processing in ${delay}ms...`);
+            
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return processWebhookWithRetry(event, retryCount + 1);
+        }
+        
+        // Log failed webhook after all retries
+        await logAudit({
+            action: 'webhook.processing_failed',
+            resourceType: 'webhook',
+            resourceId: event.id,
+            tenantId: 'platform',
+            metadata: {
+                type: event.type,
+                error: error.message,
+                retries: retryCount
+            },
+            severity: 'critical'
+        });
+        
+        throw error;
+    }
+}
+
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -1153,56 +1415,66 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     let event;
 
     try {
-        // Verify webhook signature in production
-        if (process.env.NODE_ENV === 'production' && !endpointSecret) {
-            throw new Error('STRIPE_WEBHOOK_SECRET is missing in production');
+        // CRITICAL: Always verify webhook signature
+        if (!endpointSecret) {
+            console.error('STRIPE_WEBHOOK_SECRET is not configured');
+            res.status(500).send('Webhook configuration error');
+            return;
         }
 
-        if (endpointSecret) {
-            event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-        } else {
-            // Only allow unverified webhooks in development
-            if (process.env.NODE_ENV === 'production') {
-                throw new Error('Webhook signature verification failed');
-            }
-            event = req.body;
+        if (!sig) {
+            console.error('Missing stripe-signature header');
+            res.status(400).send('Missing signature');
+            return;
         }
+
+        // Verify webhook signature (required in ALL environments)
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        } catch (err) {
+            console.error(`Webhook signature verification failed: ${err.message}`);
+            res.status(400).send(`Webhook Error: ${err.message}`);
+            return;
+        }
+
+        // Idempotency check - prevent duplicate processing
+        const webhookId = event.id;
+        if (processedWebhooks.has(webhookId)) {
+            console.log(`Webhook ${webhookId} already processed, skipping`);
+            res.status(200).send('Already processed');
+            return;
+        }
+
+        // Mark as processing
+        processedWebhooks.set(webhookId, Date.now());
+
     } catch (err) {
         console.error(`Webhook Error: ${err.message}`);
         res.status(400).send(`Webhook Error: ${err.message}`);
         return;
     }
 
-    // Handle the event
+    // Handle the event with retry logic
     try {
-        switch (event.type) {
-            case 'payment_intent.succeeded':
-                const paymentIntent = event.data.object;
-                console.log('PaymentIntent was successful!', paymentIntent.id);
-                // TODO: Update database status via PocketBase API or direct DB access
-                break;
-            case 'invoice.payment_succeeded':
-                const invoice = event.data.object;
-                console.log('Invoice payment succeeded!', invoice.id);
-                break;
-            case 'customer.subscription.created':
-            case 'customer.subscription.updated':
-            case 'customer.subscription.deleted':
-                const subscription = event.data.object;
-                console.log('Subscription status update:', subscription.id, subscription.status);
-                break;
-            default:
-                console.log(`Unhandled event type ${event.type}`);
-        }
+        await processWebhookWithRetry(event);
+        
+        // Log successful webhook processing
+        console.log(JSON.stringify({
+            level: 'info',
+            type: 'webhook_processed',
+            webhookId: event.id,
+            eventType: event.type,
+            timestamp: new Date().toISOString()
+        }));
+        
+        res.status(200).send('Webhook processed successfully');
     } catch (error) {
-        console.error('Error processing webhook event:', error);
-        // Return 200 to Stripe to prevent retries if it's an application error
-        // Return 500 if you want Stripe to retry
+        console.error('Error processing webhook event after retries:', error);
+        
+        // Return 500 to tell Stripe to retry later
         res.status(500).send('Error processing event');
         return;
     }
-
-    res.send();
 });
 
 if (process.env.SENTRY_DSN) {

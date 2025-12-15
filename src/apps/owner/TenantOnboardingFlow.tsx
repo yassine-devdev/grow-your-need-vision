@@ -160,8 +160,9 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">School Details</h2>
                         <div>
-                            <label className="block text-sm font-semibold mb-2">School Name *</label>
+                            <label className="block text-sm font-semibold mb-2" htmlFor="school-name">School Name *</label>
                             <input
+                                id="school-name"
                                 type="text"
                                 className="w-full border-2 p-3 rounded-lg"
                                 value={formData.name}
@@ -170,9 +171,10 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2">Subdomain *</label>
+                            <label className="block text-sm font-semibold mb-2" htmlFor="school-subdomain">Subdomain *</label>
                             <div className="flex items-center gap-2">
                                 <input
+                                    id="school-subdomain"
                                     type="text"
                                     className="flex-1 border-2 p-3 rounded-lg"
                                     value={formData.subdomain}
@@ -183,8 +185,9 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2">Admin Email *</label>
+                            <label className="block text-sm font-semibold mb-2" htmlFor="admin-email">Admin Email *</label>
                             <input
+                                id="admin-email"
                                 type="email"
                                 className="w-full border-2 p-3 rounded-lg"
                                 value={formData.admin_email}
@@ -193,8 +196,9 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold mb-2">Admin Password *</label>
+                            <label className="block text-sm font-semibold mb-2" htmlFor="admin-password">Admin Password *</label>
                             <input
+                                id="admin-password"
                                 type="password"
                                 className="w-full border-2 p-3 rounded-lg"
                                 value={formData.admin_password}
@@ -323,21 +327,13 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
         </>
     );
 
-    if (isOpen) {
-        return (
-            <Modal isOpen={isOpen} onClose={onClose || (() => { })} title="New School Onboarding" size="xl">
-                <div className="p-6">
-                    {renderContent()}
-                </div>
-            </Modal>
-        );
-    }
+    if (!isOpen) return null;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 p-6">
-            <div className="max-w-4xl mx-auto">
+        <Modal isOpen={isOpen} onClose={onClose || (() => { })} title="New School Onboarding" size="xl">
+            <div className="p-6">
                 {renderContent()}
             </div>
-        </div>
+        </Modal>
     );
 };

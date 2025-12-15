@@ -175,8 +175,9 @@ export const SCHOOL_ADMIN_CONFIG: typeof NAV_CONFIG = {
     finance: {
         label: 'Finance',
         icon: 'CurrencyDollarIcon',
-        tabs: ['Fees', 'Payroll', 'Expenses', 'Invoices'],
+        tabs: ['Overview', 'Fees', 'Payroll', 'Expenses', 'Invoices'],
         subnav: {
+            'Overview': ['Summary'],
             'Fees': ['Collect', 'Reports', 'Defaulters'],
             'Payroll': ['Staff Salaries', 'Payslips'],
             'Expenses': ['Log Expense', 'Categories'],

@@ -10,8 +10,8 @@ export type UserRole = 'Owner' | 'Admin' | 'SchoolAdmin' | 'Teacher' | 'Student'
  */
 export const ROLE_ROUTES: Record<UserRole, string> = {
     Owner: '/admin',
-    Admin: '/school-admin',
-    SchoolAdmin: '/school-admin',
+    Admin: '/school-admin/finance',
+    SchoolAdmin: '/school-admin/finance',
     Teacher: '/teacher',
     Student: '/student',
     Parent: '/parent',

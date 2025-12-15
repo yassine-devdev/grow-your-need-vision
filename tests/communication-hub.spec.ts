@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, getTestCredentials } from '../src/test/helpers/auth';
 
 test.describe('Communication Hub', () => {
   test.setTimeout(60000);
@@ -6,6 +7,8 @@ test.describe('Communication Hub', () => {
   test.beforeEach(async ({ page }) => {
     // Capture console logs
     page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
+
+    const ownerCreds = getTestCredentials('owner');
 
     // Mock Network Requests
     await page.route('**/api/collections/users/auth-refresh', async route => {
@@ -15,10 +18,10 @@ test.describe('Communication Hub', () => {
         body: JSON.stringify({
           token: 'mock-token',
           record: {
-            id: 'owner123',
-            email: 'owner@growyourneed.com',
+            id: ownerCreds.id,
+            email: ownerCreds.email,
             name: 'Owner User',
-            role: 'owner',
+            role: ownerCreds.role,
             avatar: ''
           }
         })
@@ -26,13 +29,13 @@ test.describe('Communication Hub', () => {
     });
 
     // Mock User Presence Update (Heartbeat)
-    await page.route('**/api/collections/users/records/owner123', async route => {
+    await page.route(`**/api/collections/users/records/${ownerCreds.id}`, async route => {
       if (route.request().method() === 'PATCH') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            id: 'owner123',
+            id: ownerCreds.id,
             lastActive: new Date().toISOString()
           })
         });
@@ -67,8 +70,8 @@ test.describe('Communication Hub', () => {
           totalItems: 2,
           totalPages: 1,
           items: [
-            { id: 'msg1', content: 'Subject: Welcome to the platform\n\nHello...', from: 'system', to: 'owner123', read: false, created: new Date().toISOString() },
-            { id: 'msg2', content: 'Subject: Weekly Report\n\nHere is the report...', from: 'analytics', to: 'owner123', read: true, created: new Date().toISOString() }
+            { id: 'msg1', content: 'Subject: Welcome to the platform\n\nHello...', from: 'system', to: ownerCreds.id, read: false, created: new Date().toISOString() },
+            { id: 'msg2', content: 'Subject: Weekly Report\n\nHere is the report...', from: 'analytics', to: ownerCreds.id, read: true, created: new Date().toISOString() }
           ]
         })
       });
@@ -108,11 +111,6 @@ test.describe('Communication Hub', () => {
       });
     });
 
-    // Login as Owner
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', 'owner@growyourneed.com');
-    await page.fill('input[type="password"]', 'Darnag123456789@');
-    
     // Mock login response
     await page.route('**/api/collections/users/auth-with-password', async route => {
       await route.fulfill({
@@ -121,17 +119,17 @@ test.describe('Communication Hub', () => {
         body: JSON.stringify({
           token: 'mock-token',
           record: {
-            id: 'owner123',
-            email: 'owner@growyourneed.com',
+            id: ownerCreds.id,
+            email: ownerCreds.email,
             name: 'Owner User',
-            role: 'owner'
+            role: ownerCreds.role
           }
         })
       });
     });
 
-    await page.click('button:has-text("Sign In")');
-    await page.waitForURL(/.*\/admin/);
+    // Login as Owner using helper
+    await loginAs(page, 'owner');
     await expect(page.locator('.animate-spin')).not.toBeVisible();
   });
 

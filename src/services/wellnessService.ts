@@ -1,5 +1,6 @@
 import pb from '../lib/pocketbase';
 import { RecordModel } from 'pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 export interface Meal {
     name: string;
@@ -29,6 +30,25 @@ export const wellnessService = {
             }).then(res => res.items);
         } catch (error) {
             console.warn('Failed to fetch wellness logs', error);
+            if (isMockEnv()) {
+                const today = new Date();
+                const baseLog: WellnessLog = {
+                    id: 'wellness-mock-1',
+                    collectionId: 'mock',
+                    collectionName: 'wellness_logs',
+                    created: today.toISOString(),
+                    updated: today.toISOString(),
+                    date: today.toISOString(),
+                    steps: 8500,
+                    calories: 520,
+                    sleep_minutes: 430,
+                    mood: 'Energized',
+                    user: userId,
+                    meals: []
+                } as WellnessLog;
+
+                return [baseLog];
+            }
             return [];
         }
     },

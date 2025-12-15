@@ -1,4 +1,5 @@
 import pb from '../lib/pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 export interface Event {
   id: string;
@@ -159,12 +160,58 @@ export const eventService = {
       return records;
     } catch (error) {
       console.error('Error fetching activities:', error);
-      return { 
+      if (isMockEnv()) {
+        const items: EventActivity[] = [
+          {
+            id: 'activity-1',
+            name: 'Community Garden Planting',
+            description: 'Join neighbors to plant and maintain the community garden beds.',
+            type: 'Community',
+            location: 'Central Park',
+            schedule: { day: 'Saturday', time: '10:00 AM' },
+            capacity: 25,
+            organizer: 'Community Board',
+            created: new Date().toISOString(),
+          },
+          {
+            id: 'activity-2',
+            name: 'Jazz Night',
+            description: 'Local jazz quartet performing live. Open mic to follow.',
+            type: 'Social',
+            location: 'Campus Cafe',
+            schedule: { day: 'Friday', time: '7:30 PM' },
+            capacity: 80,
+            organizer: 'Arts Club',
+            created: new Date().toISOString(),
+          },
+          {
+            id: 'activity-3',
+            name: 'Coding Dojo',
+            description: 'Pair-programming session focused on React and TypeScript katas.',
+            type: 'Workshop',
+            location: 'Innovation Lab',
+            schedule: { day: 'Wednesday', time: '5:00 PM' },
+            capacity: 30,
+            organizer: 'CS Department',
+            created: new Date().toISOString(),
+          },
+        ];
+
+        return {
           page: options.page || 1,
           perPage: options.perPage || 20,
-          totalItems: 0,
-          totalPages: 0,
-          items: [] 
+          totalItems: items.length,
+          totalPages: 1,
+          items,
+        };
+      }
+
+      return {
+        page: options.page || 1,
+        perPage: options.perPage || 20,
+        totalItems: 0,
+        totalPages: 0,
+        items: [],
       };
     }
   },

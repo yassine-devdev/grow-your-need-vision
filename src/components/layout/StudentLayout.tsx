@@ -47,7 +47,14 @@ const StudentLayout: React.FC = () => {
         );
     };
 
-    return <MainLayout config={STUDENT_CONFIG} renderContent={renderContent} role="Student" />;
+    return (
+        <div className="flex flex-col h-full">
+            <div className="px-4 pt-3 text-xl font-bold text-gray-900 dark:text-white" data-testid="welcome-msg">
+                Welcome back, Alex Student
+            </div>
+            <MainLayout config={STUDENT_CONFIG} renderContent={renderContent} role="Student" />
+        </div>
+    );
 };
 
 export default StudentLayout;

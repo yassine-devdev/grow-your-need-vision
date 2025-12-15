@@ -546,7 +546,7 @@ const TeacherClasses: React.FC<Props> = ({ activeTab, activeSubNav }) => {
                             <div className="space-y-3 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-500 dark:text-gray-400">Subject</span>
-                                    <span className="font-medium dark:text-gray-200">{selectedClass.name}</span>
+                                    <span className="font-medium dark:text-gray-200">{selectedClass.subject || selectedClass.name}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-500 dark:text-gray-400">Room</span>

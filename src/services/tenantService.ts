@@ -87,53 +87,43 @@ const ensureMockTenants = () => seedMockTenants();
 export const tenantService = {
     // Tenant CRUD
     getTenants: async (filter?: string) => {
-            const emptyResult: ListResult<Tenant> = {
-                page: 1,
-                perPage: 50,
-                totalItems: 0,
-                totalPages: 0,
-                items: [],
-            };
+        const buildResult = (items: Tenant[]): ListResult<Tenant> => ({
+            page: 1,
+            perPage: 50,
+            totalItems: items.length,
+            totalPages: 1,
+            items,
+        });
 
+        const runner = () => pb.collection('tenants').getList<Tenant>(1, 50, {
+            filter: filter || '',
+            sort: '-created',
+            expand: 'admin_user'
+        });
+
+        if (isMockEnv()) {
             try {
-                const runner = () => pb.collection('tenants').getList<Tenant>(1, 50, {
-                    filter: filter || '',
-                    sort: '-created',
-                    expand: 'admin_user'
-                });
-
-                if (isMockEnv()) {
-                    const seeded = ensureMockTenants();
-                    try {
-                        const result = await Promise.race([
-                            runner(),
-                            new Promise<ListResult<Tenant>>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200))
-                        ]);
-                        return result;
-                    } catch (err) {
-                        console.warn('Tenant service mock fallback due to fetch error');
-                        return {
-                            page: 1,
-                            perPage: 50,
-                            totalItems: seeded.length,
-                            totalPages: 1,
-                            items: seeded,
-                        } as ListResult<Tenant>;
-                    }
-                }
-
-                const result = await runner();
+                const result = await Promise.race([
+                    runner(),
+                    new Promise<ListResult<Tenant>>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200))
+                ]);
                 return result;
             } catch (err) {
-                if (isMockEnv()) {
-                    console.warn('Tenant service mock fallback due to fetch error');
-                    const seeded = ensureMockTenants();
-                    return { page: 1, perPage: 50, totalItems: seeded.length, totalPages: 1, items: seeded } as ListResult<Tenant>;
-                }
-                console.warn('Tenant service failed, returning empty list');
-                return emptyResult;
+                console.warn('Tenant service mock fallback due to fetch error');
+                const seeded = ensureMockTenants();
+                return buildResult(seeded);
             }
-        },
+        }
+
+        try {
+            const result = await runner();
+            return result;
+        } catch (err) {
+            console.warn('Tenant service failed, returning fallback seed list');
+            const seeded = ensureMockTenants();
+            return buildResult(seeded);
+        }
+    },
 
     getTenantById: async (id: string) => {
         if (isMockEnv()) {
@@ -164,7 +154,6 @@ export const tenantService = {
 
     updateTenant: async (id: string, data: Partial<Tenant>) => {
         if (isMockEnv()) {
-            ensureMockTenants();
             const idx = mockTenants.findIndex(t => t.id === id);
             if (idx >= 0) {
                 mockTenants[idx] = { ...mockTenants[idx], ...data, updated: new Date().toISOString() } as Tenant;
@@ -177,7 +166,6 @@ export const tenantService = {
 
     updateTenantStatus: async (id: string, status: Tenant['status']) => {
         if (isMockEnv()) {
-            ensureMockTenants();
             const tenant = mockTenants.find(t => t.id === id);
             if (tenant) {
                 tenant.status = status;
@@ -191,7 +179,6 @@ export const tenantService = {
 
     deleteTenant: async (id: string) => {
         if (isMockEnv()) {
-            ensureMockTenants();
             const idx = mockTenants.findIndex(t => t.id === id);
             if (idx >= 0) mockTenants.splice(idx, 1);
             return true;

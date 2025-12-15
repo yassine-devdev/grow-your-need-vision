@@ -165,11 +165,11 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
                       >
                           <OwnerIcon name="Minimize" className="w-5 h-5" />
                       </button>
-                      <button 
-                        onClick={onClose} 
-                        className="w-9 h-9 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 flex items-center justify-center transition-all group border border-transparent hover:border-red-200"
-                        title="Close Application"
-                      >
+                                            <button 
+                                                onClick={onClose} 
+                                                className="w-9 h-9 rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-600 flex items-center justify-center transition-all group border border-transparent hover:border-red-200 pointer-events-auto"
+                                                title="Close Application"
+                                            >
                           <OwnerIcon name="X" className="w-5 h-5" />
                       </button>
                   </div>

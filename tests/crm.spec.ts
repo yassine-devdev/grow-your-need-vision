@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from '../src/test/helpers/auth';
 
 test.describe('Platform CRM', () => {
   test.beforeEach(async ({ page }) => {
@@ -6,32 +7,9 @@ test.describe('Platform CRM', () => {
     page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
     page.on('pageerror', exception => console.log(`BROWSER ERROR: ${exception}`));
 
-    // Login
-    await page.goto('/#/login');
-    await page.fill('input[type="email"]', 'owner@growyourneed.com');
-    await page.fill('input[type="password"]', 'Darnag123456789@');
-    await page.click('button:has-text("Sign In")');
+    // Login as Owner using helper
+    await loginAs(page, 'owner');
     
-    // Check for error message
-    try {
-        const errorLocator = page.locator('.text-red-600');
-        if (await errorLocator.isVisible({ timeout: 5000 })) {
-            const errorText = await errorLocator.textContent();
-            console.error('Login failed with error:', errorText);
-            throw new Error(`Login failed: ${errorText}`);
-        }
-    } catch (e) {
-        // Ignore timeout if no error is visible
-        if (e instanceof Error && !e.message.includes('Login failed')) {
-            // continue
-        } else {
-            throw e;
-        }
-    }
-
-    // Wait for navigation to admin dashboard (handling HashRouter)
-    // The URL should contain '#/admin'
-    await page.waitForURL((url) => url.hash.includes('admin'), { timeout: 15000 });
     
     // Log the URL to see where we are
     console.log('Current URL:', page.url());

@@ -340,7 +340,177 @@ export const religionService = {
         });
     },
 
-    // Hadiths
+    // Enhanced Hadith Features
+    getHadithCollections: async () => {
+        return [
+            { id: 'bukhari', name: 'Sahih Bukhari', books: 97, hadiths: 7563 },
+            { id: 'muslim', name: 'Sahih Muslim', books: 56, hadiths: 7190 },
+            { id: 'abudawud', name: 'Sunan Abu Dawud', books: 43, hadiths: 5274 },
+            { id: 'tirmidhi', name: 'Jami` at-Tirmidhi', books: 51, hadiths: 3956 },
+            { id: 'nasai', name: "Sunan an-Nasa'i", books: 51, hadiths: 5758 },
+            { id: 'ibnmajah', name: 'Sunan Ibn Majah', books: 37, hadiths: 4341 }
+        ];
+    },
+
+    getHadithByCollection: async (collection: string, page: number = 1, limit: number = 20) => {
+        try {
+            const response = await fetch(`https://hadithapi.com/api/${collection}/hadiths?page=${page}&limit=${limit}`);
+            const data = await response.json();
+            return data.hadiths || [];
+        } catch (error) {
+            console.error('Failed to fetch hadiths:', error);
+            return [];
+        }
+    },
+
+    searchHadith: async (query: string, collection: string = 'bukhari') => {
+        try {
+            const response = await fetch(`https://hadithapi.com/api/${collection}/hadiths?search=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            return data.hadiths || [];
+        } catch (error) {
+            console.error('Failed to search hadiths:', error);
+            return [];
+        }
+    },
+
+    // Enhanced Quran Features
+    getQuranTranslations: async () => {
+        return [
+            { id: 'en.asad', name: 'Muhammad Asad', language: 'English' },
+            { id: 'en.sahih', name: 'Saheeh International', language: 'English' },
+            { id: 'en.pickthall', name: 'Pickthall', language: 'English' },
+            { id: 'en.yusufali', name: 'Yusuf Ali', language: 'English' },
+            { id: 'fr.hamidullah', name: 'Hamidullah', language: 'French' },
+            { id: 'ur.jalandhry', name: 'Jalandhry', language: 'Urdu' },
+            { id: 'ar.alafasy', name: 'Alafasy (Audio)', language: 'Arabic' }
+        ];
+    },
+
+    getQuranWithTranslation: async (surahNumber: number, translationId: string = 'en.sahih') => {
+        try {
+            const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/editions/quran-uthmani,${translationId}`);
+            const data = await response.json();
+            if (data.code === 200) {
+                return {
+                    arabic: data.data[0],
+                    translation: data.data[1]
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to fetch Quran with translation:', error);
+            return null;
+        }
+    },
+
+    getQuranAudio: async (surahNumber: number, reciter: string = 'ar.alafasy') => {
+        try {
+            const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${reciter}`);
+            const data = await response.json();
+            if (data.code === 200) {
+                return data.data.ayahs.map((ayah: any) => ({
+                    number: ayah.numberInSurah,
+                    audio: ayah.audio
+                }));
+            }
+            return [];
+        } catch (error) {
+            console.error('Failed to fetch Quran audio:', error);
+            return [];
+        }
+    },
+
+    searchQuran: async (query: string, language: string = 'en') => {
+        try {
+            const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/${language}/en.sahih`);
+            const data = await response.json();
+            if (data.code === 200) {
+                return data.data.matches || [];
+            }
+            return [];
+        } catch (error) {
+            console.error('Failed to search Quran:', error);
+            return [];
+        }
+    },
+
+    // Islamic Calendar Features
+    getHijriDate: async (date?: string) => {
+        try {
+            const targetDate = date || new Date().toISOString().split('T')[0];
+            const [year, month, day] = targetDate.split('-');
+            const response = await fetch(`https://api.aladhan.com/v1/gToH/${day}-${month}-${year}`);
+            const data = await response.json();
+            if (data.code === 200) {
+                return {
+                    hijri: data.data.hijri,
+                    gregorian: data.data.gregorian
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to fetch Hijri date:', error);
+            return null;
+        }
+    },
+
+    getIslamicMonths: () => {
+        return [
+            { number: 1, name: 'Muharram', arabic: 'مُحَرَّم' },
+            { number: 2, name: 'Safar', arabic: 'صَفَر' },
+            { number: 3, name: 'Rabi al-Awwal', arabic: 'رَبِيع ٱلْأَوَّل' },
+            { number: 4, name: 'Rabi al-Thani', arabic: 'رَبِيع ٱلثَّانِي' },
+            { number: 5, name: 'Jumada al-Awwal', arabic: 'جُمَادَىٰ ٱلْأُولَىٰ' },
+            { number: 6, name: 'Jumada al-Thani', arabic: 'جُمَادَىٰ ٱلثَّانِيَة' },
+            { number: 7, name: 'Rajab', arabic: 'رَجَب' },
+            { number: 8, name: 'Shaban', arabic: 'شَعْبَان' },
+            { number: 9, name: 'Ramadan', arabic: 'رَمَضَان' },
+            { number: 10, name: 'Shawwal', arabic: 'شَوَّال' },
+            { number: 11, name: 'Dhu al-Qadah', arabic: 'ذُو ٱلْقَعْدَة' },
+            { number: 12, name: 'Dhu al-Hijjah', arabic: 'ذُو ٱلْحِجَّة' }
+        ];
+    },
+
+    getIslamicHolidays: async (year?: number) => {
+        const hijriYear = year || new Date().getFullYear();
+        return [
+            { name: 'Islamic New Year', hijriDate: '1 Muharram', type: 'holiday' },
+            { name: 'Ashura', hijriDate: '10 Muharram', type: 'fasting' },
+            { name: 'Mawlid an-Nabi', hijriDate: '12 Rabi al-Awwal', type: 'celebration' },
+            { name: 'Isra and Miraj', hijriDate: '27 Rajab', type: 'celebration' },
+            { name: 'Laylat al-Bara\'ah', hijriDate: '15 Shaban', type: 'night' },
+            { name: 'Ramadan Begins', hijriDate: '1 Ramadan', type: 'fasting' },
+            { name: 'Laylat al-Qadr', hijriDate: '27 Ramadan', type: 'night' },
+            { name: 'Eid al-Fitr', hijriDate: '1 Shawwal', type: 'eid' },
+            { name: 'Day of Arafah', hijriDate: '9 Dhu al-Hijjah', type: 'fasting' },
+            { name: 'Eid al-Adha', hijriDate: '10 Dhu al-Hijjah', type: 'eid' }
+        ];
+    },
+
+    // Ramadan Features
+    getRamadanInfo: async (year?: number) => {
+        try {
+            const currentYear = year || new Date().getFullYear();
+            const response = await fetch(`https://api.aladhan.com/v1/hijriCalendarByCity/${currentYear}/9?city=Mecca&country=Saudi Arabia`);
+            const data = await response.json();
+            if (data.code === 200) {
+                const firstDay = data.data[0];
+                const lastDay = data.data[data.data.length - 1];
+                return {
+                    startDate: firstDay.gregorian.date,
+                    endDate: lastDay.gregorian.date,
+                    daysRemaining: Math.ceil((new Date(firstDay.gregorian.date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+                    hijriYear: firstDay.hijri.year
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to fetch Ramadan info:', error);
+            return null;
+        }
+    },
+
     // Qibla Direction
     getQiblaDirection: async (latitude: number, longitude: number): Promise<any> => {
         try {
@@ -356,22 +526,30 @@ export const religionService = {
         }
     },
 
-    // Hadith API (Random Hadith Generator)
+    // Enhanced Hadith API
     getRandomHadith: async (): Promise<any> => {
         try {
-            // Using a public Hadith API (e.g., from github raw or similar)
-            // For stability, we'll use a known endpoint or fallback
+            // Try primary API
             const response = await fetch('https://random-hadith-generator.vercel.app/bukhari/');
             const data = await response.json();
             return {
                 text_en: data.data.hadith_english,
-                text_ar: data.data.hadith_arabic || '', // Some APIs might not have Arabic
+                text_ar: data.data.hadith_arabic || '',
                 collection: data.data.book,
-                chapter: data.data.chapterName
+                chapter: data.data.chapterName,
+                hadith_number: data.data.hadithNumber
             };
         } catch (error) {
             console.error('Failed to fetch random hadith', error);
-            return null;
+            // Fallback to local database
+            try {
+                const hadiths = await pb.collection('hadiths').getList<Hadith>(1, 1, {
+                    sort: '@random'
+                });
+                return hadiths.items[0] || null;
+            } catch (e) {
+                return null;
+            }
         }
     },
 
@@ -386,13 +564,130 @@ export const religionService = {
         }
     },
 
-    // Duas
+    // Enhanced Duas
     getDuas: async (category?: string) => {
         const filter = category ? `category = "${category}"` : '';
-        return await pb.collection('duas').getFullList<Dua>({
-            filter,
-            sort: 'title'
-        });
+        try {
+            return await pb.collection('duas').getFullList<Dua>({
+                filter,
+                sort: 'title'
+            });
+        } catch (error) {
+            // Fallback to default duas
+            return [
+                {
+                    id: '1',
+                    title: 'Morning Dua',
+                    arabic: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ',
+                    transliteration: 'Asbahna wa asbahal mulku lillah',
+                    translation: 'We have entered the morning and the dominion belongs to Allah',
+                    category: 'Morning' as const,
+                    reference: 'Muslim'
+                },
+                {
+                    id: '2',
+                    title: 'Evening Dua',
+                    arabic: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ',
+                    transliteration: 'Amsayna wa amsal mulku lillah',
+                    translation: 'We have entered the evening and the dominion belongs to Allah',
+                    category: 'Evening' as const,
+                    reference: 'Muslim'
+                }
+            ];
+        }
+    },
+
+    // Mosque Finder (using location)
+    getMosquesNearby: async (latitude: number, longitude: number, radius: number = 5000) => {
+        try {
+            // Using Overpass API for OpenStreetMap data
+            const query = `
+                [out:json];
+                (
+                  node["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${latitude},${longitude});
+                  way["amenity"="place_of_worship"]["religion"="muslim"](around:${radius},${latitude},${longitude});
+                );
+                out body;
+            `;
+            const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            return data.elements.map((mosque: any) => ({
+                id: mosque.id,
+                name: mosque.tags?.name || 'Unnamed Mosque',
+                latitude: mosque.lat || mosque.center?.lat,
+                longitude: mosque.lon || mosque.center?.lon,
+                address: mosque.tags?.['addr:full'] || mosque.tags?.['addr:street'] || 'Address not available'
+            }));
+        } catch (error) {
+            console.error('Failed to fetch nearby mosques:', error);
+            return [];
+        }
+    },
+
+    // Tafsir (Quran Interpretation)
+    getTafsir: async (surahNumber: number, ayahNumber: number) => {
+        try {
+            const response = await fetch(`https://api.quran.com/api/v4/quran/tafsirs/169?verse_key=${surahNumber}:${ayahNumber}`);
+            const data = await response.json();
+            return data.tafsirs?.[0] || null;
+        } catch (error) {
+            console.error('Failed to fetch tafsir:', error);
+            return null;
+        }
+    },
+
+    // Prayer Time Notifications
+    getNextPrayerNotification: (prayers: PrayerTime) => {
+        const next = religionService.getNextPrayer(prayers);
+        if (!next) return null;
+
+        return {
+            title: `${next.name} Prayer Time`,
+            message: `${next.name} prayer is in ${next.minutesUntil} minutes at ${next.time}`,
+            time: next.time,
+            minutesUntil: next.minutesUntil
+        };
+    },
+
+    // Adhkar (Remembrance)
+    getMorningAdhkar: () => {
+        return [
+            {
+                arabic: 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ',
+                transliteration: "A'udhu billahi minash-shaytanir-rajim",
+                translation: 'I seek refuge in Allah from Satan, the accursed',
+                count: 1
+            },
+            {
+                arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                transliteration: 'Bismillahir-Rahmanir-Rahim',
+                translation: 'In the name of Allah, the Most Gracious, the Most Merciful',
+                count: 1
+            },
+            {
+                arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
+                transliteration: 'Subhanallahi wa bihamdihi',
+                translation: 'Glory be to Allah and praise Him',
+                count: 100
+            }
+        ];
+    },
+
+    getEveningAdhkar: () => {
+        return [
+            {
+                arabic: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ',
+                transliteration: 'Amsayna wa amsal-mulku lillah',
+                translation: 'We have entered the evening and the dominion belongs to Allah',
+                count: 1
+            },
+            {
+                arabic: 'اللَّهُمَّ بِكَ أَمْسَيْنَا وَبِكَ أَصْبَحْنَا',
+                transliteration: 'Allahumma bika amsayna wa bika asbahna',
+                translation: 'O Allah, by You we have reached the evening and by You we have reached the morning',
+                count: 1
+            }
+        ];
     },
 
     // Soul Prescription (Mood-based)

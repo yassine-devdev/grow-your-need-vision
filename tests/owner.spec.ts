@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from '../src/test/helpers/auth';
 
 test.describe('Owner Dashboard & Tenant Management', () => {
   test.setTimeout(60000);
@@ -7,22 +8,10 @@ test.describe('Owner Dashboard & Tenant Management', () => {
     // Capture console logs
     page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
     
-    // 1. Login as Owner
-    console.log('Navigating to login...');
-    await page.goto('/#/login');
-    
-    console.log('Filling credentials...');
-    await page.fill('input[type="email"]', 'owner@growyourneed.com');
-    await page.fill('input[type="password"]', 'Darnag123456789@');
-    
-    console.log('Clicking Sign In...');
-    await page.click('button:has-text("Sign In")');
-    
-    // Wait for redirect to Admin Dashboard
-    console.log('Waiting for redirect...');
-    // Wait for the URL to change to the admin dashboard
-    await page.waitForURL(/.*\/admin/, { timeout: 60000 });
-    console.log('Redirected to Admin Dashboard');
+    // Login as Owner using helper
+    console.log('Logging in as Owner...');
+    await loginAs(page, 'owner');
+    console.log('Logged in successfully');
     
     // Wait for the dashboard content to load
     // This is critical: wait for the loading spinner to disappear or main content to appear

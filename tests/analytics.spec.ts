@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, getTestCredentials } from '../src/test/helpers/auth';
 
 test.describe('Advanced Analytics Dashboard', () => {
   test.setTimeout(60000);
@@ -8,6 +9,8 @@ test.describe('Advanced Analytics Dashboard', () => {
     page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
     page.on('pageerror', err => console.log(`BROWSER ERROR: ${err.message}`));
     page.on('requestfailed', request => console.log(`REQUEST FAILED: ${request.url()} - ${request.failure()?.errorText}`));
+
+    const ownerCreds = getTestCredentials('owner');
 
     // Mock Network Requests
     // Handle both localhost and 127.0.0.1 just in case
@@ -20,7 +23,7 @@ test.describe('Advanced Analytics Dashboard', () => {
                 contentType: 'application/json',
                 body: JSON.stringify({
                   token: 'fake-token',
-                  record: { id: 'owner1', email: 'owner@growyourneed.com', role: 'owner' }
+                  record: { id: ownerCreds.id, email: ownerCreds.email, role: ownerCreds.role }
                 })
               });
               return;
@@ -39,14 +42,8 @@ test.describe('Advanced Analytics Dashboard', () => {
         await route.continue();
     });
 
-    // 1. Login as Owner
-    await page.goto('/login');
-    await page.fill('input[type="email"]', 'owner@growyourneed.com');
-    await page.fill('input[type="password"]', 'Darnag123456789@');
-    await page.click('button:has-text("Sign In")');
-    
-    // Wait for redirect to Admin Dashboard
-    await page.waitForURL(/.*\/admin/, { timeout: 60000 });
+    // Login as Owner using helper
+    await loginAs(page, 'owner');
     
     // Wait for dashboard to load
     await expect(page.locator('.animate-spin')).not.toBeVisible({ timeout: 15000 });

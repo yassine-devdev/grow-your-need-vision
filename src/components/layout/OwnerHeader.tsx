@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useOS } from '../../context/OSContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useMessages } from '../../hooks/useMessages';
+import { isMockEnv } from '../../utils/mockData';
 
 interface HeaderProps {
     activeTab: string;
@@ -22,6 +23,7 @@ const OwnerHeader: React.FC<HeaderProps> = ({ activeTab, onTabChange, tabs, role
   
   const { notifications, dismissNotification, clearAll } = useNotifications(role);
   const { messages } = useMessages(role);
+    const disableSearchInteractions = isMockEnv();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
@@ -136,18 +138,23 @@ const OwnerHeader: React.FC<HeaderProps> = ({ activeTab, onTabChange, tabs, role
              <div className="absolute inset-0 bg-cyber-grid opacity-30"></div>
              <OwnerIcon name="StudioIcon3D" className="w-5 h-5 md:w-6 md:h-6 text-white drop-shadow-md relative z-10" />
         </div>
-        <div className="hidden md:flex flex-col justify-center">
-          <span className="text-[9px] font-extrabold text-blue-600 tracking-widest uppercase opacity-80">Grow Your</span>
-          <span className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-900 to-blue-600 filter drop-shadow-sm">NEED</span>
-        </div>
+                <div className="hidden md:flex flex-col justify-center">
+                    <span className="text-[9px] font-extrabold text-blue-600 tracking-widest uppercase opacity-80">Grow Your</span>
+                    <span className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-900 to-blue-600 filter drop-shadow-sm">NEED</span>
+                </div>
+                <div className="hidden md:flex ml-3 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-[10px] font-black uppercase tracking-[0.32em] text-gray-600">
+                    OWNER CONTROL
+                </div>
       </div>
 
-      <div className="relative z-10 flex-1 flex justify-center px-1 md:px-8 min-w-0">
+            <div className="relative z-10 flex-1 flex justify-center px-1 md:px-8 min-w-0">
          <OwnerTabs activeTab={activeTab} onTabChange={onTabChange} tabs={tabs} />
       </div>
 
-      <div className="relative z-10 flex items-center gap-2 md:gap-6 shrink-0">
-          <div className="hidden md:flex items-center group/search relative w-64 transition-all duration-300 focus-within:w-72">
+            <div 
+                className={`relative z-10 flex items-center gap-2 md:gap-6 shrink-0 ${disableSearchInteractions ? 'pointer-events-none' : ''}`}
+            >
+             <div className={`hidden md:flex items-center group/search relative w-64 transition-all duration-300 focus-within:w-72 ${disableSearchInteractions ? 'pointer-events-none opacity-70' : ''}`}>
              <div className="absolute inset-0 bg-gray-100 rounded-full shadow-inner border border-gray-200 backdrop-blur-sm transition-all group-focus-within/search:border-blue-400 group-focus-within/search:shadow-md"></div>
              <input 
                 type="text" 
@@ -155,7 +162,7 @@ const OwnerHeader: React.FC<HeaderProps> = ({ activeTab, onTabChange, tabs, role
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearch}
-                className="w-full h-10 pl-10 pr-4 rounded-full bg-transparent border-none focus:ring-0 text-sm text-gray-800 placeholder-gray-400 relative z-10 font-medium"
+                     className={`w-full h-10 pl-10 pr-4 rounded-full bg-transparent border-none focus:ring-0 text-sm text-gray-800 placeholder-gray-400 relative z-10 font-medium ${disableSearchInteractions ? 'pointer-events-none' : ''}`}
              />
              <OwnerIcon name="SearchIcon" className="w-4 h-4 text-gray-500 absolute left-3.5 z-10 opacity-70 group-hover/search:opacity-100 transition-opacity" />
           </div>

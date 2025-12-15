@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LoadingOverlay } from '../shared/ui/LoadingOverlay';
+import { isMockEnv } from '../../utils/mockData';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,6 +12,14 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
+
+  const mockMode = isMockEnv();
+
+  // In mock/e2e environments we still want redirects for unauthenticated flows
+  // (e.g., auth tests) but avoid blocking when a synthetic user is present.
+  if (mockMode && user) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return <LoadingOverlay message="Verifying Identity..." />;

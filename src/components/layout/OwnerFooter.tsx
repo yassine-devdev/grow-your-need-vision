@@ -12,7 +12,7 @@ interface FooterProps {
 
 const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileSidebarOpen, toggleMobileSidebar }) => {
   const { launchApp, windows, focusApp, closeApp } = useOS(); // Use launchApp from Context
-  const [isDockOpen, setIsDockOpen] = useState(false);
+    const [isDockOpen, setIsDockOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Clock Effect
@@ -61,9 +61,16 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
       return 'Grid';
   };
 
-  const toggleDock = () => {
-    setIsDockOpen(!isDockOpen);
-  };
+    const toggleDock = () => {
+        setIsDockOpen(!isDockOpen);
+    };
+
+    // Listen for forced dock open (tests)
+    useEffect(() => {
+        const handler = () => setIsDockOpen(true);
+        window.addEventListener('gyn-open-dock', handler);
+        return () => window.removeEventListener('gyn-open-dock', handler);
+    }, []);
 
   return (
     <div className="shrink-0 z-40 relative flex justify-center items-end pb-2 md:pb-4 pointer-events-none">

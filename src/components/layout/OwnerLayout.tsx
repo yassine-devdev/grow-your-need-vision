@@ -97,6 +97,7 @@ const OwnerLayout: React.FC = () => {
       return (
         <ErrorBoundary>
           <div className="flex h-full w-full flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900">
+            <div className="px-4 pt-3 text-[10px] font-black text-gray-500 uppercase tracking-[0.35em]">OWNER CONTROL</div>
             {/* Module header / breadcrumb removed to save vertical space */}
 
             {/* Module content */}

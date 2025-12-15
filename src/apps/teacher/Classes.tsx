@@ -9,6 +9,7 @@ import Gradebook from './GradeBook';
 import pb from '../../lib/pocketbase';
 import { SchoolClass } from '../school/types';
 import { formatBytes, getFileIcon, getFileColorClass } from '../../utils/fileUtils';
+import { isMockEnv } from '../../utils/mockData';
 
 interface Props {
     activeTab: string;
@@ -65,6 +66,17 @@ const TeacherClasses: React.FC<Props> = ({ activeTab, activeSubNav }) => {
     const loadClasses = async () => {
         setLoading(true);
         try {
+            if (isMockEnv()) {
+                const mockClasses: SchoolClass[] = [
+                    { id: 'math-101', name: 'Mathematics 101', teacher: 'Sarah Smith', room: 'Room 12', schedule: 'MWF 10:00-11:00', subject: 'Mathematics', created: new Date().toISOString(), updated: new Date().toISOString() } as any,
+                    { id: 'physics-202', name: 'Physics 202', teacher: 'Sarah Smith', room: 'Lab 2', schedule: 'TTh 1:00-2:30', subject: 'Physics', created: new Date().toISOString(), updated: new Date().toISOString() } as any,
+                ];
+                setClasses(mockClasses);
+                setSelectedClass(mockClasses[0]);
+                setLoading(false);
+                return;
+            }
+
             const teacherId = pb.authStore.model?.id;
             if (teacherId) {
                 const data = await academicsService.getTeacherClasses(teacherId);

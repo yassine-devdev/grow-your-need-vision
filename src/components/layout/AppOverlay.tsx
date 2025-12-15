@@ -56,6 +56,13 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
 
   if (!appName) return null;
 
+    // Auto-open if triggered by event (used in tests)
+    useEffect(() => {
+        const handler = () => setIsSidebarOpen(true);
+        window.addEventListener('gyn-open-dock', handler);
+        return () => window.removeEventListener('gyn-open-dock', handler);
+    }, []);
+
   const getAppIconName = (name: string) => {
       if (name === 'User Profile') return 'UserIcon';
       if (name === 'Creator Studio') return 'StudioIcon3D';

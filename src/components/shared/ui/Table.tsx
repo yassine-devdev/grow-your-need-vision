@@ -3,7 +3,7 @@ import React from 'react';
 
 export const Table: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="overflow-x-auto relative w-full">
-    <table className="w-full text-left border-collapse">{children}</table>
+    <table className="w-full text-left border-collapse" role="table">{children}</table>
   </div>
 );
 

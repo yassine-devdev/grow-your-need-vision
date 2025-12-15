@@ -6,6 +6,7 @@ import { useApiError } from '../../hooks/useApiError';
 import { useAuth } from '../../context/AuthContext';
 import pb from '../../lib/pocketbase';
 import { Link } from 'react-router-dom';
+import { isMockEnv } from '../../utils/mockData';
 
 export const StudentDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -29,6 +30,26 @@ export const StudentDashboard: React.FC = () => {
     const loadDashboardData = async () => {
         setLoading(true);
         try {
+            if (isMockEnv()) {
+                setStats({
+                    upcomingAssignments: 3,
+                    pendingSubmissions: 1,
+                    averageGrade: 92.5,
+                    attendanceRate: 98,
+                    totalCourses: 5
+                });
+                setRecentAssignments([
+                    { id: 'a1', title: 'History Essay', due_date: new Date().toISOString(), expand: { subject: { name: 'History' } } },
+                    { id: 'a2', title: 'Math Homework', due_date: new Date().toISOString(), expand: { subject: { name: 'Math' } } }
+                ]);
+                setAnnouncements([
+                    { id: 'n1', title: 'Welcome Back!', created: new Date().toISOString(), content: 'New semester kickoff' },
+                    { id: 'n2', title: 'Field Trip', created: new Date().toISOString(), content: 'Permission slips due Friday' }
+                ]);
+                setLoading(false);
+                return;
+            }
+
             // Load assignments
             const assignments = await pb.collection('assignments').getList(1, 5, {
                 filter: `due_date >= "${new Date().toISOString()}"`,

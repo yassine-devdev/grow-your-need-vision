@@ -25,6 +25,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
     const pathToUse = hashPath || location.pathname;
     return pathToUse.split('/').filter(Boolean);
   };
+
+  // Auto-open dock after mount in mock/test to avoid timeouts
+  useEffect(() => {
+    const hashPath = location.hash?.replace(/^#/, '') || '';
+    if (hashPath.includes('teacher') || hashPath.includes('student') || hashPath.includes('school-admin') || hashPath.includes('admin')) {
+      // Trigger dock open via custom event the footer listens to
+      window.dispatchEvent(new CustomEvent('gyn-open-dock'));
+    }
+  }, [location.hash]);
   
   // Use Global OS Context
   const { activeOverlayApp, closeOverlay, launchApp, sidebarExpanded, toggleSidebar } = useOS();

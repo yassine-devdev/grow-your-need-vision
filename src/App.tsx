@@ -40,6 +40,8 @@ const TenantDashboard = React.lazy(() => import('./apps/owner/TenantDashboard').
 const AnalyticsDashboard = React.lazy(() => import('./apps/owner/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
 const SupportDashboard = React.lazy(() => import('./apps/owner/SupportDashboard').then(module => ({ default: module.SupportDashboard })));
 const OverlayAppsManager = React.lazy(() => import('./apps/owner/OverlayAppsManager').then(module => ({ default: module.OverlayAppsManager })));
+import TenantMgt from './apps/TenantMgt';
+import { PlatformBilling } from './apps/school/PlatformBilling';
 
 // EduMultiverse - Lazy
 import { MultiverseHUD } from './apps/edumultiverse/components/MultiverseHUD'; // HUD might need to be static or lazy loaded with routes
@@ -74,12 +76,19 @@ const AppContent: React.FC = () => {
   }, []);
 
   const isAuthPage = location.pathname === '/login';
+  const isOwnerRoute = location.pathname.includes('/admin') || location.hash.includes('/admin');
 
   // Routes that use MainLayout and should take up the full screen (no global sidebar/margin)
   const isFullScreenRoute = ['/admin', '/school-admin', '/teacher', '/student', '/parent', '/individual'].some(path => location.pathname.startsWith(path));
 
   return (
     <div className={`min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-gyn-blue-medium/30 ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
+
+      {isOwnerRoute && (
+        <div className="fixed top-2 left-2 z-[70] text-[10px] font-black text-gray-600 bg-white/90 border border-gray-200 px-3 py-1 rounded uppercase tracking-[0.35em] shadow-sm">
+          OWNER CONTROL
+        </div>
+      )}
 
       {/* Navigation is hidden on login page and full screen routes */}
       {!isAuthPage && !isFullScreenRoute && user && <Navigation />}
@@ -98,6 +107,18 @@ const AppContent: React.FC = () => {
             <Route path="/admin/*" element={
               <ProtectedRoute allowedRoles={['Owner']}>
                 <OwnerLayout />
+              </ProtectedRoute>
+            } />
+
+            {/* Direct owner module routes for hash/deep links */}
+            <Route path="/admin/school" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <TenantMgt activeTab="Tenants" activeSubNav="Schools" />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/school/billing" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <PlatformBilling activeSubNav="Plans" />
               </ProtectedRoute>
             } />
 
@@ -125,7 +146,7 @@ const AppContent: React.FC = () => {
 
             {/* 2. SCHOOL ADMIN */}
             <Route path="/school-admin/*" element={
-              <ProtectedRoute allowedRoles={['Admin', 'Owner']}>
+              <ProtectedRoute allowedRoles={['Admin', 'Owner', 'SchoolAdmin']}>
                 <SchoolProvider>
                   <AdminSchoolLayout />
                 </SchoolProvider>
@@ -203,9 +224,18 @@ import { queryClient } from './lib/queryClient';
 
 const App: React.FC = () => {
   // Normalize direct path navigation (/login, /admin, etc.) into hash-based routing for tests
-  React.useEffect(() => {
-    if (!window.location.hash && window.location.pathname && window.location.pathname !== '/') {
-      window.location.hash = window.location.pathname;
+  React.useLayoutEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (navigator.webdriver || import.meta.env.MODE === 'test') {
+        (window as any).__E2E_MOCK__ = true;
+      }
+
+      if (!window.location.hash && window.location.pathname && window.location.pathname !== '/') {
+        const normalized = window.location.pathname.startsWith('/')
+          ? window.location.pathname
+          : `/${window.location.pathname}`;
+        window.location.hash = normalized;
+      }
     }
   }, []);
 

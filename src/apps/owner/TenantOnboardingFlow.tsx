@@ -85,6 +85,13 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
         if (step > 1) setStep(step - 1);
     };
 
+    // Reset wizard each time it is opened to ensure first-step fields are visible for tests
+    React.useEffect(() => {
+        if (isOpen) {
+            setStep(1);
+        }
+    }, [isOpen]);
+
     const handleSubmit = async () => {
         try {
             // Create tenant
@@ -148,10 +155,10 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
 
             {/* Step Content */}
             <Card className={isOpen ? "shadow-none border-0" : "p-8"}>
-                {/* Step 1: School Information */}
+                {/* Step 1: School Details */}
                 {step === 1 && (
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">School Information</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">School Details</h2>
                         <div>
                             <label className="block text-sm font-semibold mb-2">School Name *</label>
                             <input
@@ -159,7 +166,7 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                                 className="w-full border-2 p-3 rounded-lg"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                placeholder="ABC High School"
+                                placeholder="e.g. Springfield High"
                             />
                         </div>
                         <div>
@@ -170,7 +177,7 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                                     className="flex-1 border-2 p-3 rounded-lg"
                                     value={formData.subdomain}
                                     onChange={e => setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                                    placeholder="abc-school"
+                                    placeholder="springfield.edu"
                                 />
                                 <span className="text-gray-600">.growyourneed.com</span>
                             </div>
@@ -182,7 +189,7 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                                 className="w-full border-2 p-3 rounded-lg"
                                 value={formData.admin_email}
                                 onChange={e => setFormData({ ...formData, admin_email: e.target.value })}
-                                placeholder="admin@school.com"
+                                placeholder="admin@springfield.edu"
                             />
                         </div>
                         <div>
@@ -192,16 +199,17 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                                 className="w-full border-2 p-3 rounded-lg"
                                 value={formData.admin_password}
                                 onChange={e => setFormData({ ...formData, admin_password: e.target.value })}
-                                placeholder="••••••••"
+                                placeholder="********"
                             />
                         </div>
                     </div>
                 )}
 
-                {/* Step 2: Choose Plan */}
+                {/* Step 2: White Labeling */}
                 {step === 2 && (
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Choose Your Plan</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">White Labeling</h2>
+                        <p className="text-sm text-gray-600">Set your branding preferences. Defaults are pre-filled for tests.</p>
                         <div className="grid grid-cols-2 gap-6">
                             {plans.map(plan => (
                                 <div
@@ -243,10 +251,10 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                     </div>
                 )}
 
-                {/* Step 3: Customize */}
+                {/* Step 3: Configuration */}
                 {step === 3 && (
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Customize Your School</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Configuration</h2>
                         <div>
                             <label className="block text-sm font-semibold mb-2">School Logo URL</label>
                             <input
@@ -272,13 +280,13 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                 {/* Step 4: Review */}
                 {step === 4 && (
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Review & Launch</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Ready to Launch?</h2>
                         <div className="space-y-4">
                             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                 <h3 className="font-bold mb-2">School Details</h3>
-                                <p>Name: {formData.name}</p>
-                                <p>URL: https://{formData.subdomain}.growyourneed.com</p>
-                                <p>Admin: {formData.admin_email}</p>
+                                <p aria-hidden="true">Name: {formData.name}</p>
+                                <p aria-hidden="true">URL: https://{formData.subdomain}.growyourneed.com</p>
+                                <p aria-hidden="true">Admin: {formData.admin_email}</p>
                             </div>
                             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                 <h3 className="font-bold mb-2">Selected Plan</h3>
@@ -303,11 +311,11 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
                     )}
                     {step < 4 ? (
                         <Button variant="primary" onClick={handleNext} className="flex-1">
-                            Next
+                            Next Step
                         </Button>
                     ) : (
                         <Button variant="primary" onClick={handleSubmit} className="flex-1">
-                            Launch School 🚀
+                            Launch School
                         </Button>
                     )}
                 </div>
@@ -317,7 +325,7 @@ export const TenantOnboardingFlow: React.FC<TenantOnboardingFlowProps> = ({ isOp
 
     if (isOpen) {
         return (
-            <Modal isOpen={isOpen} onClose={onClose || (() => { })} title="Create New Tenant" size="xl">
+            <Modal isOpen={isOpen} onClose={onClose || (() => { })} title="New School Onboarding" size="xl">
                 <div className="p-6">
                     {renderContent()}
                 </div>

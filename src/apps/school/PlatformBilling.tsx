@@ -289,15 +289,37 @@ export const PlatformBilling: React.FC<PlatformBillingProps> = ({ activeSubNav =
         );
     };
 
-    // Render based on active sub-nav
-    switch (activeSubNav) {
-        case 'Plans':
-            return renderPlansView();
-        case 'Invoices':
-            return renderInvoicesView();
-        case 'Gateways':
-            return renderGatewaysView();
-        default:
-            return renderPlansView();
-    }
+    const tabs = ['Plans', 'Invoices', 'Gateways'];
+    let content: JSX.Element = renderPlansView();
+    if (activeSubNav === 'Invoices') content = renderInvoicesView();
+    if (activeSubNav === 'Gateways') content = renderGatewaysView();
+
+    return (
+        <div className="space-y-8">
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-black text-gray-900 dark:text-white">Platform Billing</h1>
+                <Badge variant="info">Billing Hub</Badge>
+            </div>
+
+            <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                {tabs.map(tab => (
+                    <button
+                        key={tab}
+                        type="button"
+                        className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors border ${activeSubNav === tab ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700'}`}
+                        aria-current={activeSubNav === tab}
+                        onClick={() => {
+                            if (typeof window !== 'undefined') {
+                                window.location.hash = '#/admin/school/billing';
+                            }
+                        }}
+                    >
+                        {tab}
+                    </button>
+                ))}
+            </div>
+
+            {content}
+        </div>
+    );
 };

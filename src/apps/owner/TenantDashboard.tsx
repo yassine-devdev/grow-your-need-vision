@@ -218,7 +218,7 @@ export const TenantDashboard: React.FC = () => {
                     {tenants.length === 0 && (
                         <Card className="p-12 text-center">
                             <Icon name="BuildingOfficeIcon" className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No tenants found</h3>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Tenants Found</h3>
                             <p className="text-gray-600 dark:text-gray-400 mb-6">
                                 {filter === 'all' ? 'Get started by adding your first tenant' : `No ${filter} tenants`}
                             </p>

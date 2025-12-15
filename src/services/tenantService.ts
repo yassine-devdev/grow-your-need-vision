@@ -95,24 +95,34 @@ export const tenantService = {
                 items: [],
             };
 
-            // In mock environments, always serve seeded tenants
-            if (isMockEnv()) {
-                const seeded = ensureMockTenants();
-                return {
-                    page: 1,
-                    perPage: 50,
-                    totalItems: seeded.length,
-                    totalPages: 1,
-                    items: seeded,
-                } as ListResult<Tenant>;
-            }
-
             try {
-                const result = await pb.collection('tenants').getList<Tenant>(1, 50, {
+                const runner = () => pb.collection('tenants').getList<Tenant>(1, 50, {
                     filter: filter || '',
                     sort: '-created',
                     expand: 'admin_user'
                 });
+
+                if (isMockEnv()) {
+                    const seeded = ensureMockTenants();
+                    try {
+                        const result = await Promise.race([
+                            runner(),
+                            new Promise<ListResult<Tenant>>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200))
+                        ]);
+                        return result;
+                    } catch (err) {
+                        console.warn('Tenant service mock fallback due to fetch error');
+                        return {
+                            page: 1,
+                            perPage: 50,
+                            totalItems: seeded.length,
+                            totalPages: 1,
+                            items: seeded,
+                        } as ListResult<Tenant>;
+                    }
+                }
+
+                const result = await runner();
                 return result;
             } catch (err) {
                 if (isMockEnv()) {

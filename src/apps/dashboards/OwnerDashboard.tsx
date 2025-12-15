@@ -51,6 +51,7 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
             return (
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center">
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.35em] mb-2">OWNER CONTROL</p>
                         <Icon name="ArrowPathIcon" className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
                         <p className="text-gray-500">Loading dashboard data...</p>
                     </div>
@@ -79,7 +80,7 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
                 {/* Header - Compact & Stylish */}
                 <div className="flex items-center justify-between shrink-0 px-2">
                     <div>
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.35em]">Owner Control</p>
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.35em]">OWNER CONTROL</p>
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em]">Platform Overview</p>
                         <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">
                             Super Admin Control Center
@@ -145,7 +146,7 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
                         <div className="text-[11px] text-emerald-600 font-bold">+12 new this month</div>
                     </Card>
                     <Card className="p-4 shadow-sm">
-                        <div className="text-xs font-bold uppercase text-gray-500">Revenue Growth Rate</div>
+                        <div className="text-xs font-bold uppercase text-gray-500">Growth Rate (%)</div>
                         <div className="text-3xl font-black text-gray-900">+18%</div>
                         <div className="text-[11px] text-gray-500">vs last month</div>
                     </Card>
@@ -266,7 +267,7 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
 
                     <Card className="col-span-2 md:col-span-2 row-span-1 p-5 shadow-sm">
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-gray-800">New Tenant Acquisition</h3>
+                            <h3 className="text-sm font-bold text-gray-800">Tenant Acquisition Pipeline</h3>
                             <Badge variant="neutral">Monthly</Badge>
                         </div>
                         <div className="grid grid-cols-4 gap-3 text-sm text-gray-600">

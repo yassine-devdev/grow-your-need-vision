@@ -112,18 +112,8 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
         const fetchTenants = async () => {
             setLoading(true);
             try {
-                const hashPath = typeof window !== 'undefined' ? window.location.hash : '';
-                const shouldSeed = isMockEnv() && hashPath.includes('/admin/school');
-
-                if (shouldSeed) {
-                    const seeded = tenantService.seedMockTenants();
-                    setTenants([...seeded]);
-                } else if (isMockEnv()) {
-                    setTenants([]);
-                } else {
-                    const response = await tenantService.getTenants();
-                    setTenants(response.items);
-                }
+                const response = await tenantService.getTenants();
+                setTenants(response.items);
             } catch (error) {
                 console.error('Failed to fetch tenants:', error);
             } finally {
@@ -138,7 +128,7 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
     const filteredTenants = tenants.filter(tenant => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             tenant.id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All Statuses' || tenant.status === statusFilter;
+        const matchesStatus = statusFilter === 'All Statuses' || tenant.status.toLowerCase() === statusFilter.toLowerCase();
 
         let matchesDate = true;
         if (startDate || endDate) {
@@ -336,12 +326,19 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
 
                 {/* Glass Table */}
                 <div className="flex-1 overflow-x-auto relative">
-                    {loading ? (
-                        <div className="p-12 text-center text-gray-500">Loading tenants...</div>
+                    {loading && filteredTenants.length === 0 ? (
+                        <EmptyState
+                            title="No Tenants Found"
+                            description="There are currently no tenants matching your criteria."
+                            icon="UserGroupIcon"
+                            actionLabel="Create Tenant"
+                            onAction={toggleWizard}
+                            className="h-full"
+                        />
                     ) : filteredTenants.length === 0 ? (
                         <EmptyState
                             title="No Tenants Found"
-                            description={`There are currently no ${activeSubNav.toLowerCase()} matching your criteria.`}
+                            description={`There are currently no ${(activeSubNav || 'tenants').toLowerCase()} matching your criteria.`}
                             icon="UserGroupIcon"
                             actionLabel="Create Tenant"
                             onAction={toggleWizard}

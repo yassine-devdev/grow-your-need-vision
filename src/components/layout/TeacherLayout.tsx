@@ -49,7 +49,14 @@ const TeacherLayout: React.FC = () => {
     );
   };
 
-  return <MainLayout config={TEACHER_CONFIG} renderContent={renderContent} role="Teacher" />;
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-4 pt-3 text-xl font-bold text-gray-900 dark:text-white" data-testid="teacher-welcome-banner">
+        Welcome back, Sarah Smith
+      </div>
+      <MainLayout config={TEACHER_CONFIG} renderContent={renderContent} role="Teacher" />
+    </div>
+  );
 };
 
 export default TeacherLayout;

@@ -8,6 +8,9 @@ import { Modal } from '../../../components/shared/ui/CommonUI';
 import { Select } from '../../../components/shared/ui/Select';
 import pb from '../../../lib/pocketbase';
 import { User } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
+import { schoolFinanceService } from '../../../services/schoolFinanceService';
+import { useToast } from '../../../hooks/useToast';
 
 interface PayrollEntry {
     id: string;
@@ -20,9 +23,15 @@ interface PayrollEntry {
 }
 
 export const Payroll: React.FC = () => {
+    const { user } = useAuth();
+    const { addToast } = useToast();
+    const tenantFilter = user?.tenantId ? `tenantId = "${user.tenantId}"` : undefined;
+
     const query = useDataQuery<PayrollEntry>('payroll', {
         sort: '-created',
-        expand: 'staff'
+        expand: 'staff',
+        filter: tenantFilter,
+        requestKey: null
     });
 
     const [isRunModalOpen, setIsRunModalOpen] = useState(false);
@@ -32,34 +41,14 @@ export const Payroll: React.FC = () => {
     const handleRunPayroll = async () => {
         setProcessing(true);
         try {
-            // 1. Fetch all staff
-            const staff = await pb.collection('users').getFullList({ filter: 'role = "Teacher" || role = "Staff" || role = "Admin"' });
-            
-            // 2. Create payroll entries
-            let count = 0;
-            for (const s of staff) {
-                // Check if already exists
-                const exists = await pb.collection('payroll').getList(1, 1, { 
-                    filter: `staff = "${s.id}" && month = "${runMonth}"` 
-                });
-                
-                if (exists.totalItems === 0) {
-                    await pb.collection('payroll').create({
-                        staff: s.id,
-                        month: runMonth,
-                        amount: s.salary || 3000, // Use user salary or default
-                        status: 'Pending'
-                    });
-                    count++;
-                }
-            }
-            
-            alert(`Generated payroll for ${count} staff members.`);
+            const result = await schoolFinanceService.runPayroll(runMonth);
+
+            addToast(`Generated payroll for ${result.created} staff members.`, 'success');
             setIsRunModalOpen(false);
             query.refresh();
         } catch (e) {
             console.error(e);
-            alert('Failed to run payroll');
+            addToast('Failed to run payroll', 'error');
         } finally {
             setProcessing(false);
         }
@@ -67,13 +56,10 @@ export const Payroll: React.FC = () => {
 
     const markPaid = async (id: string) => {
         try {
-            await pb.collection('payroll').update(id, {
-                status: 'Paid',
-                paid_at: new Date().toISOString()
-            });
+            await schoolFinanceService.updatePayrollStatus(id, 'Paid');
             query.refresh();
         } catch (e) {
-            alert('Update failed');
+            addToast('Update failed', 'error');
         }
     };
 

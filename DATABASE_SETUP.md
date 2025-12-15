@@ -251,6 +251,29 @@ The script needs at least one user with role "Teacher" or "Admin".
 
 ## 📊 Database Schema
 
+### feedback Collection
+
+```typescript
+interface Feedback {
+    id: string;
+    type: 'bug' | 'feature' | 'other';
+    description: string;
+    rating: number;
+    url: string;
+    user_id: string;             // Relation to users
+    status: 'new' | 'reviewed' | 'resolved';
+    created: string;
+    updated: string;
+}
+```
+
+### Access Rules (Feedback)
+
+- **Create**: `@request.auth.id != null`
+- **List/View/Update/Delete**: `@request.auth.role = "Admin" || @request.auth.role = "Owner"`
+
+---
+
 ### file_uploads Collection
 
 ```typescript

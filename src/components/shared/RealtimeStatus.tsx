@@ -118,7 +118,7 @@ export const RealtimeStatus: React.FC = () => {
                 </div>
                 
                 <span className="hidden sm:inline-block">
-                    {isConnected ? 'System Online' : 'Reconnecting...'}
+                    {isConnected ? 'Platform Online' : 'Reconnecting...'}
                 </span>
 
                 {unreadCount > 0 && (

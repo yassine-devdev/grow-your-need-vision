@@ -23,28 +23,31 @@ export interface ChartDataPoint {
     value: number;
 }
 
+const tenantFilter = () => {
+    const t = (pb.authStore.model as any)?.tenantId;
+    return t ? `tenantId = "${t}"` : undefined;
+};
+
 export const schoolService = {
     async getRecentActivity(): Promise<SchoolActivity[]> {
         try {
-            // 1. Fetch recent users (New Admissions/Staff)
-            const recentUsers = await pb.collection('users').getList(1, 5, {
+            const filter = tenantFilter();
+            const baseQuery = {
                 sort: '-created',
-                requestKey: null
-            });
+                requestKey: null as any,
+                filter
+            };
 
-            // 2. Fetch recent classes (if any)
+            const recentUsers = await pb.collection('users').getList(1, 5, baseQuery);
+
             let recentClasses: RecordModel[] = [];
             try {
-                const classesResult = await pb.collection('classes').getList(1, 5, {
-                    sort: '-created',
-                    requestKey: null
-                });
+                const classesResult = await pb.collection('classes').getList(1, 5, baseQuery);
                 recentClasses = classesResult.items;
             } catch (e) {
                 console.log("Classes collection might be empty or missing");
             }
 
-            // Combine and format
             const activities: SchoolActivity[] = [];
 
             recentUsers.items.forEach(user => {
@@ -68,7 +71,6 @@ export const schoolService = {
                 });
             });
 
-            // Sort by date desc
             return activities
                 .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                 .slice(0, 5);
@@ -81,13 +83,26 @@ export const schoolService = {
 
     async getGrowthChartData(): Promise<ChartDataPoint[]> {
         try {
-            // Fetch all users to calculate growth over time
-            // In a real production app with millions of users, this should be an aggregated query on the backend
-            const allUsers = await pb.collection('users').getFullList({
+            const filterParts = [] as string[];
+            const tf = tenantFilter();
+            if (tf) filterParts.push(tf);
+
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+            sixMonthsAgo.setDate(1);
+            const start = sixMonthsAgo.toISOString().slice(0, 10) + ' 00:00:00';
+            filterParts.push(`created >= "${start}"`);
+
+            const filter = filterParts.join(' && ');
+
+            const usersPage = await pb.collection('users').getList(1, 500, {
                 fields: 'created',
+                filter,
+                sort: 'created',
                 requestKey: null
             });
 
+            const allUsers = usersPage.items;
             const months = 6;
             const data: ChartDataPoint[] = [];
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -97,11 +112,8 @@ export const schoolService = {
                 d.setMonth(d.getMonth() - i);
                 const monthLabel = monthNames[d.getMonth()];
                 const year = d.getFullYear();
-                
-                // End of that month
                 const monthEnd = new Date(year, d.getMonth() + 1, 0);
 
-                // Count users created on or before this month
                 const count = allUsers.filter(u => new Date(u.created) <= monthEnd).length;
 
                 data.push({

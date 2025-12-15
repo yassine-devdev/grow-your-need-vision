@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import pb from '../lib/pocketbase';
 import { useAuth } from './AuthContext';
 import { RecordSubscription } from 'pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 interface Notification {
     id: string;
@@ -29,7 +30,10 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // 1. Heartbeat & Presence
     useEffect(() => {
-        if (!user) return;
+        if (!user || isMockEnv()) {
+            setIsConnected(true);
+            return;
+        }
 
         const updatePresence = async () => {
             try {
@@ -58,7 +62,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // 2. Subscribe to Notifications
     useEffect(() => {
-        if (!user) return;
+        if (!user || isMockEnv()) return;
 
         const fetchNotifications = async () => {
             try {
@@ -100,6 +104,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // 3. Subscribe to Online Users (Simulated via 'users' updates)
     useEffect(() => {
+        if (isMockEnv()) return;
         // In a real app, we might have a separate 'presence' collection.
         // Here we listen to 'users' updates to see who is active.
         // This is a simplified approach.
@@ -125,6 +130,10 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, []);
 
     const markAsRead = async (id: string) => {
+        if (isMockEnv()) {
+            setNotifications(prev => prev.filter(n => n.id !== id));
+            return;
+        }
         try {
             await pb.collection('notifications').update(id, { is_read: true });
             setNotifications(prev => prev.filter(n => n.id !== id));

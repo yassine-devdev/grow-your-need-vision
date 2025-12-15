@@ -104,7 +104,7 @@ const OwnerLayout: React.FC = () => {
               <Suspense
                 fallback={
                   <div className="h-full w-full">
-                    <LoadingSpinner label={`Loading ${moduleTitle}...`} />
+                    <LoadingSpinner label="Loading workspace..." />
                   </div>
                 }
               >

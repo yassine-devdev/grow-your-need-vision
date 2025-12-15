@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { multiverseService } from '../services/multiverseService';
+import { GAMIFICATION_CONFIG } from '../config/GamificationConfig';
 import { UserProgress } from '../types/gamification';
 import { useAuth } from '../context/AuthContext';
 
@@ -44,10 +45,9 @@ export const useGamification = () => {
         // Helper to calculate progress to next level
         levelProgress: () => {
             if (!progress) return 0;
-            const currentLevelXp = (progress.level - 1) * 1000;
-            const nextLevelXp = progress.level * 1000;
+            const currentLevelXp = (progress.level - 1) * GAMIFICATION_CONFIG.XP_PER_LEVEL;
             const xpInLevel = progress.current_xp - currentLevelXp;
-            return (xpInLevel / 1000) * 100;
+            return (xpInLevel / GAMIFICATION_CONFIG.XP_PER_LEVEL) * 100;
         }
     };
 };

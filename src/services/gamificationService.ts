@@ -96,7 +96,7 @@ export const gamificationService = {
     // Leaderboard
     getGlobalLeaderboard: async (limit: number = 100) => {
         try {
-            const users = await pb.collection('gamification_progress').getFullList({
+            const users = await pb.collection('user_progress').getFullList({
                 sort: '-current_xp',
                 limit,
                 expand: 'user'

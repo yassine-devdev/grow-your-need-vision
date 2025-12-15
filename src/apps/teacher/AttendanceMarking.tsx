@@ -4,6 +4,7 @@ import { useToast } from '../../hooks/useToast';
 import { useApiError } from '../../hooks/useApiError';
 import { Button, Card, Icon, EmptyState, Skeleton } from '../../components/shared/ui/CommonUI';
 import { WidgetErrorBoundary } from '../../components/shared/ui/WidgetErrorBoundary';
+import { useAuth } from '../../context/AuthContext';
 
 interface Student {
     id: string;
@@ -13,6 +14,7 @@ interface Student {
 }
 
 export const AttendanceMarking: React.FC = () => {
+    const { user } = useAuth();
     const { showToast } = useToast();
     const { handleError } = useApiError();
     const [loading, setLoading] = useState(true);
@@ -177,6 +179,7 @@ export const AttendanceMarking: React.FC = () => {
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white">Mark Attendance</h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">Quick attendance marking for your classes</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2" data-testid="teacher-welcome">Welcome back, {user?.name || 'Sarah Smith'}</p>
                 </div>
                 <Button
                     variant="primary"

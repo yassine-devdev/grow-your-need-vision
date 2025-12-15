@@ -10,7 +10,9 @@ import { FeeStructure } from './finance/FeeStructure';
 import { InvoiceList } from '@/apps/school/finance/InvoiceList';
 import { ExpenseManager } from './finance/ExpenseManager';
 import { Payroll } from './finance/Payroll';
-import pb from '../../lib/pocketbase';
+import { schoolFinanceService } from '../../services/schoolFinanceService';
+import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../context/AuthContext';
 
 interface FinanceProps {
     activeTab?: string;
@@ -18,52 +20,31 @@ interface FinanceProps {
 }
 
 const Finance: React.FC<FinanceProps> = ({ activeTab: initialTab }) => {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState(initialTab || 'Overview');
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+    const { addToast } = useToast();
     const [stats, setStats] = useState({
         totalRevenue: 0,
         outstanding: 0,
         totalExpenses: 0,
         netIncome: 0
     });
+    const canManageFinance = ['Owner', 'SchoolAdmin', 'Admin'].includes((user as any)?.role);
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                // 1. Revenue (Paid Invoices)
-                const paidInvoices = await pb.collection('school_invoices').getFullList({
-                    filter: 'status = "Paid"'
-                });
-                const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-
-                // 2. Outstanding
-                const pendingInvoices = await pb.collection('school_invoices').getFullList({
-                    filter: 'status = "Pending" || status = "Overdue"'
-                });
-                const outstanding = pendingInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-
-                // 3. Expenses
-                const expenses = await pb.collection('expenses').getFullList({
-                    filter: 'status = "Approved"'
-                });
-                const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-
-                // 4. Payroll (Paid)
-                const payroll = await pb.collection('payroll').getFullList({
-                    filter: 'status = "Paid"'
-                });
-                const totalPayroll = payroll.reduce((sum, p) => sum + (p.amount || 0), 0);
-
-                const totalOutflow = totalExpenses + totalPayroll;
-
+                const summary = await schoolFinanceService.getSummary();
                 setStats({
-                    totalRevenue,
-                    outstanding,
-                    totalExpenses: totalOutflow,
-                    netIncome: totalRevenue - totalOutflow
+                    totalRevenue: summary.totalRevenue,
+                    outstanding: summary.outstanding,
+                    totalExpenses: summary.totalExpenses,
+                    netIncome: summary.netIncome,
                 });
             } catch (e) {
                 console.error("Failed to load stats", e);
+                addToast('Unable to load finance summary. Please retry.', 'error');
             }
         };
 
@@ -77,7 +58,7 @@ const Finance: React.FC<FinanceProps> = ({ activeTab: initialTab }) => {
             case 'Fees':
                 return <FeeStructure />;
             case 'Invoices':
-                return <InvoiceList />;
+                return <InvoiceList canManage={canManageFinance} />;
             case 'Expenses':
                 return <ExpenseManager />;
             case 'Payroll':
@@ -93,6 +74,7 @@ const Finance: React.FC<FinanceProps> = ({ activeTab: initialTab }) => {
                 <div>
                     <Heading1>Financial Management</Heading1>
                     <Text variant="muted">Track fees, payments, expenses, and payroll.</Text>
+                    {!canManageFinance && <div className="text-xs text-red-500 mt-1">View-only mode: finance actions limited to admins.</div>}
                 </div>
                 <Button 
                     variant="outline" 

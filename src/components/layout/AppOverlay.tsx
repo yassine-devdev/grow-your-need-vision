@@ -21,6 +21,7 @@ const GamificationApp = lazy(() => import('../../apps/GamificationApp'));
 const HobbiesApp = lazy(() => import('../../apps/HobbiesApp'));
 const HelpCenterApp = lazy(() => import('../../apps/HelpCenterApp'));
 const UserProfile = lazy(() => import('../../apps/UserProfile'));
+const TenantMgt = lazy(() => import('../../apps/TenantMgt'));
 
 interface OverlayProps {
   appName: string | null;
@@ -101,6 +102,7 @@ const AppOverlay: React.FC<OverlayProps> = ({ appName, onClose }) => {
         case 'Gamification': return <GamificationApp {...props} />;
         case 'Hobbies': return <HobbiesApp {...props} />;
         case 'Help Center': return <HelpCenterApp {...props} />;
+        case 'Tenant Mgt': return <TenantMgt {...props} />;
         default: return (
              <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <OwnerIcon name={getAppIconName(appName || '')} className="w-16 h-16 mb-4 opacity-50" />

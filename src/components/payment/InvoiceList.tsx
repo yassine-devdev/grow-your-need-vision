@@ -3,11 +3,14 @@ import { paymentService } from '../../services/paymentService';
 import { Invoice } from '../../types/payment';
 import { OwnerIcon } from '../shared/OwnerIcons';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../hooks/useToast';
 
 export const InvoiceList: React.FC = () => {
     const { user } = useAuth();
+    const { addToast } = useToast();
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     useEffect(() => {
         const loadInvoices = async () => {
@@ -23,6 +26,27 @@ export const InvoiceList: React.FC = () => {
     if (loading) {
         return <div className="animate-pulse h-20 bg-gray-100 rounded-xl"></div>;
     }
+
+    const handleDownload = async (invoice: Invoice) => {
+        setDownloadingId(invoice.id);
+        try {
+            const url = await paymentService.downloadReceipt(undefined, invoice.id);
+            if (!url) {
+                addToast('Receipt not ready yet. Please check back in a moment.', 'warning');
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `receipt-${invoice.id.substring(0, 8)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            addToast('Unable to download receipt right now.', 'error');
+        } finally {
+            setDownloadingId(null);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -61,7 +85,11 @@ export const InvoiceList: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <button className="text-blue-600 hover:text-blue-800 font-medium text-xs flex items-center justify-end gap-1 ml-auto">
+                                        <button
+                                            className="text-blue-600 hover:text-blue-800 font-medium text-xs flex items-center justify-end gap-1 ml-auto disabled:opacity-60"
+                                            onClick={() => handleDownload(invoice)}
+                                            disabled={!!downloadingId}
+                                        >
                                             <OwnerIcon name="Download" className="w-3 h-3" /> PDF
                                         </button>
                                     </td>

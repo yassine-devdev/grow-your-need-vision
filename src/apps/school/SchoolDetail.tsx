@@ -9,6 +9,7 @@ import { Badge } from '../../components/shared/ui/Badge';
 import { Table, Thead, Tr, Th, Td } from '../../components/shared/ui/Table';
 import { Input } from '../../components/shared/ui/Input';
 import { Select } from '../../components/shared/ui/Select';
+import env from '../../config/environment';
 
 interface SchoolDetailProps {
     tenantId: string;
@@ -21,6 +22,35 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [activeTab, setActiveTab] = useState<'Overview' | 'Users' | 'Branding' | 'Billing' | 'Support'>('Overview');
     const [loading, setLoading] = useState(true);
+
+    const apiBase = env.get('apiUrl') || '/api';
+    const serviceApiKey = env.get('serviceApiKey');
+
+    const [brandingForm, setBrandingForm] = useState({
+        primaryColor: '',
+        secondaryColor: '',
+        custom_domain: '',
+    });
+    const [ticketForm, setTicketForm] = useState({ subject: '', description: '', priority: 'Medium', category: 'Other' });
+    const [billingInvoices, setBillingInvoices] = useState<any[]>([]);
+
+    const downloadInvoice = async (id: string) => {
+        try {
+            const res = await fetch(`${apiBase}/admin/billing/invoices/${id}/download`, {
+                headers: serviceApiKey ? { 'x-api-key': serviceApiKey } : undefined
+            });
+            if (!res.ok) throw new Error('Failed');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `invoice-${id}.pdf`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('Failed to download invoice');
+        }
+    };
 
     // User Form State
     const [newUserEmail, setNewUserEmail] = useState('');
@@ -38,6 +68,11 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                 setTenant(tData);
                 setUsers(uData.items as unknown as User[]);
                 setTickets(tickData);
+                setBrandingForm({
+                    primaryColor: tData.branding?.primaryColor || '#002366',
+                    secondaryColor: tData.branding?.secondaryColor || '#00B5FF',
+                    custom_domain: tData.custom_domain || tData.domain || ''
+                });
             } catch (error) {
                 console.error("Failed to fetch school details", error);
             } finally {
@@ -46,6 +81,24 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
         };
         fetchData();
     }, [tenantId]);
+
+    useEffect(() => {
+        const fetchBilling = async () => {
+            try {
+                const res = await fetch(`${apiBase}/admin/billing/invoices?tenantId=${tenantId}`, {
+                    headers: serviceApiKey ? { 'x-api-key': serviceApiKey } : undefined
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const invoices = (data && (data.invoices || data)) || [];
+                    setBillingInvoices(invoices);
+                }
+            } catch (e) {
+                console.warn('Failed to load billing invoices', e);
+            }
+        };
+        fetchBilling();
+    }, [apiBase, serviceApiKey, tenantId]);
 
     const handleAddUser = async () => {
         if (!newUserEmail) return;
@@ -73,6 +126,82 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
         }
     };
 
+    const assumeAdmin = async () => {
+        try {
+            await fetch(`${apiBase}/admin/tenants/${tenantId}/assume`, {
+                method: 'POST',
+                headers: {
+                    ...(serviceApiKey ? { 'x-api-key': serviceApiKey } : {})
+                }
+            });
+            alert('Assumed tenant admin role');
+        } catch (e) {
+            alert('Failed to assume admin');
+        }
+    };
+
+    const saveBranding = async () => {
+        try {
+            await fetch(`${apiBase}/admin/tenants/${tenantId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(serviceApiKey ? { 'x-api-key': serviceApiKey } : {})
+                },
+                body: JSON.stringify({
+                    branding: {
+                        primaryColor: brandingForm.primaryColor,
+                        secondaryColor: brandingForm.secondaryColor
+                    },
+                    custom_domain: brandingForm.custom_domain
+                })
+            });
+            alert('Branding updated');
+        } catch (e) {
+            alert('Failed to update branding');
+        }
+    };
+
+    const verifyDNS = async () => {
+        try {
+            const res = await fetch(`${apiBase}/admin/tenants/${tenantId}/verify-dns`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(serviceApiKey ? { 'x-api-key': serviceApiKey } : {})
+                },
+                body: JSON.stringify({ domain: brandingForm.custom_domain })
+            });
+            const data = await res.json();
+            alert(`DNS check: ${data.status} - ${data.requiredRecord || ''}`);
+        } catch (e) {
+            alert('DNS verification failed');
+        }
+    };
+
+    const createSupportTicket = async () => {
+        try {
+            const res = await fetch(`${apiBase}/admin/tenants/${tenantId}/tickets`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(serviceApiKey ? { 'x-api-key': serviceApiKey } : {})
+                },
+                body: JSON.stringify(ticketForm)
+            });
+            if (res.ok) {
+                const ticket = await res.json();
+                setTickets([ticket as Ticket, ...tickets]);
+                alert('Ticket created');
+                setTicketForm({ subject: '', description: '', priority: 'Medium', category: 'Other' });
+            } else {
+                alert('Failed to create ticket');
+            }
+        } catch (e) {
+            alert('Failed to create ticket');
+        }
+    };
+
     if (loading || !tenant) {
         return <div className="p-12 text-center">Loading school details...</div>;
     }
@@ -93,7 +222,7 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                 </div>
                 <div className="flex gap-2">
                     <Button variant="secondary">Edit School</Button>
-                    <Button variant="primary">Login as Admin</Button>
+                    <Button variant="primary" onClick={assumeAdmin}>Login as Admin</Button>
                 </div>
             </div>
 
@@ -203,25 +332,39 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                         <div className="grid grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Primary Color</label>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg shadow-sm border border-gray-200" style={{background: tenant.branding?.primaryColor}}></div>
-                                    <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{tenant.branding?.primaryColor || 'Default'}</span>
-                                </div>
+                                <Input 
+                                    type="color"
+                                    value={brandingForm.primaryColor}
+                                    onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Secondary Color</label>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg shadow-sm border border-gray-200" style={{background: tenant.branding?.secondaryColor}}></div>
-                                    <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{tenant.branding?.secondaryColor || 'Default'}</span>
-                                </div>
+                                <Input 
+                                    type="color"
+                                    value={brandingForm.secondaryColor}
+                                    onChange={e => setBrandingForm({...brandingForm, secondaryColor: e.target.value})}
+                                />
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Custom Domain</label>
                             <div className="flex gap-2">
-                                <Input value={tenant.domain} readOnly className="bg-gray-50" />
-                                <Button variant="secondary">Verify DNS</Button>
+                                <Input 
+                                    placeholder="school.yourdomain.com"
+                                    value={brandingForm.custom_domain}
+                                    onChange={e => setBrandingForm({...brandingForm, custom_domain: e.target.value})}
+                                />
+                                <Button variant="secondary" onClick={verifyDNS}>Verify DNS</Button>
                             </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="primary" onClick={saveBranding}>Save Branding</Button>
+                            <Button variant="ghost" onClick={() => setBrandingForm({
+                                primaryColor: tenant.branding?.primaryColor || '#002366',
+                                secondaryColor: tenant.branding?.secondaryColor || '#00B5FF',
+                                custom_domain: tenant.custom_domain || tenant.domain || ''
+                            })}>Reset</Button>
                         </div>
                     </div>
                 )}
@@ -248,18 +391,20 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                                 </Tr>
                             </Thead>
                             <tbody>
-                                <Tr>
-                                    <Td>Oct 01, 2023</Td>
-                                    <Td>$299.00</Td>
-                                    <Td><Badge variant="success">Paid</Badge></Td>
-                                    <Td className="text-right"><Button variant="ghost" size="sm">PDF</Button></Td>
-                                </Tr>
-                                <Tr>
-                                    <Td>Sep 01, 2023</Td>
-                                    <Td>$299.00</Td>
-                                    <Td><Badge variant="success">Paid</Badge></Td>
-                                    <Td className="text-right"><Button variant="ghost" size="sm">PDF</Button></Td>
-                                </Tr>
+                                {billingInvoices.length === 0 ? (
+                                    <Tr>
+                                        <Td colSpan={4} className="text-center text-gray-500 py-4">No invoices yet</Td>
+                                    </Tr>
+                                ) : (
+                                    billingInvoices.map(inv => (
+                                        <Tr key={inv.id}>
+                                            <Td>{inv.created ? new Date(inv.created * 1000).toLocaleDateString() : '-'}</Td>
+                                            <Td>{inv.amount_due ? `$${(inv.amount_due / 100).toFixed(2)}` : '-'}</Td>
+                                            <Td><Badge variant={inv.status === 'paid' ? 'success' : 'neutral'}>{inv.status || 'pending'}</Badge></Td>
+                                            <Td className="text-right"><Button variant="ghost" size="sm" onClick={() => downloadInvoice(inv.id)}>PDF</Button></Td>
+                                        </Tr>
+                                    ))
+                                )}
                             </tbody>
                         </Table>
                     </div>
@@ -269,7 +414,37 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                     <div className="space-y-6">
                         <div className="flex justify-between items-center">
                             <h3 className="font-bold text-lg text-gray-800">Support Tickets</h3>
-                            <Button variant="primary" size="sm">Create Ticket</Button>
+                            <Button variant="primary" size="sm" onClick={createSupportTicket}>Create Ticket</Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <Input 
+                                label="Subject"
+                                placeholder="Issue summary"
+                                value={ticketForm.subject}
+                                onChange={e => setTicketForm({...ticketForm, subject: e.target.value})}
+                            />
+                            <Select 
+                                label="Priority"
+                                value={ticketForm.priority}
+                                onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}
+                            >
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </Select>
+                            <Input 
+                                label="Category"
+                                placeholder="Billing, Access, Data..."
+                                value={ticketForm.category}
+                                onChange={e => setTicketForm({...ticketForm, category: e.target.value})}
+                            />
+                            <Input 
+                                label="Description"
+                                placeholder="Describe the issue"
+                                value={ticketForm.description}
+                                onChange={e => setTicketForm({...ticketForm, description: e.target.value})}
+                            />
                         </div>
                         <Table>
                             <Thead>
@@ -291,7 +466,7 @@ export const SchoolDetail: React.FC<SchoolDetailProps> = ({ tenantId, onBack }) 
                                             <Td className="font-bold">{ticket.subject}</Td>
                                             <Td><Badge variant={ticket.priority === 'Critical' ? 'danger' : 'neutral'}>{ticket.priority}</Badge></Td>
                                             <Td><Badge variant={ticket.status === 'Resolved' ? 'success' : 'warning'}>{ticket.status}</Badge></Td>
-                                            <Td>{new Date(ticket.created).toLocaleDateString()}</Td>
+                                            <Td>{ticket.created ? new Date(ticket.created).toLocaleDateString() : '-'}</Td>
                                         </Tr>
                                     ))
                                 )}

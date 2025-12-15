@@ -109,17 +109,59 @@ export const eventService = {
   },
 
   // Activities
-  async getActivities() {
+  async getActivities(options: {
+    page?: number;
+    perPage?: number;
+    search?: string;
+    categories?: string[];
+    location?: string;
+    from?: string; // ISO date
+    to?: string;   // ISO date
+    sort?: string; // pocketbase sort field (e.g., -created)
+  } = {}) {
     try {
-      const records = await pb.collection('activities').getList<EventActivity>(1, 50, {
-        sort: '-created',
+      const {
+        page = 1,
+        perPage = 20,
+        search,
+        categories,
+        location,
+        from,
+        to,
+        sort = '-created'
+      } = options;
+
+      const filters: string[] = [];
+      if (search) {
+        // basic text search on name/description
+        filters.push(`name ~ "${search}" || description ~ "${search}"`);
+      }
+      if (categories?.length) {
+        const catFilters = categories.map(c => `type = "${c}"`);
+        filters.push(`(${catFilters.join(' || ')})`);
+      }
+      if (location) {
+        filters.push(`location ~ "${location}"`);
+      }
+      if (from) {
+        filters.push(`created >= "${from}"`);
+      }
+      if (to) {
+        filters.push(`created <= "${to}"`);
+      }
+
+      const filter = filters.length ? filters.join(' && ') : '';
+
+      const records = await pb.collection('activities').getList<EventActivity>(page, perPage, {
+        sort,
+        filter,
       });
       return records;
     } catch (error) {
       console.error('Error fetching activities:', error);
       return { 
-          page: 1,
-          perPage: 50,
+          page: options.page || 1,
+          perPage: options.perPage || 20,
           totalItems: 0,
           totalPages: 0,
           items: [] 

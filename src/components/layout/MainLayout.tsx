@@ -20,6 +20,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
   const [activeTab, setActiveTab] = useState<string>('');
   const [activeSubNav, setActiveSubNav] = useState<string>('');
   const location = useLocation();
+  const getPathSegments = () => {
+    const hashPath = location.hash?.replace(/^#/, '') || '';
+    const pathToUse = hashPath || location.pathname;
+    return pathToUse.split('/').filter(Boolean);
+  };
   
   // Use Global OS Context
   const { activeOverlayApp, closeOverlay, launchApp, sidebarExpanded, toggleSidebar } = useOS();
@@ -28,14 +33,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
 
   // Sync Module with URL
   useEffect(() => {
-      const pathSegments = location.pathname.split('/').filter(Boolean);
+      const pathSegments = getPathSegments();
       if (pathSegments.length >= 2) {
           const moduleSlug = pathSegments[1];
           if (config[moduleSlug] && moduleSlug !== activeModule) {
               setActiveModule(moduleSlug);
           }
       }
-  }, [location.pathname, config]);
+    }, [location.pathname, location.hash, config]);
 
   // Handle Tab & Subnav changes (including URL sync)
   useEffect(() => {
@@ -44,8 +49,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
         let targetTab = moduleConfig.tabs[0];
         
         // Check if URL specifies a tab for this module
-        const pathSegments = location.pathname.split('/').filter(Boolean);
-        if (pathSegments.length >= 3 && pathSegments[1] === activeModule) {
+      const pathSegments = getPathSegments();
+      if (pathSegments.length >= 3 && pathSegments[1] === activeModule) {
              const tabSlug = pathSegments[2];
              const matchedTab = moduleConfig.tabs.find(t => 
                 t.toLowerCase().replace(/ /g, '-') === tabSlug.toLowerCase() ||
@@ -59,7 +64,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
         const subnavOptions = moduleConfig.subnav[targetTab];
         setActiveSubNav(subnavOptions && subnavOptions.length > 0 ? subnavOptions[0] : '');
     }
-  }, [activeModule, config, location.pathname]);
+  }, [activeModule, config, location.pathname, location.hash]);
 
   useEffect(() => {
     const moduleConfig = config[activeModule];

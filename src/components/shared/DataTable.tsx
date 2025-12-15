@@ -2,7 +2,7 @@ import React from 'react';
 import { DataQueryResult } from '../../hooks/useDataQuery';
 
 export interface Column<T> {
-    header: string;
+    header: React.ReactNode;
     accessor: keyof T | ((item: T) => React.ReactNode);
     sortable?: boolean;
     sortKey?: string; // If accessor is a function, this is required for sorting

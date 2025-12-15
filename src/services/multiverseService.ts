@@ -1,4 +1,5 @@
 import pb from '../lib/pocketbase';
+import { GAMIFICATION_CONFIG } from '../config/GamificationConfig';
 import {
     Universe,
     Timeline,
@@ -203,9 +204,8 @@ export const multiverseService = {
 
             const newXp = progress.current_xp + amount;
 
-            // Simple level formula: Level = floor(sqrt(XP / 100)) + 1
-            // Or linear: Level = floor(XP / 1000) + 1
-            const newLevel = Math.floor(newXp / 1000) + 1;
+            // Use centralized formula
+            const newLevel = GAMIFICATION_CONFIG.LEVEL_FORMULA(newXp);
 
             await pb.collection('user_progress').update(progress.id, {
                 current_xp: newXp,

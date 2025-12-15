@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDataQuery } from '../../../hooks/useDataQuery';
 import { DataTable } from '../../../components/shared/DataTable';
 import { DataToolbar } from '../../../components/shared/DataToolbar';
@@ -14,10 +14,18 @@ import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { useToast } from '../../../hooks/useToast';
 import pb from '../../../lib/pocketbase';
 import { User } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
+import env from '../../../config/environment';
 
 export const StudentDirectory: React.FC = () => {
+    const { user } = useAuth();
+    const apiBase = env.get('apiUrl') || '/api';
+    const serviceApiKey = env.get('serviceApiKey');
+    const tenantId = user?.tenantId;
+    const baseFilter = useMemo(() => tenantId ? `role = "Student" && tenantId = "${tenantId}"` : 'role = "Student"', [tenantId]);
+
     const query = useDataQuery<User>('users', {
-        filter: 'role = "Student"',
+        filter: baseFilter,
         sort: '-created'
     });
 
@@ -37,7 +45,9 @@ export const StudentDirectory: React.FC = () => {
     const openEnrollModal = async (user: User) => {
         setSelectedUser(user);
         try {
-            const res = await pb.collection('school_classes').getFullList();
+            const res = await pb.collection('school_classes').getFullList({
+                filter: tenantId ? `tenantId = "${tenantId}"` : undefined
+            });
             setClasses(res);
             setIsEnrollModalOpen(true);
         } catch (e) {
@@ -51,13 +61,37 @@ export const StudentDirectory: React.FC = () => {
             await pb.collection('enrollments').create({
                 student: selectedUser.id,
                 class: enrollData.classId,
-                enrolled_at: new Date().toISOString()
+                enrolled_at: new Date().toISOString(),
+                tenantId
             });
             setIsEnrollModalOpen(false);
             alert(`Successfully enrolled ${selectedUser.name}`);
         } catch (e) {
             console.error(e);
             alert('Enrollment failed');
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const res = await fetch(`${apiBase}/school/people/export?role=Student`, {
+                headers: {
+                    'x-api-key': serviceApiKey,
+                    'x-tenant-id': tenantId || '',
+                    'x-user-role': user?.role || 'SchoolAdmin'
+                }
+            });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'students.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error(err);
+            addToast('Failed to export students', 'error');
         }
     };
 
@@ -102,8 +136,8 @@ export const StudentDirectory: React.FC = () => {
 
             <DataToolbar
                 collectionName="students_view"
-                onSearch={(term) => query.setFilter(`role = "Student" && (name ~ "${term}" || email ~ "${term}")`)}
-                onExport={() => query.exportData('students.csv')}
+                onSearch={(term) => query.setFilter(`${baseFilter} && (name ~ "${term}" || email ~ "${term}")`)}
+                onExport={handleExport}
                 onRefresh={query.refresh}
                 loading={query.loading}
             />

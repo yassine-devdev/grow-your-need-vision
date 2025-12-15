@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDataQuery } from '../../../hooks/useDataQuery';
 import { DataTable } from '../../../components/shared/DataTable';
 import { DataToolbar } from '../../../components/shared/DataToolbar';
@@ -8,10 +8,20 @@ import { Modal } from '../../../components/shared/ui/CommonUI';
 import { BulkImport } from './BulkImport';
 import pb from '../../../lib/pocketbase';
 import { User } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
+import env from '../../../config/environment';
+import { useToast } from '../../../hooks/useToast';
 
 export const ParentDirectory: React.FC = () => {
+    const { user } = useAuth();
+    const apiBase = env.get('apiUrl') || '/api';
+    const serviceApiKey = env.get('serviceApiKey');
+    const tenantId = user?.tenantId;
+    const baseFilter = useMemo(() => tenantId ? `role = "Parent" && tenantId = "${tenantId}"` : 'role = "Parent"', [tenantId]);
+    const { addToast } = useToast();
+
     const query = useDataQuery<User>('users', {
-        filter: 'role = "Parent"',
+        filter: baseFilter,
         sort: '-created'
     });
 
@@ -24,7 +34,7 @@ export const ParentDirectory: React.FC = () => {
     const openLinkModal = async (user: User) => {
         setSelectedUser(user);
         try {
-            const res = await pb.collection('users').getList(1, 50, { filter: 'role = "Student"' });
+            const res = await pb.collection('users').getList(1, 50, { filter: tenantId ? `role = "Student" && tenantId = "${tenantId}"` : 'role = "Student"' });
             setStudents(res.items as unknown as User[]);
             setIsLinkModalOpen(true);
         } catch (e) {
@@ -38,13 +48,37 @@ export const ParentDirectory: React.FC = () => {
             await pb.collection('parent_student_links').create({
                 parent: selectedUser.id,
                 student: linkData.studentId,
-                relationship: linkData.relationship
+                relationship: linkData.relationship,
+                tenantId
             });
             setIsLinkModalOpen(false);
             alert(`Successfully linked to student`);
         } catch (e) {
             console.error(e);
             alert('Linking failed');
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const res = await fetch(`${apiBase}/school/people/export?role=Parent`, {
+                headers: {
+                    'x-api-key': serviceApiKey,
+                    'x-tenant-id': tenantId || '',
+                    'x-user-role': user?.role || 'SchoolAdmin'
+                }
+            });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'parents.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error(err);
+            addToast('Failed to export parents', 'error');
         }
     };
 
@@ -78,8 +112,8 @@ export const ParentDirectory: React.FC = () => {
 
             <DataToolbar 
                 collectionName="parents_view"
-                onSearch={(term) => query.setFilter(`role = "Parent" && (name ~ "${term}" || email ~ "${term}")`)}
-                onExport={() => query.exportData('parents.csv')}
+                onSearch={(term) => query.setFilter(`${baseFilter} && (name ~ "${term}" || email ~ "${term}")`)}
+                onExport={handleExport}
                 onRefresh={query.refresh}
                 loading={query.loading}
             />

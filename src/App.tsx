@@ -1,5 +1,5 @@
 import React, { Suspense, useLayoutEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
 // Providers
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -12,46 +12,56 @@ import { SoundProvider } from './context/SoundContext';
 import { SchoolProvider } from './apps/school/SchoolContext';
 
 // Components
+// Components - Static (Critical)
 import Navigation from './components/Navigation';
-import LoginPage from './components/LoginPage';
+// Lazy Components
+const LoginPage = React.lazy(() => import('./components/LoginPage'));
+const PublicStatusPage = React.lazy(() => import('./pages/PublicStatusPage'));
 import { LoadingScreen } from './components/shared/LoadingScreen';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { RealtimeStatus } from './components/shared/RealtimeStatus';
 import { GlobalSearch } from './components/shared/GlobalSearch';
 import { GlobalErrorBoundary } from './components/shared/ui/GlobalErrorBoundary';
-import NotFound from './components/shared/NotFound';
-import TestChat from './TestChat';
+const NotFound = React.lazy(() => import('./components/shared/NotFound'));
+const TestChat = React.lazy(() => import('./TestChat'));
 
-// Layouts
-import OwnerLayout from './components/layout/OwnerLayout';
-import AdminSchoolLayout from './components/layout/AdminSchoolLayout';
-import TeacherLayout from './components/layout/TeacherLayout';
-import StudentLayout from './components/layout/StudentLayout';
-import ParentLayout from './components/layout/ParentLayout';
-import IndividualLayout from './components/layout/IndividualLayout';
+// Layouts - Lazy
+const OwnerLayout = React.lazy(() => import('./components/layout/OwnerLayout'));
+const AdminSchoolLayout = React.lazy(() => import('./components/layout/AdminSchoolLayout'));
+const TeacherLayout = React.lazy(() => import('./components/layout/TeacherLayout'));
+const StudentLayout = React.lazy(() => import('./components/layout/StudentLayout'));
+const ParentLayout = React.lazy(() => import('./components/layout/ParentLayout'));
+const IndividualLayout = React.lazy(() => import('./components/layout/IndividualLayout'));
 
-// Owner Apps
-import { TenantOnboardingFlow } from './apps/owner/TenantOnboardingFlow';
-import { TenantDashboard } from './apps/owner/TenantDashboard';
-import { AnalyticsDashboard } from './apps/owner/AnalyticsDashboard';
-import { SupportDashboard } from './apps/owner/SupportDashboard';
-import { OverlayAppsManager } from './apps/owner/OverlayAppsManager';
+// Owner Apps - Lazy
+const TenantOnboardingFlow = React.lazy(() => import('./apps/owner/TenantOnboardingFlow').then(module => ({ default: module.TenantOnboardingFlow })));
+const TenantDashboard = React.lazy(() => import('./apps/owner/TenantDashboard').then(module => ({ default: module.TenantDashboard })));
+const AnalyticsDashboard = React.lazy(() => import('./apps/owner/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
+const SupportDashboard = React.lazy(() => import('./apps/owner/SupportDashboard').then(module => ({ default: module.SupportDashboard })));
+const OverlayAppsManager = React.lazy(() => import('./apps/owner/OverlayAppsManager').then(module => ({ default: module.OverlayAppsManager })));
 
-// EduMultiverse
-import { MultiverseHUD } from './apps/edumultiverse/components/MultiverseHUD';
-import { MultiverseMap } from './apps/edumultiverse/screens/MultiverseMap';
-import { ParallelClassrooms } from './apps/edumultiverse/screens/ParallelClassrooms';
-import { GlitchHunter } from './apps/edumultiverse/screens/GlitchHunter';
-import { TimeLoopMission } from './apps/edumultiverse/screens/TimeLoopMission';
-import { ConceptFusion } from './apps/edumultiverse/screens/ConceptFusion';
-import { QuantumQuiz } from './apps/edumultiverse/screens/QuantumQuiz';
-import { Leaderboard } from './apps/edumultiverse/components/Leaderboard';
+// EduMultiverse - Lazy
+import { MultiverseHUD } from './apps/edumultiverse/components/MultiverseHUD'; // HUD might need to be static or lazy loaded with routes
+const MultiverseMap = React.lazy(() => import('./apps/edumultiverse/screens/MultiverseMap').then(module => ({ default: module.MultiverseMap })));
+const ParallelClassrooms = React.lazy(() => import('./apps/edumultiverse/screens/ParallelClassrooms').then(module => ({ default: module.ParallelClassrooms })));
+const GlitchHunter = React.lazy(() => import('./apps/edumultiverse/screens/GlitchHunter').then(module => ({ default: module.GlitchHunter })));
+const TimeLoopMission = React.lazy(() => import('./apps/edumultiverse/screens/TimeLoopMission').then(module => ({ default: module.TimeLoopMission })));
+const ConceptFusion = React.lazy(() => import('./apps/edumultiverse/screens/ConceptFusion').then(module => ({ default: module.ConceptFusion })));
+const QuantumQuiz = React.lazy(() => import('./apps/edumultiverse/screens/QuantumQuiz').then(module => ({ default: module.QuantumQuiz })));
+const Leaderboard = React.lazy(() => import('./apps/edumultiverse/components/Leaderboard').then(module => ({ default: module.Leaderboard })));
+
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { FeedbackWidget } from './components/shared/FeedbackWidget';
+import { PWAInstallPrompt } from './components/shared/PWAInstallPrompt';
+import { ImpersonationBanner } from './components/shared/ImpersonationBanner';
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { sidebarExpanded } = useOS();
   const location = useLocation();
+
+  useKeyboardShortcuts();
 
   useLayoutEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -79,6 +89,7 @@ const AppContent: React.FC = () => {
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/status" element={<PublicStatusPage />} />
             <Route path="/signup" element={<TenantOnboardingFlow />} />
 
             {/* Protected Routes */}
@@ -179,6 +190,9 @@ const AppContent: React.FC = () => {
       {/* Global Realtime Status Indicator */}
       {user && <RealtimeStatus />}
       {user && <GlobalSearch />}
+      <FeedbackWidget />
+      <PWAInstallPrompt />
+      <ImpersonationBanner />
     </div>
   );
 };
@@ -188,6 +202,13 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 
 const App: React.FC = () => {
+  // Normalize direct path navigation (/login, /admin, etc.) into hash-based routing for tests
+  React.useEffect(() => {
+    if (!window.location.hash && window.location.pathname && window.location.pathname !== '/') {
+      window.location.hash = window.location.pathname;
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>

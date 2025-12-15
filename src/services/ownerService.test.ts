@@ -20,6 +20,11 @@ vi.mock('../lib/pocketbase', () => {
 describe('OwnerService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        (console.error as unknown as { mockRestore: () => void }).mockRestore?.();
     });
 
     describe('getDashboardData', () => {

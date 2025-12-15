@@ -2,12 +2,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import pb from '../lib/pocketbase';
 import { RecordModel } from 'pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 // Define User type based on PocketBase 'users' collection
 export interface User extends RecordModel {
   name: string;
   email: string;
-  role: 'Owner' | 'SchoolAdmin' | 'Teacher' | 'Student' | 'Parent' | 'Individual';
+  role: 'Owner' | 'SchoolAdmin' | 'Admin' | 'Teacher' | 'Student' | 'Parent' | 'Individual';
   avatar?: string;
   tenantId?: string; // Link to a School or Organization
   emailVisibility?: boolean;
@@ -22,14 +23,19 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   error: string | null;
+  startImpersonation: (userId: string) => Promise<void>;
+  stopImpersonation: () => void;
+  isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(pb.authStore.model as User | null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [realUser, setRealUser] = useState<User | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   useEffect(() => {
     // Refresh auth store to ensure we have latest user data (like roles)
@@ -39,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Disable auto-cancellation to prevent React Strict Mode double-fetch issues
           const authData = await pb.collection('users').authRefresh({ requestKey: null });
           setUser(authData.record as User);
+          setRealUser(authData.record as User);
         } catch (err) {
           // Ignore auto-cancellation errors
           if (err instanceof Error && err.name === 'AbortError') return;
@@ -50,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // If refresh fails (e.g. deleted user), clear auth
           pb.authStore.clear();
           setUser(null);
+          setRealUser(null);
         }
       }
       setLoading(false);
@@ -60,21 +68,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen to auth state changes
     const unsubscribe = pb.authStore.onChange((token, model) => {
       console.log("Auth State Changed:", model);
-      setUser(model as User | null);
+      if (!isImpersonating) {
+        setUser(model as User | null);
+        setRealUser(model as User | null);
+      }
     }, false); // Don't trigger immediately, we handled it with refreshAuth
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isImpersonating]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
+      // In mock/e2e environments, skip PocketBase and return a synthetic user
+      if (isMockEnv()) {
+        const normalizedEmail = (email || '').toLowerCase();
+        const roleMap: Record<string, User['role']> = {
+          'owner@growyourneed.com': 'Owner',
+          'admin@school.com': 'SchoolAdmin',
+          'teacher@school.com': 'Teacher',
+          'student@school.com': 'Student',
+          'parent@school.com': 'Parent',
+          'individual@individual.com': 'Individual',
+        };
+
+        let role = roleMap[normalizedEmail];
+        if (!role) {
+          if (normalizedEmail.includes('owner')) role = 'Owner';
+          else if (normalizedEmail.includes('schooladmin') || normalizedEmail.includes('admin')) role = 'SchoolAdmin';
+          else if (normalizedEmail.includes('teacher')) role = 'Teacher';
+          else if (normalizedEmail.includes('student')) role = 'Student';
+          else if (normalizedEmail.includes('parent')) role = 'Parent';
+          else if (normalizedEmail.includes('individual')) role = 'Individual';
+        }
+
+        if (!role) {
+          const errorMessage = 'Invalid credentials';
+          setError(errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        const roleNameMap: Record<User['role'], string> = {
+          Owner: 'Owner User',
+          SchoolAdmin: 'School Admin',
+          Admin: 'School Admin',
+          Teacher: 'Sarah Smith',
+          Student: 'Alex Student',
+          Parent: 'Jordan Parent',
+          Individual: 'Indie User',
+        };
+
+        const mockUser: User = {
+          id: `mock-${role.toLowerCase()}`,
+          collectionId: 'mock',
+          collectionName: 'users',
+          created: new Date().toISOString(),
+          updated: new Date().toISOString(),
+          email,
+          name: roleNameMap[role] || `${role} User`,
+          role,
+          verified: true,
+          emailVisibility: true,
+        } as User;
+
+        // Persist into PocketBase auth store so downstream consumers stay consistent
+        pb.authStore.save('mock-token', mockUser);
+        setUser(mockUser);
+        setRealUser(mockUser);
+        return;
+      }
+
       const authData = await pb.collection('users').authWithPassword(email, password);
       // Explicitly set user to ensure state is consistent immediately
       setUser(authData.record as User);
+      setRealUser(authData.record as User);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to login";
       console.error("Login failed:", err);
@@ -112,12 +182,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    setIsImpersonating(false);
     pb.authStore.clear();
     setUser(null);
+    setRealUser(null);
+  };
+
+  const startImpersonation = async (userId: string) => {
+    // Only allowed if real user is Owner or Admin
+    if (!realUser || !['Owner', 'Admin', 'SchoolAdmin'].includes(realUser.role)) {
+      throw new Error("Unauthorized to impersonate");
+    }
+
+    try {
+      // Fetch the target user details
+      const targetUser = await pb.collection('users').getOne(userId);
+      setUser(targetUser as User); // Swap the context user
+      setIsImpersonating(true);
+      // Note: We do NOT update pb.authStore, so API calls still use Admin token
+      // This allows fetching data, but RLS might block if it relies on auth.id
+      // However, we are simulating the frontend experience.
+    } catch (e) {
+      console.error("Failed to impersonate", e);
+      throw e;
+    }
+  };
+
+  const stopImpersonation = () => {
+    if (realUser) {
+      setUser(realUser);
+      setIsImpersonating(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout, loading, error }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      login,
+      register,
+      logout,
+      loading,
+      error,
+      startImpersonation,
+      stopImpersonation,
+      isImpersonating
+    }}>
       {children}
     </AuthContext.Provider>
   );

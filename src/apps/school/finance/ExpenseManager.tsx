@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { useDataQuery } from '../../../hooks/useDataQuery';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, Column } from '../../../components/shared/DataTable';
+import { DataQueryResult } from '../../../hooks/useDataQuery';
 import { DataToolbar } from '../../../components/shared/DataToolbar';
 import { Badge } from '../../../components/shared/ui/Badge';
 import { Button } from '../../../components/shared/ui/Button';
 import { Modal } from '../../../components/shared/ui/CommonUI';
 import { Input } from '../../../components/shared/ui/Input';
 import { Select } from '../../../components/shared/ui/Select';
-import pb from '../../../lib/pocketbase';
+import { schoolFinanceService, ExpenseRecord } from '../../../services/schoolFinanceService';
+import { useToast } from '../../../hooks/useToast';
 
 interface Expense {
     id: string;
@@ -20,9 +21,12 @@ interface Expense {
 }
 
 export const ExpenseManager: React.FC = () => {
-    const query = useDataQuery<Expense>('expenses', {
-        sort: '-date'
-    });
+    const { addToast } = useToast();
+    const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newExpense, setNewExpense] = useState<Partial<Expense>>({
@@ -33,34 +37,92 @@ export const ExpenseManager: React.FC = () => {
         status: 'Pending'
     });
 
-    const handleCreate = async () => {
+    const loadData = useCallback(async () => {
+        setLoading(true);
         try {
-            await pb.collection('expenses').create(newExpense);
-            setIsModalOpen(false);
-            query.refresh();
-            setNewExpense({ title: '', amount: 0, category: 'Supplies', date: new Date().toISOString().split('T')[0], status: 'Pending' });
-        } catch (e) {
-            alert('Failed to record expense');
-        }
-    };
-
-    const handleStatusChange = async (id: string, status: string) => {
-        try {
-            await pb.collection('expenses').update(id, { status });
-            query.refresh();
+            const items = await schoolFinanceService.listExpenses(search || undefined);
+            setExpenses(items);
         } catch (e) {
             console.error(e);
+            addToast('Failed to load expenses', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast, search]);
+
+    const isFormValid = useMemo(() => {
+        const hasTitle = Boolean(newExpense.title && newExpense.title.trim().length >= 3);
+        const hasAmount = Number(newExpense.amount) > 0;
+        const hasDate = Boolean(newExpense.date);
+        const hasCategory = Boolean(newExpense.category);
+        return hasTitle && hasAmount && hasDate && hasCategory;
+    }, [newExpense.amount, newExpense.category, newExpense.date, newExpense.title]);
+
+    const formatCurrency = useCallback((value: number) => {
+        if (Number.isNaN(value)) return '$0.00';
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    }, []);
+
+    const handleCreate = async () => {
+        if (!isFormValid) {
+            addToast('Please provide a title (min 3 chars), amount, date, and category.', 'warning');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await schoolFinanceService.createExpense({
+                title: newExpense.title || '',
+                amount: Number(newExpense.amount) || 0,
+                category: newExpense.category || 'Other',
+                date: newExpense.date || new Date().toISOString().split('T')[0],
+                status: newExpense.status,
+            });
+            setIsModalOpen(false);
+            await loadData();
+            setNewExpense({ title: '', amount: 0, category: 'Supplies', date: new Date().toISOString().split('T')[0], status: 'Pending' });
+            addToast('Expense recorded successfully', 'success');
+        } catch (e) {
+            console.error(e);
+            addToast('Failed to record expense', 'error');
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    const columns: Column<Expense>[] = [
+    const handleStatusChange = useCallback(async (id: string, status: string) => {
+        setStatusUpdatingId(id);
+        try {
+            await schoolFinanceService.updateExpenseStatus(id, status as any);
+            await loadData();
+            addToast(`Expense ${status.toLowerCase()}`, 'success');
+        } catch (e) {
+            console.error(e);
+            addToast('Failed to update expense', 'error');
+        } finally {
+            setStatusUpdatingId(null);
+        }
+    }, [addToast, loadData]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    useEffect(() => {
+        const t = setTimeout(() => {
+            loadData();
+        }, 250);
+        return () => clearTimeout(t);
+    }, [loadData, search]);
+
+    const columns: Column<ExpenseRecord>[] = useMemo(() => [
         { header: 'Title', accessor: 'title', sortable: true },
         { header: 'Category', accessor: 'category', sortable: true },
-        { header: 'Date', accessor: (e: Expense) => new Date(e.date).toLocaleDateString(), sortable: true },
-        { header: 'Amount', accessor: (e: Expense) => `$${e.amount.toFixed(2)}`, sortable: true },
+        { header: 'Date', accessor: (e: ExpenseRecord) => new Date(e.date).toLocaleDateString(), sortable: true },
+        { header: 'Amount', accessor: (e: ExpenseRecord) => formatCurrency(e.amount), sortable: true },
         { 
             header: 'Status', 
-            accessor: (e: Expense) => (
+            accessor: (e: ExpenseRecord) => (
                 <Badge variant={e.status === 'Approved' ? 'success' : e.status === 'Rejected' ? 'danger' : 'warning'}>
                     {e.status}
                 </Badge>
@@ -68,18 +130,43 @@ export const ExpenseManager: React.FC = () => {
         },
         {
             header: 'Actions',
-            accessor: (e: Expense) => (
+            accessor: (e: ExpenseRecord) => (
                 <div className="flex gap-2">
                     {e.status === 'Pending' && (
                         <>
-                            <Button size="sm" variant="ghost" className="text-green-600" onClick={() => handleStatusChange(e.id, 'Approved')}>Approve</Button>
-                            <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleStatusChange(e.id, 'Rejected')}>Reject</Button>
+                            <Button size="sm" variant="ghost" className="text-green-600" disabled={statusUpdatingId === e.id}
+                                onClick={() => handleStatusChange(e.id, 'Approved')}>
+                                {statusUpdatingId === e.id ? 'Saving…' : 'Approve'}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-red-600" disabled={statusUpdatingId === e.id}
+                                onClick={() => handleStatusChange(e.id, 'Rejected')}>
+                                {statusUpdatingId === e.id ? 'Saving…' : 'Reject'}
+                            </Button>
                         </>
                     )}
                 </div>
             )
         }
-    ];
+    ], [formatCurrency, handleStatusChange, statusUpdatingId]);
+
+    // Adapter to reuse shared DataTable component expecting DataQueryResult
+    const tableQuery: DataQueryResult<ExpenseRecord> = useMemo(() => ({
+        items: expenses,
+        totalItems: expenses.length,
+        totalPages: 1,
+        loading,
+        error: null,
+        page: 1,
+        perPage: Math.max(expenses.length, 1),
+        sort: '',
+        filter: search,
+        setPage: () => {},
+        setPerPage: () => {},
+        setSort: () => {},
+        setFilter: () => {},
+        refresh: loadData,
+        exportData: async () => {},
+    }), [expenses, loading, loadData, search]);
 
     return (
         <div className="space-y-6">
@@ -90,13 +177,16 @@ export const ExpenseManager: React.FC = () => {
 
             <DataToolbar 
                 collectionName="expenses_view"
-                onSearch={(term) => query.setFilter(`title ~ "${term}" || category ~ "${term}"`)}
-                onExport={() => query.exportData('expenses.csv')}
-                onRefresh={query.refresh}
-                loading={query.loading}
+                onSearch={(term) => setSearch(term)}
+                onExport={() => {}}
+                onRefresh={loadData}
+                loading={loading}
             />
 
-            <DataTable query={query} columns={columns} />
+            <DataTable
+                query={tableQuery}
+                columns={columns}
+            />
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Record New Expense">
                 <div className="space-y-4">
@@ -121,7 +211,9 @@ export const ExpenseManager: React.FC = () => {
                     </div>
                     <div className="flex justify-end gap-2 mt-4">
                         <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                        <Button variant="primary" onClick={handleCreate}>Save Expense</Button>
+                        <Button variant="primary" onClick={handleCreate} disabled={!isFormValid || submitting}>
+                            {submitting ? 'Saving…' : 'Save Expense'}
+                        </Button>
                     </div>
                 </div>
             </Modal>

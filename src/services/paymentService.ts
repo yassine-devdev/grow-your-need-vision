@@ -22,9 +22,11 @@ import {
  */
 class PaymentService {
     private apiUrl: string;
+    private serviceApiKey: string;
 
     constructor() {
         this.apiUrl = env.get('apiUrl') || '/api';
+        this.serviceApiKey = env.get('serviceApiKey');
     }
 
     /**
@@ -45,10 +47,7 @@ class PaymentService {
         try {
             const response = await fetch(`${this.apiUrl}/payments/create-intent`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
-                },
+                headers: this.buildHeaders(),
                 body: JSON.stringify(request),
             });
 
@@ -58,19 +57,6 @@ class PaymentService {
             }
 
             const data = await response.json();
-
-            // Store in PocketBase
-            await pb.collection('payment_intents').create({
-                user: pb.authStore.model?.id,
-                stripe_payment_intent_id: data.payment_intent_id,
-                amount: request.amount,
-                currency: request.currency,
-                status: 'pending',
-                description: request.description,
-                metadata: request.metadata,
-                receipt_email: request.receipt_email,
-                client_secret: data.client_secret,
-            });
 
             return data;
         } catch (error) {
@@ -86,10 +72,7 @@ class PaymentService {
         try {
             const response = await fetch(`${this.apiUrl}/payments/confirm`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
-                },
+                headers: this.buildHeaders(),
                 body: JSON.stringify({
                     payment_intent_id: paymentIntentId,
                     payment_method_id: paymentMethodId,
@@ -116,8 +99,19 @@ class PaymentService {
      * Get available subscription plans
      */
     async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
-        // Configuration: Subscription Plans
-        // These are defined in code for version control, but could be moved to a DB collection later.
+        const raw = (import.meta as any).env?.VITE_SUBSCRIPTION_PLANS || '';
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed as SubscriptionPlan[];
+                }
+            } catch (err) {
+                console.warn('Failed to parse VITE_SUBSCRIPTION_PLANS, using defaults', err);
+            }
+        }
+
+        // Safe fallback defaults (non-production override via env)
         return [
             {
                 id: 'basic',
@@ -126,12 +120,7 @@ class PaymentService {
                 price: 29,
                 currency: 'usd',
                 interval: 'month',
-                features: [
-                    'Up to 100 students',
-                    '5 GB storage',
-                    'Email support',
-                    'Basic reports',
-                ],
+                features: ['Up to 100 students', '5 GB storage', 'Email support', 'Basic reports'],
                 max_users: 100,
                 max_storage_gb: 5,
             },
@@ -142,13 +131,7 @@ class PaymentService {
                 price: 79,
                 currency: 'usd',
                 interval: 'month',
-                features: [
-                    'Up to 500 students',
-                    '50 GB storage',
-                    'Priority support',
-                    'Advanced analytics',
-                    'Custom branding',
-                ],
+                features: ['Up to 500 students', '50 GB storage', 'Priority support', 'Advanced analytics', 'Custom branding'],
                 is_popular: true,
                 max_users: 500,
                 max_storage_gb: 50,
@@ -160,14 +143,7 @@ class PaymentService {
                 price: 199,
                 currency: 'usd',
                 interval: 'month',
-                features: [
-                    'Unlimited students',
-                    '500 GB storage',
-                    '24/7 phone support',
-                    'Advanced integrations',
-                    'Custom development',
-                    'Dedicated account manager',
-                ],
+                features: ['Unlimited students', '500 GB storage', '24/7 phone support', 'Advanced integrations', 'Custom development', 'Dedicated account manager'],
                 max_storage_gb: 500,
             },
         ];
@@ -180,10 +156,7 @@ class PaymentService {
         try {
             const response = await fetch(`${this.apiUrl}/payments/create-subscription`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
-                },
+                headers: this.buildHeaders(),
                 body: JSON.stringify(request),
             });
 
@@ -222,10 +195,7 @@ class PaymentService {
         try {
             const response = await fetch(`${this.apiUrl}/payments/cancel-subscription`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
-                },
+                headers: this.buildHeaders(),
                 body: JSON.stringify({
                     subscription_id: subscriptionId,
                     cancel_at_period_end: cancelAtPeriodEnd,
@@ -295,10 +265,7 @@ class PaymentService {
         try {
             const response = await fetch(`${this.apiUrl}/payments/save-method`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
-                },
+                headers: this.buildHeaders(),
                 body: JSON.stringify({
                     payment_method_id: paymentMethodId,
                     is_default: isDefault,
@@ -339,12 +306,15 @@ class PaymentService {
      */
     async getPaymentHistory(userId: string, limit: number = 50): Promise<PaymentHistoryItem[]> {
         try {
-            const intents = await pb.collection('payment_intents').getFullList<PaymentIntent>({
-                filter: `user = "${userId}"`,
-                sort: '-created',
-                limit,
+            const response = await fetch(`${this.apiUrl}/payments/history?userId=${encodeURIComponent(userId)}&limit=${limit}`, {
+                method: 'GET',
+                headers: this.buildHeaders(),
             });
-
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to load payment history');
+            }
+            const intents: PaymentIntent[] = await response.json();
             return intents.map(intent => ({
                 id: intent.id,
                 date: intent.created,
@@ -352,7 +322,7 @@ class PaymentService {
                 amount: intent.amount,
                 currency: intent.currency,
                 status: intent.status,
-                invoice_id: intent.metadata?.invoice_id,
+                invoice_id: (intent as any).invoice || intent.metadata?.invoice_id,
             }));
         } catch (error) {
             console.error('Get payment history error:', error);
@@ -365,14 +335,62 @@ class PaymentService {
      */
     async getInvoices(userId: string): Promise<Invoice[]> {
         try {
-            return await pb.collection('invoices').getFullList<Invoice>({
-                filter: `user = "${userId}"`,
-                sort: '-created',
+            const response = await fetch(`${this.apiUrl}/payments/invoices?userId=${encodeURIComponent(userId)}`, {
+                method: 'GET',
+                headers: this.buildHeaders(),
             });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to load invoices');
+            }
+            return await response.json();
         } catch (error) {
             console.error('Get invoices error:', error);
             return [];
         }
+    }
+
+    /**
+     * Download receipt generated on the server (PocketBase receipts collection)
+     */
+    async downloadReceipt(paymentIntentId?: string, invoiceId?: string): Promise<string | null> {
+        try {
+            const filters = [] as string[];
+            if (paymentIntentId) filters.push(`payment_intent_id = "${paymentIntentId}"`);
+            if (invoiceId) filters.push(`invoice_id = "${invoiceId}"`);
+
+            const filter = filters.length ? filters.join(' || ') : 'id != ""';
+
+            const receiptList = await pb.collection('receipts').getList(1, 1, {
+                filter,
+                sort: '-issued_at'
+            });
+            if (receiptList.items.length === 0) return null;
+            const receipt = receiptList.items[0] as any;
+            const content = JSON.stringify(receipt, null, 2);
+            const blob = new Blob([content], { type: 'application/json' });
+            return URL.createObjectURL(blob);
+        } catch (error) {
+            console.error('Failed to fetch receipt', error);
+            return null;
+        }
+    }
+
+    private buildHeaders(): HeadersInit {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+
+        if (this.serviceApiKey) {
+            headers['x-api-key'] = this.serviceApiKey;
+        }
+
+        const tenantId = (pb.authStore.model as any)?.tenantId;
+        if (tenantId) {
+            headers['x-tenant-id'] = tenantId;
+        }
+
+        return headers;
     }
 }
 

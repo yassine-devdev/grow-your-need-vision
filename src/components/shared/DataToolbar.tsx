@@ -24,6 +24,8 @@ interface DataToolbarProps {
     placeholder?: string;
     collectionName: string;
     filterOptions?: FilterOption[];
+    totalCount?: number;
+    lastRefreshed?: string;
 }
 
 export const DataToolbar: React.FC<DataToolbarProps> = ({
@@ -35,7 +37,9 @@ export const DataToolbar: React.FC<DataToolbarProps> = ({
     loading,
     placeholder = "Search...",
     collectionName,
-    filterOptions = []
+    filterOptions = [],
+    totalCount,
+    lastRefreshed,
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
@@ -158,6 +162,14 @@ export const DataToolbar: React.FC<DataToolbarProps> = ({
 
             {/* Actions */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 mr-2">
+                    {typeof totalCount === 'number' && (
+                        <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">Total: {totalCount.toLocaleString()}</span>
+                    )}
+                    {lastRefreshed && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Updated {lastRefreshed}</span>
+                    )}
+                </div>
                 {/* Filters Dropdown */}
                 {filterOptions.length > 0 && (
                     <div className="relative">

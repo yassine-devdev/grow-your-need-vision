@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDataQuery } from '../../../hooks/useDataQuery';
 import { DataTable } from '../../../components/shared/DataTable';
 import { DataToolbar } from '../../../components/shared/DataToolbar';
@@ -8,10 +8,18 @@ import { Modal } from '../../../components/shared/ui/CommonUI';
 import { BulkImport } from './BulkImport';
 import pb from '../../../lib/pocketbase';
 import { User } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
+import env from '../../../config/environment';
 
 export const StaffDirectory: React.FC = () => {
+    const { user } = useAuth();
+    const apiBase = env.get('apiUrl') || '/api';
+    const serviceApiKey = env.get('serviceApiKey');
+    const tenantId = user?.tenantId;
+    const baseFilter = useMemo(() => tenantId ? `role = "Staff" && tenantId = "${tenantId}"` : 'role = "Staff"', [tenantId]);
+
     const query = useDataQuery<User>('users', {
-        filter: 'role = "Staff"',
+        filter: baseFilter,
         sort: '-created'
     });
 
@@ -24,13 +32,37 @@ export const StaffDirectory: React.FC = () => {
         if (!selectedUser || !newRole) return;
         try {
             await pb.collection('users').update(selectedUser.id, {
-                title: newRole // Assuming 'title' stores the specific staff role (e.g. 'Janitor', 'Admin')
+                title: newRole,
+                tenantId
             });
             setIsRoleModalOpen(false);
             query.refresh();
         } catch (e) {
             console.error(e);
             alert('Update failed');
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const res = await fetch(`${apiBase}/school/people/export?role=Staff`, {
+                headers: {
+                    'x-api-key': serviceApiKey,
+                    'x-tenant-id': tenantId || '',
+                    'x-user-role': user?.role || 'SchoolAdmin'
+                }
+            });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'staff.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to export staff');
         }
     };
 
@@ -65,8 +97,8 @@ export const StaffDirectory: React.FC = () => {
 
             <DataToolbar 
                 collectionName="staff_view"
-                onSearch={(term) => query.setFilter(`role = "Staff" && (name ~ "${term}" || email ~ "${term}" || title ~ "${term}")`)}
-                onExport={() => query.exportData('staff.csv')}
+                onSearch={(term) => query.setFilter(`${baseFilter} && (name ~ "${term}" || email ~ "${term}" || title ~ "${term}")`)}
+                onExport={handleExport}
                 onRefresh={query.refresh}
                 loading={query.loading}
             />

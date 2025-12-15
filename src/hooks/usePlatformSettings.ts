@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import pb from '../lib/pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 export interface PlatformConfig {
     id: string;
@@ -18,6 +19,16 @@ export const usePlatformSettings = (category: string) => {
         const fetchSettings = async () => {
             setLoading(true);
             try {
+                if (isMockEnv()) {
+                    const defaultSettings: PlatformConfig[] = [
+                        { id: 'mock-1', key: `enable_${category.toLowerCase()}_feature_1`, value: true, description: `Enable primary ${category} feature`, category },
+                        { id: 'mock-2', key: `enable_${category.toLowerCase()}_feature_2`, value: false, description: `Enable beta ${category} feature`, category },
+                        { id: 'mock-3', key: `${category.toLowerCase()}_api_url`, value: 'https://api.growyourneed.com/v1', description: 'External API Endpoint', category },
+                    ];
+                    setSettings(defaultSettings);
+                    setLoading(false);
+                    return;
+                }
                 // Try to fetch from 'platform_settings' collection
                 try {
                     const records = await pb.collection('platform_settings').getList(1, 50, {

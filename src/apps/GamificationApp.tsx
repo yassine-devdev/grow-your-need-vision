@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { gamificationService, Achievement, LeaderboardEntry, Reward } from '../services/gamificationService';
 import { LoadingScreen } from '../components/shared/LoadingScreen';
 import { motion } from 'framer-motion';
+import { GAMIFICATION_CONFIG } from '../config/GamificationConfig';
+import { useToast } from '../hooks/useToast';
 
 interface GamificationAppProps {
   activeTab: string;
@@ -14,6 +16,7 @@ interface GamificationAppProps {
 
 const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubNav }) => {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const { progress, levelProgress, addXP } = useGamification();
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -34,71 +37,98 @@ const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubN
   }, [activeTab, user]);
 
   const loadData = async () => {
-    if (!user) return;
+    console.log('GamificationApp: loadData called', { user: user?.id, activeTab });
+    if (!user) {
+        console.log('GamificationApp: No user, stopping load');
+        setLoading(false);
+        return;
+    }
 
     try {
       setLoading(true);
+      console.log('GamificationApp: Loading started for tab:', activeTab);
+
+      // Timeout promise to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Data loading timed out')), 10000)
+      );
 
       if (activeTab === 'Achievements') {
-        const [allAchievements, userAch] = await Promise.all([
-          gamificationService.getAllAchievements(),
-          gamificationService.getUserAchievements(user.id)
-        ]);
+        console.log('GamificationApp: Fetching achievements...');
+        const [allAchievements, userAch] = await Promise.race([
+          Promise.all([
+            gamificationService.getAllAchievements(),
+            gamificationService.getUserAchievements(user.id)
+          ]),
+          timeoutPromise
+        ]) as [Achievement[], any[]];
+        
+        console.log('GamificationApp: Achievements fetched', { all: allAchievements.length, user: userAch.length });
         setAchievements(allAchievements);
         setUserAchievements(userAch);
       } else if (activeTab === 'Leaderboards') {
-        const [leaderboardData, rank] = await Promise.all([
-          gamificationService.getGlobalLeaderboard(50),
-          gamificationService.getUserRank(user.id)
-        ]);
+        console.log('GamificationApp: Fetching leaderboard...');
+        const [leaderboardData, rank] = await Promise.race([
+          Promise.all([
+            gamificationService.getGlobalLeaderboard(50),
+            gamificationService.getUserRank(user.id)
+          ]),
+          timeoutPromise
+        ]) as [LeaderboardEntry[], number | null];
+
+        console.log('GamificationApp: Leaderboard fetched', { count: leaderboardData.length, rank });
         setLeaderboard(leaderboardData);
         setUserRank(rank);
       } else if (activeTab === 'Rewards') {
-        const [allRewards, userRew] = await Promise.all([
-          gamificationService.getAllRewards(),
-          gamificationService.getUserRewards(user.id)
-        ]);
+        console.log('GamificationApp: Fetching rewards...');
+        const [allRewards, userRew] = await Promise.race([
+          Promise.all([
+            gamificationService.getAllRewards(),
+            gamificationService.getUserRewards(user.id)
+          ]),
+          timeoutPromise
+        ]) as [Reward[], any[]];
+
+        console.log('GamificationApp: Rewards fetched', { all: allRewards.length, user: userRew.length });
         setRewards(allRewards);
         setUserRewards(userRew);
+      } else {
+        console.log('GamificationApp: Unknown tab, no data to fetch');
       }
     } catch (error) {
-      console.error('Failed to load gamification data:', error);
+      console.error('GamificationApp: Failed to load gamification data:', error);
+      addToast('Failed to load data. Please try again.', 'error');
     } finally {
+      console.log('GamificationApp: Loading finished');
       setLoading(false);
     }
   };
 
   const handlePurchaseReward = async (reward: Reward) => {
     if (!user || xp < reward.cost_xp) {
-      alert(`Insufficient XP! You need ${reward.cost_xp} XP but only have ${xp} XP.`);
+      addToast(`Insufficient XP! You need ${reward.cost_xp} XP but only have ${xp} XP.`, 'error');
       return;
     }
 
     try {
       await gamificationService.purchaseReward(user.id, reward.id, reward.cost_xp);
-      alert(`Successfully purchased ${reward.name}!`);
+      addToast(`Successfully purchased ${reward.name}!`, 'success');
       loadData();
     } catch (error: any) {
-      alert(error.message || 'Failed to purchase reward');
+      addToast(error.message || 'Failed to purchase reward', 'error');
     }
   };
 
   const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'Legendary': return 'from-yellow-400 to-orange-500';
-      case 'Epic': return 'from-purple-400 to-pink-500';
-      case 'Rare': return 'from-blue-400 to-cyan-500';
-      default: return 'from-gray-300 to-gray-400';
-    }
+    return GAMIFICATION_CONFIG.REWARDS.RARITY_COLORS[rarity as keyof typeof GAMIFICATION_CONFIG.REWARDS.RARITY_COLORS] || GAMIFICATION_CONFIG.REWARDS.RARITY_COLORS.Common;
   };
 
   const getRarityBorderColor = (rarity: string) => {
-    switch (rarity) {
-      case 'Legendary': return 'border-yellow-400 shadow-yellow-400/50';
-      case 'Epic': return 'border-purple-400 shadow-purple-400/50';
-      case 'Rare': return 'border-blue-400 shadow-blue-400/50';
-      default: return 'border-gray-300';
-    }
+    return GAMIFICATION_CONFIG.REWARDS.RARITY_BORDERS[rarity as keyof typeof GAMIFICATION_CONFIG.REWARDS.RARITY_BORDERS] || GAMIFICATION_CONFIG.REWARDS.RARITY_BORDERS.Common;
+  };
+
+  const getRarityBadgeStyle = (rarity: string) => {
+    return GAMIFICATION_CONFIG.REWARDS.RARITY_BADGES[rarity as keyof typeof GAMIFICATION_CONFIG.REWARDS.RARITY_BADGES] || GAMIFICATION_CONFIG.REWARDS.RARITY_BADGES.Common;
   };
 
   const isAchievementUnlocked = (achievementId: string) => {
@@ -107,6 +137,16 @@ const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubN
 
   const renderAchievements = () => {
     if (loading) return <LoadingScreen />;
+    
+    if (achievements.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <Icon name="TrophyIcon" className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-xl font-bold text-gray-500">No Achievements Found</h3>
+                <p className="text-gray-400">Complete missions to earn your first achievement!</p>
+            </div>
+        );
+    }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -137,11 +177,7 @@ const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubN
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{achievement.description}</p>
 
               <div className="flex gap-2 items-center mb-3">
-                <span className={`text-xs font-bold px-2 py-1 rounded ${achievement.rarity === 'Legendary' ? 'bg-yellow-100 text-yellow-700' :
-                    achievement.rarity === 'Epic' ? 'bg-purple-100 text-purple-700' :
-                      achievement.rarity === 'Rare' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-600'
-                  }`}>
+                <span className={`text-xs font-bold px-2 py-1 rounded ${getRarityBadgeStyle(achievement.rarity)}`}>
                   {achievement.rarity}
                 </span>
                 <span className="text-xs font-bold text-green-600">+{achievement.xp_reward} XP</span>
@@ -315,6 +351,15 @@ const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubN
   };
 
   const renderContent = () => {
+    if (!user) {
+        return (
+            <div className="text-center py-20">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Please Log In</h2>
+                <p className="text-gray-500">You need to be logged in to view gamification progress.</p>
+            </div>
+        );
+    }
+
     switch (activeTab) {
       case 'Leaderboards':
         return renderLeaderboard();
@@ -378,7 +423,7 @@ const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubN
         onSuccess={(content) => {
           console.log("New Challenge:", content);
           setIsAIModalOpen(false);
-          alert("New Challenge Generated! (Check console)");
+          addToast("New Challenge Generated! (Check console)", 'success');
         }}
         title="Generate Daily Challenge"
         promptTemplate={`Create a fun and engaging daily challenge for a user at Level ${level}.
@@ -386,7 +431,7 @@ const GamificationApp: React.FC<GamificationAppProps> = ({ activeTab, activeSubN
         Include:
         - Challenge Name
         - Description (what to do)
-        - XP Reward (${level * 50}-${level * 100} XP)
+        - XP Reward (${level * GAMIFICATION_CONFIG.AI_CHALLENGE.MIN_XP_MULTIPLIER}-${level * GAMIFICATION_CONFIG.AI_CHALLENGE.MAX_XP_MULTIPLIER} XP)
         - Completion Criteria
         - Tips for success`}
         contextData={{ level, xp, username: user?.name }}

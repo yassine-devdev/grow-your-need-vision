@@ -3,7 +3,7 @@
  * Centralizes the logic for routing users to their appropriate dashboards
  */
 
-export type UserRole = 'Owner' | 'Admin' | 'Teacher' | 'Student' | 'Parent' | 'Individual';
+export type UserRole = 'Owner' | 'Admin' | 'SchoolAdmin' | 'Teacher' | 'Student' | 'Parent' | 'Individual';
 
 /**
  * Maps user roles to their corresponding dashboard routes
@@ -11,6 +11,7 @@ export type UserRole = 'Owner' | 'Admin' | 'Teacher' | 'Student' | 'Parent' | 'I
 export const ROLE_ROUTES: Record<UserRole, string> = {
     Owner: '/admin',
     Admin: '/school-admin',
+    SchoolAdmin: '/school-admin',
     Teacher: '/teacher',
     Student: '/student',
     Parent: '/parent',
@@ -25,6 +26,9 @@ export const ROLE_ROUTES: Record<UserRole, string> = {
  */
 export function getRoleBasedRoute(role: string): string {
     if (!role) return ROLE_ROUTES.Individual;
+
+    const lower = role.toLowerCase();
+    if (lower.includes('schooladmin')) return ROLE_ROUTES.SchoolAdmin;
 
     // Capitalize first letter to match our ROLE_ROUTES keys
     // "owner" becomes "Owner", "admin" becomes "Admin", etc.

@@ -5,6 +5,7 @@ import pb from '../../../lib/pocketbase';
 import { Inquiry } from '../types';
 import { Modal, Button } from '../../../components/shared/ui/CommonUI';
 import { Input } from '../../../components/shared/ui/Input';
+import { isMockEnv } from '../../../utils/mockData';
 
 const STAGES = [
     { title: 'New Inquiry', color: 'bg-blue-500' },
@@ -13,6 +14,12 @@ const STAGES = [
     { title: 'Offer Sent', color: 'bg-green-500' },
     { title: 'Enrolled', color: 'bg-emerald-600' },
     { title: 'Rejected', color: 'bg-red-500' }
+];
+
+const MOCK_INQUIRIES: Inquiry[] = [
+    { id: 'm1', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Taylor Morgan', email: 'taylor@example.com', grade_interest: 'Grade 9', status: 'New Inquiry', source: 'Website' },
+    { id: 'm2', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Jordan Lee', email: 'jordan@example.com', grade_interest: 'Grade 10', status: 'Contacted', source: 'Open House' },
+    { id: 'm3', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Sam Rivera', email: 'sam@example.com', grade_interest: 'Grade 8', status: 'Offer Sent', source: 'Referral' }
 ];
 
 const AdmissionsPipeline: React.FC = () => {
@@ -33,7 +40,12 @@ const AdmissionsPipeline: React.FC = () => {
 
     const fetchInquiries = async () => {
         try {
-            const res = await pb.collection('crm_inquiries').getFullList<Inquiry>({ sort: '-created' });
+            if (isMockEnv()) {
+                setInquiries(MOCK_INQUIRIES);
+                return;
+            }
+
+            const res = await pb.collection('crm_inquiries').getFullList<Inquiry>({ sort: '-created', requestKey: null });
             setInquiries(res);
         } catch (e) {
             console.error("Error fetching inquiries:", e);
@@ -44,7 +56,19 @@ const AdmissionsPipeline: React.FC = () => {
 
     const handleCreateInquiry = async () => {
         try {
-            await pb.collection('crm_inquiries').create(newInquiry);
+            if (isMockEnv()) {
+                const mockRecord: Inquiry = {
+                    ...(newInquiry as Inquiry),
+                    id: `mock-${Date.now()}`,
+                    collectionId: 'mock',
+                    collectionName: 'crm_inquiries',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                };
+                setInquiries((prev) => [mockRecord, ...prev]);
+            } else {
+                await pb.collection('crm_inquiries').create(newInquiry);
+            }
             setIsModalOpen(false);
             fetchInquiries();
             setNewInquiry({ name: '', email: '', grade_interest: '', status: 'New Inquiry', source: 'Manual Entry' });
@@ -55,8 +79,12 @@ const AdmissionsPipeline: React.FC = () => {
 
     const updateStatus = async (id: string, newStatus: string) => {
         try {
-            await pb.collection('crm_inquiries').update(id, { status: newStatus });
-            fetchInquiries();
+            if (isMockEnv()) {
+                setInquiries((prev) => prev.map((inq) => inq.id === id ? { ...inq, status: newStatus, updated: new Date().toISOString() } : inq));
+            } else {
+                await pb.collection('crm_inquiries').update(id, { status: newStatus });
+                fetchInquiries();
+            }
         } catch (e) {
             console.error("Error updating status:", e);
         }

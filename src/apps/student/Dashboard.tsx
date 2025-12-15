@@ -127,7 +127,7 @@ export const StudentDashboard: React.FC = () => {
         <div className="p-6 space-y-6">
             {/* Welcome Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-black text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-black text-gray-900 dark:text-white" data-testid="welcome-msg">
                     Welcome back, {user?.name?.split(' ')[0]}! 👋
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">

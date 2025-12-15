@@ -140,6 +140,9 @@ export interface Booking extends RecordModel {
     date: string;
     status: 'Pending' | 'Confirmed' | 'Cancelled' | 'Completed';
     notes: string;
+    payment_status?: 'Unpaid' | 'Paid' | 'Refunded';
+    payment_reference?: string;
+    amount_paid?: number;
     expand?: {
         service?: Service;
         parent?: Student;

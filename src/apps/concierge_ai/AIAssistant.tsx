@@ -83,7 +83,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ context }) => {
                         <Icon name="Sparkles" className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">Concierge AI</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-white">Concierge Assistant</h3>
                         <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                             <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Online • {context || 'General Mode'}</span>
@@ -285,7 +285,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ context }) => {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={isListening ? "Listening..." : "Ask Concierge AI..."}
+                        placeholder={isListening ? "Listening..." : "Type a command or query..."}
                         className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 text-gray-800 dark:text-white placeholder-gray-400 min-h-[44px]"
                         disabled={isLoading}
                         autoComplete="off"

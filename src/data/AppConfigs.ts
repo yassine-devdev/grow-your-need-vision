@@ -21,9 +21,10 @@ export const NAV_CONFIG: Record<string, { label: string, icon: string, tabs: str
     crm: {
         label: 'Platform CRM',
         icon: 'Calculator',
-        tabs: ['Sales Pipeline', 'Tenant Accounts'],
+        tabs: ['Sales Pipeline', 'Communication', 'Tenant Accounts'],
         subnav: {
-            'Sales Pipeline': ['Deals', 'Contacts', 'Forecast'],
+            'Sales Pipeline': ['Deals', 'Contacts', 'Forecast', 'Analytics', 'Assignments', 'Enhancements'],
+            'Communication': ['Email'],
             'Tenant Accounts': ['Active', 'Onboarding']
         }
     },

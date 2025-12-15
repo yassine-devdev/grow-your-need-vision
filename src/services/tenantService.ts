@@ -1,5 +1,6 @@
 import pb from '../lib/pocketbase';
-import { RecordModel } from 'pocketbase';
+import { RecordModel, ListResult } from 'pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 export interface Tenant extends RecordModel {
     name: string;
@@ -57,35 +58,134 @@ export interface SubscriptionPlan extends RecordModel {
     is_active: boolean;
 }
 
+const fallbackSeed: Tenant[] = [
+    {
+        id: 'tenant-seed-1', collectionId: 'mock', collectionName: 'tenants', created: new Date().toISOString(), updated: new Date().toISOString(),
+        name: 'Northstar Academy', subdomain: 'northstar', plan: 'pro', status: 'active', subscription_status: 'active', admin_email: 'owner@growyourneed.com', admin_user: 'mock-owner', max_students: 500, max_teachers: 50, max_storage_gb: 200, features_enabled: ['analytics', 'reports'],
+        trial_ends_at: undefined, subscription_ends_at: undefined, branding: { primaryColor: '#1d4ed8', secondaryColor: '#f97316', fontFamily: 'Inter' }, settings: { allowRegistration: true, requireEmailVerification: false, defaultUserRole: 'Student', features: [] },
+        metadata: {},
+    },
+    {
+        id: 'tenant-seed-2', collectionId: 'mock', collectionName: 'tenants', created: new Date().toISOString(), updated: new Date().toISOString(),
+        name: 'Summit Prep', subdomain: 'summit', plan: 'basic', status: 'trial', subscription_status: 'trialing', admin_email: 'admin@school.com', admin_user: 'mock-admin', max_students: 200, max_teachers: 20, max_storage_gb: 50, features_enabled: ['crm'],
+        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), subscription_ends_at: undefined,
+        metadata: {},
+    }
+];
+
+let mockTenants: Tenant[] = [];
+
+const seedMockTenants = () => {
+    if (mockTenants.length === 0) {
+        mockTenants = fallbackSeed.map(t => ({ ...t }));
+    }
+    return mockTenants;
+};
+
+const ensureMockTenants = () => seedMockTenants();
+
 export const tenantService = {
     // Tenant CRUD
     getTenants: async (filter?: string) => {
-        return await pb.collection('tenants').getList<Tenant>(1, 50, {
-            filter: filter || '',
-            sort: '-created',
-            expand: 'admin_user'
-        });
-    },
+            const emptyResult: ListResult<Tenant> = {
+                page: 1,
+                perPage: 50,
+                totalItems: 0,
+                totalPages: 0,
+                items: [],
+            };
+
+            // In mock environments, always serve seeded tenants
+            if (isMockEnv()) {
+                const seeded = ensureMockTenants();
+                return {
+                    page: 1,
+                    perPage: 50,
+                    totalItems: seeded.length,
+                    totalPages: 1,
+                    items: seeded,
+                } as ListResult<Tenant>;
+            }
+
+            try {
+                const result = await pb.collection('tenants').getList<Tenant>(1, 50, {
+                    filter: filter || '',
+                    sort: '-created',
+                    expand: 'admin_user'
+                });
+                return result;
+            } catch (err) {
+                if (isMockEnv()) {
+                    console.warn('Tenant service mock fallback due to fetch error');
+                    const seeded = ensureMockTenants();
+                    return { page: 1, perPage: 50, totalItems: seeded.length, totalPages: 1, items: seeded } as ListResult<Tenant>;
+                }
+                console.warn('Tenant service failed, returning empty list');
+                return emptyResult;
+            }
+        },
 
     getTenantById: async (id: string) => {
+        if (isMockEnv()) {
+            ensureMockTenants();
+            return mockTenants.find(t => t.id === id) as Tenant;
+        }
         return await pb.collection('tenants').getOne<Tenant>(id, {
             expand: 'admin_user'
         });
     },
 
     createTenant: async (data: Omit<Tenant, 'id' | 'created' | 'updated' | 'collectionId' | 'collectionName'>) => {
+        if (isMockEnv()) {
+            ensureMockTenants();
+            const tenant = {
+                ...data,
+                id: `mock-tenant-${Date.now()}`,
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                collectionId: 'mock',
+                collectionName: 'tenants',
+            } as Tenant;
+            mockTenants.unshift(tenant);
+            return tenant;
+        }
         return await pb.collection('tenants').create<Tenant>(data);
     },
 
     updateTenant: async (id: string, data: Partial<Tenant>) => {
+        if (isMockEnv()) {
+            ensureMockTenants();
+            const idx = mockTenants.findIndex(t => t.id === id);
+            if (idx >= 0) {
+                mockTenants[idx] = { ...mockTenants[idx], ...data, updated: new Date().toISOString() } as Tenant;
+                return mockTenants[idx];
+            }
+            return null as any;
+        }
         return await pb.collection('tenants').update<Tenant>(id, data);
     },
 
     updateTenantStatus: async (id: string, status: Tenant['status']) => {
+        if (isMockEnv()) {
+            ensureMockTenants();
+            const tenant = mockTenants.find(t => t.id === id);
+            if (tenant) {
+                tenant.status = status;
+                tenant.updated = new Date().toISOString();
+                return tenant;
+            }
+            return null as any;
+        }
         return await pb.collection('tenants').update<Tenant>(id, { status });
     },
 
     deleteTenant: async (id: string) => {
+        if (isMockEnv()) {
+            ensureMockTenants();
+            const idx = mockTenants.findIndex(t => t.id === id);
+            if (idx >= 0) mockTenants.splice(idx, 1);
+            return true;
+        }
         return await pb.collection('tenants').delete(id);
     },
 
@@ -105,11 +205,16 @@ export const tenantService = {
     },
 
     getTenantUsers: async (tenantId: string) => {
+        if (isMockEnv()) {
+            return { items: [], totalItems: 0 } as any;
+        }
         return await pb.collection('users').getList(1, 100, {
             filter: `tenant = "${tenantId}"`,
             sort: '-created'
         });
     },
+
+    seedMockTenants,
 
     removeTenantUser: async (userId: string) => {
         return await pb.collection('users').delete(userId);

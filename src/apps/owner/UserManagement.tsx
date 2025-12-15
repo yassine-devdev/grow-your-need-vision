@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Icon, Badge, Input, Select } from '../../components/shared/ui/CommonUI';
 import { WidgetErrorBoundary } from '../../components/shared/ui/WidgetErrorBoundary';
 import { useApiError } from '../../hooks/useApiError';
+import { useAuth } from '../../context/AuthContext';
+import { DropdownMenu } from '../../components/shared/ui/DropdownMenu';
+import { IconButton } from '../../components/shared/ui/IconButton';
 import pb from '../../lib/pocketbase';
 
 interface User {
@@ -15,6 +18,7 @@ interface User {
 
 const UserManagement: React.FC = () => {
     const { handleError } = useApiError();
+    const { startImpersonation } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -145,10 +149,39 @@ const UserManagement: React.FC = () => {
                                                 {new Date(user.created).toLocaleDateString()}
                                             </td>
                                             <td className="p-4 text-right">
-                                                <Button variant="ghost" size="sm">
-                                                    <Icon name="EllipsisHorizontalIcon" className="w-5 h-5" />
-                                                </Button>
-                                            </td>
+                                                <td className="p-4 text-right">
+                                                    <DropdownMenu
+                                                        trigger={<IconButton name="EllipsisHorizontalIcon" />}
+                                                        align="right"
+                                                        items={[
+                                                            {
+                                                                label: 'View Profile',
+                                                                icon: 'User',
+                                                                onClick: () => console.log('View profile', user.id)
+                                                            },
+                                                            {
+                                                                label: 'Impersonate User',
+                                                                icon: 'Eye',
+                                                                onClick: async () => {
+                                                                    // Use a direct window confirm for safety
+                                                                    if (window.confirm(`Are you sure you want to impersonate ${user.name}?`)) {
+                                                                        try {
+                                                                            // We need to access startImpersonation from useAuth, but hooks rule prevents call here
+                                                                            // So we will pass a handler or use hook at top level.
+                                                                            // Wait, I can't access `startImpersonation` here because I'm inside map.
+                                                                            // I need to use the one from top level.
+                                                                            await startImpersonation(user.id);
+                                                                            // Force reload to dashboard
+                                                                            window.location.href = '/';
+                                                                        } catch (e) {
+                                                                            alert('Failed to impersonate: ' + e);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]}
+                                                    />
+                                                </td>
                                         </tr>
                                     ))
                                 )}

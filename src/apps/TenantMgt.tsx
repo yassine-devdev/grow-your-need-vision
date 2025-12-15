@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Icon, EmptyState } from '../components/shared/ui/CommonUI';
 import { DropdownMenu } from '../components/shared/ui/DropdownMenu';
 import { tenantService, Tenant } from '../services/tenantService';
-import { SchoolOnboardingWizard } from './school/SchoolOnboardingWizard';
+import { TenantOnboardingFlow } from './owner/TenantOnboardingFlow';
 import { SchoolDetail } from './school/SchoolDetail';
 import { PlatformBilling } from './school/PlatformBilling';
 
@@ -18,7 +18,10 @@ import { Avatar } from '../components/shared/ui/Avatar';
 import { IconButton } from '../components/shared/ui/IconButton';
 import { Pagination } from '../components/shared/ui/Pagination';
 import { useToggle } from '../hooks/useToggle';
+import { exportToCSV, exportToPDF } from '../utils/exportUtils';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
+import { DatePicker } from '../components/shared/ui/DatePicker';
+import { isMockEnv } from '../utils/mockData';
 
 interface TenantMgtProps {
     activeTab: string;
@@ -31,15 +34,57 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
     const [isWizardOpen, toggleWizard] = useToggle(false);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
     const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+    const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
 
     // Filter & Pagination State
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All Statuses');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 6;
 
     const handleCreateComplete = (newTenant: Tenant) => {
         setTenants([newTenant, ...tenants]);
+    };
+
+    const handleToggleSelect = (id: string) => {
+        setSelectedTenantIds(prev =>
+            prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectedTenantIds.length === filteredTenants.length) {
+            setSelectedTenantIds([]);
+        } else {
+            setSelectedTenantIds(filteredTenants.map(t => t.id));
+        }
+    };
+
+    const handleBulkAction = async (action: 'suspend' | 'activate' | 'delete') => {
+        if (selectedTenantIds.length === 0) {
+            alert('Please select at least one tenant');
+            return;
+        }
+
+        const confirmMessage = `Are you sure you want to ${action} ${selectedTenantIds.length} tenant(s)?`;
+        if (!window.confirm(confirmMessage)) return;
+
+        console.log(`Bulk ${action}:`, selectedTenantIds);
+        // TODO: Implement actual bulk API calls
+
+        if (action === 'delete') {
+            setTenants(tenants.filter(t => !selectedTenantIds.includes(t.id)));
+        } else {
+            const newStatus = action === 'suspend' ? 'suspended' : 'active';
+            setTenants(tenants.map(t =>
+                selectedTenantIds.includes(t.id) ? { ...t, status: newStatus as Tenant['status'] } : t
+            ));
+        }
+
+        setSelectedTenantIds([]);
+        alert(`Successfully ${action}ed ${selectedTenantIds.length} tenant(s)`);
     };
 
     const handleUpdateStatus = async (id: string, status: Tenant['status']) => {
@@ -67,9 +112,18 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
         const fetchTenants = async () => {
             setLoading(true);
             try {
-                // Fetch all tenants for now as specific methods are not implemented
-                const response = await tenantService.getTenants();
-                setTenants(response.items);
+                const hashPath = typeof window !== 'undefined' ? window.location.hash : '';
+                const shouldSeed = isMockEnv() && hashPath.includes('/admin/school');
+
+                if (shouldSeed) {
+                    const seeded = tenantService.seedMockTenants();
+                    setTenants([...seeded]);
+                } else if (isMockEnv()) {
+                    setTenants([]);
+                } else {
+                    const response = await tenantService.getTenants();
+                    setTenants(response.items);
+                }
             } catch (error) {
                 console.error('Failed to fetch tenants:', error);
             } finally {
@@ -85,10 +139,25 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
         const matchesSearch = tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             tenant.id.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All Statuses' || tenant.status === statusFilter;
-        return matchesSearch && matchesStatus;
+
+        let matchesDate = true;
+        if (startDate || endDate) {
+            const tenantDate = new Date(tenant.created);
+            if (startDate) {
+                matchesDate = matchesDate && tenantDate >= new Date(startDate);
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                matchesDate = matchesDate && tenantDate <= end;
+            }
+        }
+
+        return matchesSearch && matchesStatus && matchesDate;
     });
 
     console.log(`TenantMgt: Tenants: ${tenants.length}, Filtered: ${filteredTenants.length}`); // Debug log
+
 
     // Pagination Logic
     const totalItems = filteredTenants.length;
@@ -145,7 +214,26 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                         </Select>
                     </div>
 
-                    <div className="w-full md:w-80">
+                    <div className="flex gap-2">
+                        <div className="w-36">
+                            <DatePicker
+                                label="Start"
+                                value={startDate}
+                                onChange={setStartDate}
+                                max={endDate || undefined}
+                            />
+                        </div>
+                        <div className="w-36">
+                            <DatePicker
+                                label="End"
+                                value={endDate}
+                                onChange={setEndDate}
+                                min={startDate || undefined}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="w-full md:w-64">
                         <SearchInput
                             placeholder="Search tenants..."
                             value={searchQuery}
@@ -159,6 +247,8 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                         onClick={() => {
                             setSearchQuery('');
                             setStatusFilter('All Statuses');
+                            setStartDate('');
+                            setEndDate('');
                         }}
                     >
                         Reset Filters
@@ -173,7 +263,76 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
                         <Icon name="Sparkles" className="w-4 h-4" />
                         AI Insights
                     </Button>
+
+                    <DropdownMenu
+                        trigger={
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <Icon name="ArrowDownTrayIcon" className="w-4 h-4" />
+                                Export
+                            </Button>
+                        }
+                        items={[
+                            {
+                                label: 'Export as CSV',
+                                icon: 'DocumentTextIcon',
+                                onClick: () => {
+                                    const data = filteredTenants.map(t => ({
+                                        ID: t.id,
+                                        Name: t.name,
+                                        Type: t.type,
+                                        Status: t.status,
+                                        Plan: t.subscription?.plan || 'N/A',
+                                        Users: t.users_count,
+                                        Created: new Date(t.created).toLocaleDateString(),
+                                        Region: t.region
+                                    }));
+                                    exportToCSV(data, 'tenants_export');
+                                }
+                            },
+                            {
+                                label: 'Export as PDF',
+                                icon: 'DocumentTextIcon',
+                                onClick: () => {
+                                    const columns = ['ID', 'Name', 'Type', 'Status', 'Plan', 'Users', 'Created', 'Region'];
+                                    const rows = filteredTenants.map(t => [
+                                        t.id,
+                                        t.name,
+                                        t.type,
+                                        t.status,
+                                        t.subscription?.plan || 'N/A',
+                                        t.users_count,
+                                        new Date(t.created).toLocaleDateString(),
+                                        t.region
+                                    ]);
+                                    exportToPDF(columns, rows, 'tenants_report', 'Tenant List Report');
+                                }
+                            }
+                        ]}
+                    />
                 </div>
+
+                {/* Bulk Actions Toolbar */}
+                {selectedTenantIds.length > 0 && (
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between mb-4">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {selectedTenantIds.length} tenant(s) selected
+                        </span>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleBulkAction('activate')}>
+                                <Icon name="CheckCircleIcon" className="w-4 h-4 mr-1" />
+                                Activate
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleBulkAction('suspend')}>
+                                <Icon name="PauseIcon" className="w-4 h-4 mr-1" />
+                                Suspend
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleBulkAction('delete')} className="text-red-600">
+                                <Icon name="TrashIcon" className="w-4 h-4 mr-1" />
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Glass Table */}
                 <div className="flex-1 overflow-x-auto relative">
@@ -290,10 +449,13 @@ const TenantMgt: React.FC<TenantMgtProps> = ({ activeTab, activeSubNav }) => {
             </GlassCard>
 
             {/* Onboarding Wizard */}
-            <SchoolOnboardingWizard
+            <TenantOnboardingFlow
                 isOpen={isWizardOpen}
                 onClose={toggleWizard}
-                onComplete={handleCreateComplete}
+                onComplete={(tenant) => {
+                    handleCreateComplete(tenant);
+                    toggleWizard();
+                }}
             />
 
             <AIContentGeneratorModal

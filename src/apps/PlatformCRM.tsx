@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Icon, Card, Button, Badge, Avatar, Modal } from '../components/shared/ui/CommonUI';
 import { DropdownMenu } from '../components/shared/ui/DropdownMenu';
 import { Input } from '../components/shared/ui/Input';
@@ -7,6 +7,13 @@ import { crmService, Deal, Contact, ForecastData } from '../services/crmService'
 import { tenantService, Tenant } from '../services/tenantService';
 import { reportService } from '../services/reportService';
 import { AIContentGeneratorModal } from '../components/shared/modals/AIContentGeneratorModal';
+
+// Lazy load CRM components
+const ContactsManager = React.lazy(() => import('./crm/ContactsManager'));
+const EmailIntegration = React.lazy(() => import('./crm/EmailIntegration'));
+const CRMAnalytics = React.lazy(() => import('./crm/CRMAnalytics'));
+const DealAssignment = React.lazy(() => import('./crm/DealAssignment'));
+const DealEnhancements = React.lazy(() => import('./crm/DealEnhancements'));
 
 interface PlatformCRMProps {
     activeTab: string;
@@ -300,41 +307,41 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
 
             {/* Contacts View */}
             {activeTab === 'Sales Pipeline' && activeSubNav === 'Contacts' && (
-                <Card className="overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                        <h3 className="font-bold text-gray-800 dark:text-white">Contacts Directory</h3>
-                        <Button variant="primary" size="sm">Add Contact</Button>
+                <Suspense fallback={
+                    <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold uppercase text-xs">
-                                <tr>
-                                    <th className="px-6 py-4">Name</th>
-                                    <th className="px-6 py-4">Role</th>
-                                    <th className="px-6 py-4">Company</th>
-                                    <th className="px-6 py-4">Last Contact</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                {contacts.map(contact => (
-                                    <tr key={contact.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-gray-800 dark:text-white">{contact.name}</div>
-                                            <div className="text-xs text-gray-400">{contact.email}</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{contact.role}</td>
-                                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{contact.company}</td>
-                                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{new Date(contact.last_contact).toLocaleDateString()}</td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold text-xs">View</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
+                }>
+                    <ContactsManager />
+                </Suspense>
+            )}
+
+            {/* Analytics View */}
+            {activeTab === 'Sales Pipeline' && activeSubNav === 'Analytics' && (
+                <Suspense fallback={<div>Loading analytics...</div>}>
+                    <CRMAnalytics />
+                </Suspense>
+            )}
+
+            {/* Assignments View */}
+            {activeTab === 'Sales Pipeline' && activeSubNav === 'Assignments' && (
+                <Suspense fallback={<div>Loading assignments...</div>}>
+                    <DealAssignment />
+                </Suspense>
+            )}
+
+            {/* Deal Enhancements View */}
+            {activeTab === 'Sales Pipeline' && activeSubNav === 'Enhancements' && (
+                <Suspense fallback={<div>Loading enhancements...</div>}>
+                    <DealEnhancements />
+                </Suspense>
+            )}
+
+            {/* Email Integration View */}
+            {(activeTab === 'Communication' || activeSubNav === 'Email') && (
+                <Suspense fallback={<div>Loading email center...</div>}>
+                    <EmailIntegration />
+                </Suspense>
             )}
 
             {/* Forecast View */}
@@ -368,7 +375,6 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                             <Icon name="ArrowTrendingUpIcon" className="w-10 h-10 text-green-400" />
                         </div>
                         <h2 className="text-4xl font-black mb-2">$425,000</h2>
-                        <p className="text-blue-200 font-medium mb-8">Total Projected Revenue (Q1-Q2)</p>
                         <p className="text-blue-200 font-medium mb-8">Total Projected Revenue (Q1-Q2)</p>
                         <div className="flex gap-2">
                             <Button variant="secondary" className="bg-white text-blue-900 hover:bg-blue-50" onClick={() => handleExportForecast('pdf')}>Download PDF</Button>

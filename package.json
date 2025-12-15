@@ -26,8 +26,8 @@
     "@aws-sdk/client-s3": "^3.943.0",
     "@aws-sdk/s3-request-presigner": "^3.943.0",
     "@blueprintjs/core": "^6.4.0",
+    "@capacitor/core": "^8.0.0",
     "@medusajs/medusa-js": "^6.1.10",
-    "remotion": "^4.0.278",
     "@remotion/bundler": "^4.0.278",
     "@remotion/gif": "^4.0.278",
     "@remotion/media-utils": "^4.0.278",
@@ -56,11 +56,13 @@
     "react-to-print": "^3.2.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "remotion": "^4.0.278",
     "tailwind-merge": "^3.4.0",
     "web-vitals": "^5.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.1.17",
@@ -85,6 +87,7 @@
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.48.1",
     "vite": "^6.2.0",
+    "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.15"
   }
 }

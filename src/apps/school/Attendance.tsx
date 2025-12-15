@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Heading1, Text } from '../../components/shared/ui/Typography';
 import { Card } from '../../components/shared/ui/Card';
 import { Button } from '../../components/shared/ui/Button';
@@ -7,6 +7,9 @@ import { Badge } from '../../components/shared/ui/Badge';
 import { Icon as OwnerIcon } from '../../components/shared/ui/CommonUI';
 import pb from '../../lib/pocketbase';
 import { SchoolClass, AttendanceRecord, Enrollment, Student } from './types';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../hooks/useToast';
+import env from '../../config/environment';
 
 interface AttendanceProps {
     activeTab?: string;
@@ -14,6 +17,8 @@ interface AttendanceProps {
 }
 
 const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
+    const { user } = useAuth();
+    const { addToast } = useToast();
     const [classes, setClasses] = useState<SchoolClass[]>([]);
     const [selectedClass, setSelectedClass] = useState<string>('');
     const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -27,30 +32,52 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
         excused: 0,
         attendanceRate: 0
     });
+    const [aggregateFrom, setAggregateFrom] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(1);
+        return d.toISOString().split('T')[0];
+    });
+    const [aggregateTo, setAggregateTo] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [aggregateCounts, setAggregateCounts] = useState<{ total: number; counts: Record<string, number> }>({ total: 0, counts: {} });
+
+    const apiBase = env.get('apiUrl') || '/api';
+    const serviceApiKey = env.get('serviceApiKey');
+    const tenantId = user?.tenantId;
+    const canManage = useMemo(() => ['Teacher', 'SchoolAdmin', 'Owner'].includes((user as any)?.role), [user]);
 
     useEffect(() => {
         const loadClasses = async () => {
             try {
-                const result = await pb.collection('school_classes').getFullList<SchoolClass>({
+                const result = await pb.collection('school_classes').getList<SchoolClass>(1, 50, {
                     sort: 'name',
+                    filter: user?.tenantId ? `tenantId = "${user.tenantId}"` : undefined,
+                    requestKey: null
                 });
-                setClasses(result);
-                if (result.length > 0) {
-                    setSelectedClass(result[0].id);
+                setClasses(result.items);
+                if (result.items.length > 0) {
+                    setSelectedClass(result.items[0].id);
                 }
             } catch (error) {
                 console.error('Failed to load classes:', error);
+                addToast('Failed to load classes', 'error');
             }
         };
         loadClasses();
-    }, []);
+    }, [user?.tenantId, addToast]);
 
     // Load data when class or date changes
     useEffect(() => {
         if (selectedClass) {
             fetchData();
+            fetchAggregates();
         }
     }, [selectedClass, attendanceDate]);
+
+    useEffect(() => {
+        if (selectedClass) {
+            fetchAggregates();
+        }
+    }, [aggregateFrom, aggregateTo, selectedClass]);
 
     const updateStats = (statuses: string[]) => {
         const total = statuses.length;
@@ -74,8 +101,9 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
         try {
             // 1. Get enrolled students
             const enrollments = await pb.collection('enrollments').getFullList<Enrollment>({
-                filter: `class="${selectedClass}"`,
-                expand: 'student'
+                filter: `class="${selectedClass}"${user?.tenantId ? ` && tenantId = "${user.tenantId}"` : ''}`,
+                expand: 'student',
+                requestKey: null
             });
             
             const classStudents = enrollments
@@ -89,7 +117,8 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
             const endOfDay = `${attendanceDate} 23:59:59`;
             
             const attendance = await pb.collection('attendance_records').getFullList<AttendanceRecord>({
-                filter: `class="${selectedClass}" && date >= "${startOfDay}" && date <= "${endOfDay}"`
+                filter: `class="${selectedClass}" && date >= "${startOfDay}" && date <= "${endOfDay}"${user?.tenantId ? ` && tenantId = "${user.tenantId}"` : ''}`,
+                requestKey: null
             });
 
             const statusMap: Record<string, string> = {};
@@ -103,8 +132,51 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
 
         } catch (error) {
             console.error('Failed to load attendance data:', error);
+            addToast('Failed to load attendance data', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAggregates = async () => {
+        if (!selectedClass) return;
+        try {
+            const res = await fetch(`${apiBase}/school/attendance/aggregates?classId=${selectedClass}&from=${aggregateFrom}&to=${aggregateTo}`, {
+                headers: {
+                    'x-api-key': serviceApiKey,
+                    'x-tenant-id': tenantId || '',
+                    'x-user-role': user?.role || 'Teacher'
+                }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAggregateCounts({ total: data.total || 0, counts: data.counts || {} });
+            }
+        } catch (error) {
+            console.error('Failed to load aggregates', error);
+        }
+    };
+
+    const downloadCsv = async () => {
+        if (!selectedClass) return;
+        try {
+            const res = await fetch(`${apiBase}/school/attendance/export?classId=${selectedClass}&date=${attendanceDate}`, {
+                headers: {
+                    'x-api-key': serviceApiKey,
+                    'x-tenant-id': tenantId || '',
+                    'x-user-role': user?.role || 'Teacher'
+                }
+            });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance-${attendanceDate}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            addToast('Failed to export attendance', 'error');
         }
     };
 
@@ -122,7 +194,8 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
 
             // Check if record exists
             const existingRecords = await pb.collection('attendance_records').getList<AttendanceRecord>(1, 1, {
-                filter: `class="${selectedClass}" && student="${studentId}" && date >= "${startOfDay}" && date <= "${endOfDay}"`
+                filter: `class="${selectedClass}" && student="${studentId}" && date >= "${startOfDay}" && date <= "${endOfDay}"${user?.tenantId ? ` && tenantId = "${user.tenantId}"` : ''}`,
+                requestKey: null
             });
 
             if (existingRecords.items.length > 0) {
@@ -132,13 +205,15 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                     class: selectedClass,
                     date: `${attendanceDate} 12:00:00`, // Set a default time
                     student: studentId,
-                    status
+                    status,
+                    tenantId: user?.tenantId
                 });
             }
         } catch (error) {
             console.error('Failed to mark attendance:', error);
             // Revert on error (could add toast here)
             fetchData();
+            addToast('Failed to mark attendance', 'error');
         }
     };
 
@@ -158,13 +233,15 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                     class: selectedClass,
                     date: `${attendanceDate} 12:00:00`,
                     student: studentId,
-                    status
+                    status,
+                    tenantId: user?.tenantId
                 })
             );
             await Promise.all(promises);
             await fetchData();
         } catch (error) {
             console.error('Failed to bulk mark attendance:', error);
+            addToast('Failed to bulk mark attendance', 'error');
         } finally {
             setLoading(false);
         }
@@ -176,15 +253,17 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                 <div>
                     <Heading1>Attendance Tracking</Heading1>
                     <Text variant="muted">Manage daily attendance for your classes</Text>
+                    {!canManage && <div className="text-xs text-red-500 mt-1">View only. Attendance marking limited to teachers/admins.</div>}
                 </div>
                 <div className="flex gap-2">
                     <Button
                         variant="secondary"
                         onClick={() => handleBulkMark('Present')}
-                        disabled={loading || !selectedClass}
+                        disabled={loading || !selectedClass || !canManage}
                     >
                         Mark Remaining Present
                     </Button>
+                    <Button variant="ghost" onClick={downloadCsv} disabled={!selectedClass || !canManage}>Export CSV</Button>
                 </div>
             </div>
 
@@ -215,6 +294,16 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                                 onChange={e => setAttendanceDate(e.target.value)}
                             />
                         </div>
+                        <div className="flex gap-3 items-end">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Agg. From</label>
+                                <input type="date" className="w-40 p-2 border border-gray-300 rounded-md" value={aggregateFrom} onChange={e => setAggregateFrom(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Agg. To</label>
+                                <input type="date" className="w-40 p-2 border border-gray-300 rounded-md" value={aggregateTo} onChange={e => setAggregateTo(e.target.value)} />
+                            </div>
+                        </div>
                     </div>
                 </Card>
 
@@ -235,6 +324,19 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                         <span>Present: {stats.present}</span>
                         <span>Absent: {stats.absent}</span>
                         <span>Late: {stats.late}</span>
+                    </div>
+                </Card>
+
+                <Card className="p-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-500">Aggregates ({aggregateFrom} → {aggregateTo})</span>
+                        <Badge variant="neutral">{aggregateCounts.total} records</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="p-3 rounded-lg bg-green-50 text-green-700 font-semibold">Present: {aggregateCounts.counts?.Present || 0}</div>
+                        <div className="p-3 rounded-lg bg-red-50 text-red-700 font-semibold">Absent: {aggregateCounts.counts?.Absent || 0}</div>
+                        <div className="p-3 rounded-lg bg-yellow-50 text-yellow-700 font-semibold">Late: {aggregateCounts.counts?.Late || 0}</div>
+                        <div className="p-3 rounded-lg bg-blue-50 text-blue-700 font-semibold">Excused: {aggregateCounts.counts?.Excused || 0}</div>
                     </div>
                 </Card>
             </div>
@@ -288,6 +390,7 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                                                 <button
                                                     onClick={() => handleMarkAttendance(student.id, 'Present')}
                                                     className={`p-2 rounded-full transition-colors ${status === 'Present' ? 'bg-green-100 text-green-600 ring-2 ring-green-500' : 'text-gray-400 hover:bg-gray-100'}`}
+                                                    disabled={!canManage}
                                                 >
                                                     <OwnerIcon name="CheckCircleIcon" className="w-6 h-6" />
                                                 </button>
@@ -296,6 +399,7 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                                                 <button
                                                     onClick={() => handleMarkAttendance(student.id, 'Absent')}
                                                     className={`p-2 rounded-full transition-colors ${status === 'Absent' ? 'bg-red-100 text-red-600 ring-2 ring-red-500' : 'text-gray-400 hover:bg-gray-100'}`}
+                                                    disabled={!canManage}
                                                 >
                                                     <OwnerIcon name="XCircleIcon" className="w-6 h-6" />
                                                 </button>
@@ -304,6 +408,7 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                                                 <button
                                                     onClick={() => handleMarkAttendance(student.id, 'Late')}
                                                     className={`p-2 rounded-full transition-colors ${status === 'Late' ? 'bg-yellow-100 text-yellow-600 ring-2 ring-yellow-500' : 'text-gray-400 hover:bg-gray-100'}`}
+                                                    disabled={!canManage}
                                                 >
                                                     <OwnerIcon name="ClockIcon" className="w-6 h-6" />
                                                 </button>
@@ -312,6 +417,7 @@ const Attendance: React.FC<AttendanceProps> = ({ activeTab, activeSubNav }) => {
                                                 <button
                                                     onClick={() => handleMarkAttendance(student.id, 'Excused')}
                                                     className={`p-2 rounded-full transition-colors ${status === 'Excused' ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-500' : 'text-gray-400 hover:bg-gray-100'}`}
+                                                    disabled={!canManage}
                                                 >
                                                     <OwnerIcon name="InformationCircleIcon" className="w-6 h-6" />
                                                 </button>

@@ -4,6 +4,7 @@ import { getModuleConfig } from '../modules/registry';
 import pb from '../lib/pocketbase';
 import { billingService } from '../services/billingService';
 import { toolService, Tool } from '../services/toolService';
+import { isMockEnv } from '../utils/mockData';
 import { Button, Card, Badge, Modal, Icon } from '../components/shared/ui/CommonUI';
 import { MarketingDashboard } from './tool_platform/MarketingDashboard';
 import { FinanceDashboard } from './tool_platform/FinanceDashboard';
@@ -29,10 +30,20 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
     useEffect(() => {
         const fetchStats = async () => {
             try {
+                const navConfig = getModuleConfig();
+
+                if (isMockEnv()) {
+                    setStats({
+                        dailyEvents: 12500,
+                        revenue: 42500,
+                        activeModules: Object.keys(navConfig.tool_platform.subnav).length
+                    });
+                    return;
+                }
+
                 const usersResult = await pb.collection('users').getList(1, 1);
                 const userCount = usersResult.totalItems;
                 const billingStats = await billingService.getBillingStats();
-                const navConfig = getModuleConfig();
 
                 setStats({
                     dailyEvents: userCount * 12,
@@ -41,6 +52,14 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
                 });
             } catch (e) {
                 console.error("Failed to fetch stats", e);
+                if (isMockEnv()) {
+                    const navConfig = getModuleConfig();
+                    setStats({
+                        dailyEvents: 12500,
+                        revenue: 42500,
+                        activeModules: Object.keys(navConfig.tool_platform.subnav).length
+                    });
+                }
             }
         };
         fetchStats();
@@ -199,7 +218,7 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
             </div>
 
             {activeTab === 'Overview' ? renderOverview() :
-                activeTab === 'Marketing' ? <MarketingDashboard /> :
+                activeTab === 'Marketing' ? <MarketingDashboard activeSubNav={activeSubNav} /> :
                     activeTab === 'Finance' ? <FinanceDashboard /> :
                         activeTab === 'Business' ? <BusinessLogic /> :
                             activeTab === 'Marketplace' ? <MarketplaceDashboard /> :

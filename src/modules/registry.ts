@@ -12,6 +12,7 @@ const ConciergeAI = React.lazy(() => import('../apps/ConciergeAI'));
 const Wellness = React.lazy(() => import('../apps/Wellness'));
 const Tools = React.lazy(() => import('../apps/Tools'));
 const PlatformSettings = React.lazy(() => import('../apps/PlatformSettings'));
+const OverlaySettings = React.lazy(() => import('../apps/OverlaySettings'));
 const UserManagement = React.lazy(() => import('../apps/owner/UserManagement'));
 
 export const MODULE_REGISTRY: ModuleDefinition[] = [
@@ -136,16 +137,28 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
         subnav: {}
     },
     {
+        id: 'overlay_setting',
+        label: 'Overlay-Setting',
+        icon: 'SquaresPlus',
+        component: OverlaySettings,
+        tabs: ['Overview', 'Content', 'Apps', 'Versions'],
+        subnav: {
+            'Apps': ['Studio', 'Media', 'Messaging', 'Help', 'Hobbies', 'Religion', 'Sport', 'Events', 'Services', 'Gamification', 'Calendar', 'Marketplace'],
+            'Content': ['Templates', 'Global Assets', 'Themes']
+        }
+    },
+    {
         id: 'settings',
         label: 'Platform Settings',
         icon: 'Cog6Tooth',
         component: PlatformSettings,
-        tabs: ['General', 'Integrations', 'Security', 'Legal'],
+        tabs: ['General', 'Integrations', 'Security', 'Legal', 'Appearance'],
         subnav: {
             'General': ['Branding', 'Localization'],
             'Integrations': ['Email', 'Analytics', 'Payment'],
             'Security': ['Access Control', 'Audit Logs'],
-            'Legal': ['Terms', 'Privacy']
+            'Legal': ['Terms', 'Privacy'],
+            'Appearance': ['Themes']
         }
     }
 ];

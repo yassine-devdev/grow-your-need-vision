@@ -1,120 +1,303 @@
 import React, { useState, useEffect } from 'react';
-import { billingService, Invoice } from '../../services/billingService';
+import { Card, Icon, Badge, Button } from '../../components/shared/ui/CommonUI';
 import { SubscriptionPlans } from '../owner/SubscriptionPlans';
-import { OwnerIcon } from '../../components/shared/OwnerIcons';
-import { GlassCard } from '../../components/shared/ui/GlassCard';
-import { Table, Thead, Tr, Th, Td } from '../../components/shared/ui/Table';
-import { Badge } from '../../components/shared/ui/Badge';
-import { Button } from '../../components/shared/ui/Button';
 
 interface PlatformBillingProps {
-    activeSubNav: string;
+    activeSubNav?: string;
 }
 
-export const PlatformBilling: React.FC<PlatformBillingProps> = ({ activeSubNav }) => {
+interface Invoice {
+    id: string;
+    tenant_name: string;
+    tenant_id: string;
+    amount: number;
+    status: 'paid' | 'pending' | 'overdue' | 'cancelled';
+    due_date: string;
+    paid_date?: string;
+    plan_name: string;
+    period: string;
+}
+
+interface PaymentGateway {
+    id: string;
+    name: string;
+    type: 'stripe' | 'paypal' | 'bank_transfer';
+    enabled: boolean;
+    test_mode: boolean;
+    status: 'connected' | 'disconnected' | 'error';
+    last_transaction?: string;
+}
+
+export const PlatformBilling: React.FC<PlatformBillingProps> = ({ activeSubNav = 'Plans' }) => {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [totalRevenue, setTotalRevenue] = useState(0);
+    const [pendingAmount, setPendingAmount] = useState(0);
+    const [overdueCount, setOverdueCount] = useState(0);
+
+    // Payment gateways state
+    const [gateways, setGateways] = useState<PaymentGateway[]>([
+        {
+            id: '1',
+            name: 'Stripe',
+            type: 'stripe',
+            enabled: true,
+            test_mode: false,
+            status: 'connected',
+            last_transaction: '2 hours ago'
+        },
+        {
+            id: '2',
+            name: 'PayPal',
+            type: 'paypal',
+            enabled: false,
+            test_mode: true,
+            status: 'disconnected'
+        },
+        {
+            id: '3',
+            name: 'Bank Transfer',
+            type: 'bank_transfer',
+            enabled: true,
+            test_mode: false,
+            status: 'connected',
+            last_transaction: '1 day ago'
+        }
+    ]);
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                if (activeSubNav === 'Invoices') {
-                    const result = await billingService.getInvoices();
-                    setInvoices(result.items);
-                }
-            } catch (error) {
-                console.error("Failed to fetch billing data", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+        if (activeSubNav === 'Invoices') {
+            loadInvoices();
+        }
     }, [activeSubNav]);
 
-    if (activeSubNav === 'Gateways') {
-        return (
-            <GlassCard className="p-8 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <OwnerIcon name="CreditCard" className="w-8 h-8 text-blue-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800">Payment Gateways</h2>
-                <p className="text-gray-500 mb-6">Configure Stripe, PayPal, and other payment providers.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                    <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between bg-white">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-                            <div className="text-left">
-                                <div className="font-bold text-gray-800">Stripe</div>
-                                <div className="text-xs text-green-600 font-bold">Connected</div>
-                            </div>
-                        </div>
-                        <Button variant="ghost" size="sm">Configure</Button>
-                    </div>
-                    <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between bg-white opacity-60">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-800 rounded-lg flex items-center justify-center text-white font-bold">P</div>
-                            <div className="text-left">
-                                <div className="font-bold text-gray-800">PayPal</div>
-                                <div className="text-xs text-gray-400">Not Connected</div>
-                            </div>
-                        </div>
-                        <Button variant="ghost" size="sm">Connect</Button>
-                    </div>
-                </div>
-            </GlassCard>
-        );
-    }
+    const loadInvoices = async () => {
+        try {
+            // TODO: Replace with actual PocketBase query
+            const mockInvoices: Invoice[] = [
+                {
+                    id: '1',
+                    tenant_name: 'Greenwood High School',
+                    tenant_id: 'tenant_001',
+                    amount: 299.99,
+                    status: 'paid',
+                    due_date: '2024-01-01',
+                    paid_date: '2023-12-28',
+                    plan_name: 'Premium',
+                    period: 'January 2024'
+                },
+                {
+                    id: '2',
+                    tenant_name: 'Individual - John Doe',
+                    tenant_id: 'tenant_002',
+                    amount: 49.99,
+                    status: 'pending',
+                    due_date: '2024-01-15',
+                    plan_name: 'Basic',
+                    period: 'January 2024'
+                },
+                {
+                    id: '3',
+                    tenant_name: 'Riverside Academy',
+                    tenant_id: 'tenant_003',
+                    amount: 499.99,
+                    status: 'overdue',
+                    due_date: '2023-12-20',
+                    plan_name: 'Enterprise',
+                    period: 'December 2023'
+                }
+            ];
 
-    if (activeSubNav === 'Plans') {
+            setInvoices(mockInvoices);
+
+            // Calculate stats
+            const total = mockInvoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
+            const pending = mockInvoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + inv.amount, 0);
+            const overdue = mockInvoices.filter(inv => inv.status === 'overdue').length;
+
+            setTotalRevenue(total);
+            setPendingAmount(pending);
+            setOverdueCount(overdue);
+        } catch (error) {
+            console.error('Failed to load invoices:', error);
+        }
+    };
+
+    const renderPlansView = () => {
         return <SubscriptionPlans />;
-    }
+    };
 
-    // Default: Invoices
-    return (
-        <GlassCard>
-            <div className="p-6 border-b border-white/50 flex justify-between items-center">
-                <h3 className="font-bold text-lg text-gray-800">Platform Invoices</h3>
-                <Button variant="ghost" size="sm">Export CSV</Button>
+    const renderInvoicesView = () => {
+        return (
+            <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="p-6 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800 border-blue-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${totalRevenue.toFixed(2)}</p>
+                            </div>
+                            <Icon name="CurrencyDollarIcon" className="w-10 h-10 text-blue-500" />
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/20 dark:to-gray-800 border-yellow-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${pendingAmount.toFixed(2)}</p>
+                            </div>
+                            <Icon name="ClockIcon" className="w-10 h-10 text-yellow-500" />
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-gray-800 border-red-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{overdueCount}</p>
+                            </div>
+                            <Icon name="ExclamationTriangleIcon" className="w-10 h-10 text-red-500" />
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800 border-green-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Total Invoices</p>
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{invoices.length}</p>
+                            </div>
+                            <Icon name="DocumentTextIcon" className="w-10 h-10 text-green-500" />
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Invoices Table */}
+                <Card className="overflow-hidden">
+                    <div className="p-6 border-b">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">All Invoices</h3>
+                            <div className="flex gap-3">
+                                <Button variant="outline"><Icon name="ArrowDownTrayIcon" className="w-4 h-4 mr-2" />Export CSV</Button>
+                                <Button variant="primary"><Icon name="PlusIcon" className="w-4 h-4 mr-2" />Create Invoice</Button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice ID</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                {invoices.map((invoice) => (
+                                    <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">#{invoice.id}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{invoice.tenant_name}</div>
+                                            <div className="text-sm text-gray-500">{invoice.tenant_id}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm">{invoice.plan_name}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">{invoice.period}</td>
+                                        <td className="px-6 py-4 text-sm font-semibold">${invoice.amount.toFixed(2)}</td>
+                                        <td className="px-6 py-4">
+                                            <Badge variant={invoice.status === 'paid' ? 'success' : invoice.status === 'pending' ? 'warning' : 'danger'}>
+                                                {invoice.status.toUpperCase()}
+                                            </Badge>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">{invoice.due_date}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Button variant="ghost" size="sm"><Icon name="EyeIcon" className="w-4 h-4" /></Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
             </div>
-            <div className="overflow-x-auto">
-                {loading ? (
-                    <div className="p-12 text-center text-gray-500">Loading invoices...</div>
-                ) : invoices.length === 0 ? (
-                    <div className="p-12 text-center text-gray-500">No invoices found.</div>
-                ) : (
-                    <Table>
-                        <Thead>
-                            <Tr>
-                                <Th>Invoice ID</Th>
-                                <Th>Tenant</Th>
-                                <Th>Amount</Th>
-                                <Th>Status</Th>
-                                <Th>Date</Th>
-                                <Th className="text-right">Actions</Th>
-                            </Tr>
-                        </Thead>
-                        <tbody>
-                            {invoices.map(inv => (
-                                <Tr key={inv.id}>
-                                    <Td><span className="font-mono text-xs text-gray-500">#{inv.id.substring(0,8)}</span></Td>
-                                    <Td><span className="font-bold text-gray-700">Tenant {inv.tenant.substring(0,5)}...</span></Td>
-                                    <Td><span className="font-bold text-gray-800">${inv.amount.toFixed(2)}</span></Td>
-                                    <Td>
-                                        <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}>
-                                            {inv.status}
-                                        </Badge>
-                                    </Td>
-                                    <Td><span className="text-sm text-gray-500">{new Date(inv.created).toLocaleDateString()}</span></Td>
-                                    <Td className="text-right">
-                                        <Button variant="ghost" size="sm">View</Button>
-                                    </Td>
-                                </Tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                )}
+        );
+    };
+
+    const renderGatewaysView = () => {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Payment Gateways</h3>
+                        <p className="text-sm text-gray-500 mt-1">Configure payment processing integrations</p>
+                    </div>
+                    <Button variant="primary"><Icon name="PlusIcon" className="w-4 h-4 mr-2" />Add Gateway</Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {gateways.map((gateway) => (
+                        <Card key={gateway.id} className="p-6">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${gateway.type === 'stripe' ? 'bg-indigo-100' :
+                                            gateway.type === 'paypal' ? 'bg-blue-100' : 'bg-green-100'
+                                        }`}>
+                                        <Icon name="CreditCardIcon" className={`w-6 h-6 ${gateway.type === 'stripe' ? 'text-indigo-600' :
+                                                gateway.type === 'paypal' ? 'text-blue-600' : 'text-green-600'
+                                            }`} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 dark:text-white">{gateway.name}</h4>
+                                        <p className="text-xs text-gray-500">{gateway.type}</p>
+                                    </div>
+                                </div>
+                                <Badge variant={gateway.status === 'connected' ? 'success' : 'secondary'}>
+                                    {gateway.status}
+                                </Badge>
+                            </div>
+
+                            <div className="space-y-3 mb-4">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">Enabled</span>
+                                    <Badge variant={gateway.enabled ? 'success' : 'secondary'}>
+                                        {gateway.enabled ? 'ON' : 'OFF'}
+                                    </Badge>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">Mode</span>
+                                    <Badge variant={gateway.test_mode ? 'warning' : 'secondary'}>
+                                        {gateway.test_mode ? 'Test' : 'Live'}
+                                    </Badge>
+                                </div>
+                                {gateway.last_transaction && (
+                                    <div className="text-xs text-gray-500">Last: {gateway.last_transaction}</div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-2 pt-4 border-t">
+                                <Button variant="outline" size="sm" className="flex-1">Test</Button>
+                                <Button variant="outline" size="sm" className="flex-1">Configure</Button>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
             </div>
-        </GlassCard>
-    );
+        );
+    };
+
+    // Render based on active sub-nav
+    switch (activeSubNav) {
+        case 'Plans':
+            return renderPlansView();
+        case 'Invoices':
+            return renderInvoicesView();
+        case 'Gateways':
+            return renderGatewaysView();
+        default:
+            return renderPlansView();
+    }
 };

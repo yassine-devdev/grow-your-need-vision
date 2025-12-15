@@ -22,6 +22,7 @@ export const Enrollment: React.FC = () => {
             try {
                 const result = await pb.collection('school_classes').getFullList({
                     sort: 'name',
+                    filter: pb.authStore.model?.tenantId ? `tenantId = "${pb.authStore.model?.tenantId}"` : undefined,
                     requestKey: null
                 });
                 setClasses(result);

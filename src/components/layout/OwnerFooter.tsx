@@ -39,6 +39,8 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
     { name: 'Market', icon: 'MarketIcon3D', side: 'right' },
     { name: 'Services', icon: 'ServicesIcon3D', side: 'right' },
     { name: 'Activities', icon: 'ActivitiesIcon3D', side: 'right' },
+    { name: 'Marketing', icon: 'MegaphoneIcon', side: 'right' },
+    { name: 'Finance', icon: 'BanknotesIcon', side: 'right' },
     { name: 'Travel & Transport', icon: 'TransportIcon3D', side: 'right' },
     { name: 'Sport', icon: 'SportIcon3D', side: 'right' },
     { name: 'Islam', icon: 'IslamIcon3D', side: 'right' },
@@ -69,11 +71,11 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
       <motion.div  
         layout
         initial={false}
+        style={{ minWidth: isDockOpen ? 'auto' : '320px' }}
         animate={{ 
             width: isDockOpen ? '98%' : '40%',
             height: isDockOpen ? 80 : 64, 
             maxWidth: isDockOpen ? '80rem' : '24rem',
-            minWidth: isDockOpen ? 'auto' : '320px',
             borderRadius: isDockOpen ? '1.5rem' : '2rem'
         }}
         transition={{ type: "spring", stiffness: 250, damping: 25 }}
@@ -120,6 +122,7 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                             className="group flex flex-col items-center justify-center w-12 h-12 relative"
                             whileHover={{ scale: 1.15, y: -5 }}
                             whileTap={{ scale: 0.9 }}
+                            aria-label={app.name}
                         >
                              <div className="w-10 h-10 relative">
                                 <OwnerIcon name={app.icon} className="w-full h-full drop-shadow-md filter" />
@@ -150,13 +153,13 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
 
           {/* Central Trigger */}
           <div className="shrink-0 relative z-20 mx-4">
-              <motion.button 
+                            <motion.button 
                 onClick={toggleDock}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 animate={{ rotate: isDockOpen ? 180 : 0 }}
                 className={`
-                    w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300
+                                        w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300
                     bg-white/80 dark:bg-white/10 backdrop-blur-md
                     border border-white/50 dark:border-white/10
                     shadow-lg hover:shadow-xl
@@ -192,6 +195,7 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                                 key={app.name}
                                 onClick={() => launchApp(app.name)}
                                 className="group flex flex-col items-center justify-center w-12 h-12 relative shrink-0"
+                                aria-label={app.name}
                             >
                                  <div className="w-10 h-10 relative">
                                     <OwnerIcon name={app.icon} className="w-full h-full drop-shadow-md" />
@@ -234,6 +238,7 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                                 key={win.id}
                                 onClick={() => focusApp(win.id)}
                                 className="group flex flex-col items-center justify-center w-12 h-12 relative"
+                                aria-label={getAppIcon(win.appName)}
                             >
                                  <div className="w-10 h-10 relative opacity-80 group-hover:opacity-100 transition-opacity">
                                     <OwnerIcon name={getAppIcon(win.appName)} className="w-full h-full drop-shadow-md grayscale-[0.3] group-hover:grayscale-0 transition-all" />

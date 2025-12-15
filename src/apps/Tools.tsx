@@ -4,10 +4,16 @@ import { CalendarTool } from './tools/CalendarTool';
 import { useFileStorage } from '../hooks/useFileStorage';
 import { FileTree } from '../components/shared/ui/FileTree';
 import { Icon } from '../components/shared/ui/CommonUI';
+import { Button } from '../components/shared/ui/Button';
+import { Input } from '../components/shared/ui/Input';
+import { Select } from '../components/shared/ui/Select';
+import { Badge } from '../components/shared/ui/Badge';
+import { Table, Thead, Tr, Th, Td } from '../components/shared/ui/Table';
 
 import { ResourcesView } from './tools/ResourcesView';
 import { ReportsApp } from './ReportsApp';
 import pb from '../lib/pocketbase';
+import { auditAdminService, type AuditLogRecord } from '../services/auditAdminService';
 
 interface ToolsProps {
     activeTab: string;
@@ -81,6 +87,14 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
     const [isFlipped, setIsFlipped] = useState(false);
     const [loadingFlashcards, setLoadingFlashcards] = useState(false);
 
+    // --- Audit Logs State ---
+    const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
+    const [auditLoading, setAuditLoading] = useState(false);
+    const [auditExporting, setAuditExporting] = useState(false);
+    const [auditPage, setAuditPage] = useState(1);
+    const [auditTotalPages, setAuditTotalPages] = useState(1);
+    const [auditFilters, setAuditFilters] = useState({ action: '', severity: '', from: '', to: '' });
+
     // Fetch Data
     useEffect(() => {
         if (activeTool === 'Notes') {
@@ -88,6 +102,13 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
         } else if (activeTool === 'Flashcards') {
             loadFlashcards();
         }
+    }, [activeTool]);
+
+    useEffect(() => {
+        if (activeTool === 'Audit Log') {
+            loadAuditLogs(1);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTool]);
 
     const loadNotes = async () => {
@@ -111,6 +132,55 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
             console.error('Error loading flashcards:', e);
         } finally {
             setLoadingFlashcards(false);
+        }
+    };
+
+    // Audit logs loader
+    const loadAuditLogs = async (page = 1, overrides: Partial<typeof auditFilters> = {}) => {
+        if (activeTool !== 'Audit Log') return;
+        const nextFilters = { ...auditFilters, ...overrides };
+        setAuditFilters(nextFilters);
+        setAuditLoading(true);
+        try {
+            const result = await auditAdminService.list({
+                page,
+                perPage: 25,
+                action: nextFilters.action || undefined,
+                severity: nextFilters.severity || undefined,
+                from: nextFilters.from || undefined,
+                to: nextFilters.to || undefined,
+            });
+            setAuditLogs(result.items || []);
+            setAuditPage(result.page || 1);
+            setAuditTotalPages(result.totalPages || 1);
+        } catch (e) {
+            console.error('Failed to load audit logs:', e);
+            alert(e instanceof Error ? e.message : 'Failed to load audit logs');
+        } finally {
+            setAuditLoading(false);
+        }
+    };
+
+    const exportAuditLogs = async () => {
+        setAuditExporting(true);
+        try {
+            const blob = await auditAdminService.export({
+                action: auditFilters.action || undefined,
+                severity: auditFilters.severity || undefined,
+                from: auditFilters.from || undefined,
+                to: auditFilters.to || undefined,
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'audit-logs.csv';
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Failed to export audit logs:', e);
+            alert(e instanceof Error ? e.message : 'Failed to export audit logs');
+        } finally {
+            setAuditExporting(false);
         }
     };
 
@@ -456,6 +526,98 @@ const Tools: React.FC<ToolsProps> = ({ activeTab, activeSubNav }) => {
                         </div>
                     </div>
                 );
+            case 'Audit Log': {
+                const severityVariant = (sev?: string): 'danger' | 'warning' | 'info' | 'neutral' => {
+                    const s = (sev || '').toLowerCase();
+                    if (s === 'critical' || s === 'error') return 'danger';
+                    if (s === 'warning' || s === 'warn') return 'warning';
+                    if (s === 'info') return 'info';
+                    return 'neutral';
+                };
+
+                return (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                            <Input
+                                label="Action contains"
+                                placeholder="payment, export, attendance..."
+                                value={auditFilters.action}
+                                onChange={(e) => setAuditFilters({ ...auditFilters, action: e.target.value })}
+                            />
+                            <Select
+                                label="Severity"
+                                value={auditFilters.severity}
+                                onChange={(e) => setAuditFilters({ ...auditFilters, severity: e.target.value })}
+                            >
+                                <option value="">All</option>
+                                <option value="info">Info</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                                <option value="critical">Critical</option>
+                            </Select>
+                            <Input
+                                label="From"
+                                type="date"
+                                value={auditFilters.from}
+                                onChange={(e) => setAuditFilters({ ...auditFilters, from: e.target.value })}
+                            />
+                            <Input
+                                label="To"
+                                type="date"
+                                value={auditFilters.to}
+                                onChange={(e) => setAuditFilters({ ...auditFilters, to: e.target.value })}
+                            />
+                            <div className="flex items-end gap-2">
+                                <Button variant="primary" onClick={() => loadAuditLogs(1)} isLoading={auditLoading} className="w-full">Apply</Button>
+                                <Button variant="secondary" onClick={exportAuditLogs} isLoading={auditExporting} className="w-full">Export CSV</Button>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                            <span>Page {auditPage} of {auditTotalPages}</span>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="ghost" disabled={auditPage <= 1 || auditLoading} onClick={() => loadAuditLogs(auditPage - 1)}>Prev</Button>
+                                <Button size="sm" variant="ghost" disabled={auditPage >= auditTotalPages || auditLoading} onClick={() => loadAuditLogs(auditPage + 1)}>Next</Button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+                            <Table>
+                                <Thead>
+                                    <Tr>
+                                        <Th>Timestamp</Th>
+                                        <Th>Action</Th>
+                                        <Th>Resource</Th>
+                                        <Th>User</Th>
+                                        <Th>Severity</Th>
+                                        <Th>Metadata</Th>
+                                    </Tr>
+                                </Thead>
+                                <tbody>
+                                    {auditLoading ? (
+                                        <Tr><Td colSpan={6} className="text-center text-gray-500 py-6">Loading audit logs...</Td></Tr>
+                                    ) : auditLogs.length === 0 ? (
+                                        <Tr><Td colSpan={6} className="text-center text-gray-500 py-6">No audit entries found for this tenant</Td></Tr>
+                                    ) : (
+                                        auditLogs.map((log) => (
+                                            <Tr key={log.id || `${log.timestamp}-${log.action}`}>
+                                                <Td className="text-sm text-gray-600 whitespace-nowrap">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</Td>
+                                                <Td className="font-semibold text-gray-900">{log.action}</Td>
+                                                <Td className="text-gray-600 text-sm">{log.resource_type || '-'} {log.resource_id ? `(${log.resource_id})` : ''}</Td>
+                                                <Td className="text-sm text-gray-700">{log.user_id || 'system'}</Td>
+                                                <Td><Badge variant={severityVariant(log.severity)} size="sm">{log.severity || 'info'}</Badge></Td>
+                                                <Td className="text-xs text-gray-500 max-w-[260px] truncate" title={log.metadata ? JSON.stringify(log.metadata) : ''}>
+                                                    {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                                                </Td>
+                                            </Tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Table>
+                        </div>
+                    </div>
+                );
+            }
             case 'Flashcards':
                 const card = flashcards[currentCardIndex];
                 return (

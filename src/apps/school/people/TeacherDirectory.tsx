@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDataQuery } from '../../../hooks/useDataQuery';
 import { DataTable } from '../../../components/shared/DataTable';
 import { DataToolbar } from '../../../components/shared/DataToolbar';
@@ -13,10 +13,18 @@ import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { useToast } from '../../../hooks/useToast';
 import pb from '../../../lib/pocketbase';
 import { User } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
+import env from '../../../config/environment';
 
 export const TeacherDirectory: React.FC = () => {
+    const { user } = useAuth();
+    const apiBase = env.get('apiUrl') || '/api';
+    const serviceApiKey = env.get('serviceApiKey');
+    const tenantId = user?.tenantId;
+    const baseFilter = useMemo(() => tenantId ? `role = "Teacher" && tenantId = "${tenantId}"` : 'role = "Teacher"', [tenantId]);
+
     const query = useDataQuery<User>('users', {
-        filter: 'role = "Teacher"',
+        filter: baseFilter,
         sort: '-created'
     });
 
@@ -34,7 +42,9 @@ export const TeacherDirectory: React.FC = () => {
     const openOnboardModal = async (user: User) => {
         setSelectedUser(user);
         try {
-            const res = await pb.collection('school_classes').getFullList();
+            const res = await pb.collection('school_classes').getFullList({
+                filter: tenantId ? `tenantId = "${tenantId}"` : undefined
+            });
             setClasses(res);
             setIsOnboardModalOpen(true);
         } catch (e) {
@@ -48,13 +58,37 @@ export const TeacherDirectory: React.FC = () => {
             // Assuming a 'teacher_assignments' collection or updating class record
             // Let's update the class record to set the teacher
             await pb.collection('school_classes').update(assignData.classId, {
-                teacher: selectedUser.id
+                teacher: selectedUser.id,
+                tenantId
             });
             setIsOnboardModalOpen(false);
             alert(`Successfully assigned ${selectedUser.name} to class`);
         } catch (e) {
             console.error(e);
             alert('Assignment failed');
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const res = await fetch(`${apiBase}/school/people/export?role=Teacher`, {
+                headers: {
+                    'x-api-key': serviceApiKey,
+                    'x-tenant-id': tenantId || '',
+                    'x-user-role': user?.role || 'SchoolAdmin'
+                }
+            });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'teachers.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error(err);
+            addToast('Failed to export teachers', 'error');
         }
     };
 
@@ -94,8 +128,8 @@ export const TeacherDirectory: React.FC = () => {
 
             <DataToolbar
                 collectionName="teachers_view"
-                onSearch={(term) => query.setFilter(`role = "Teacher" && (name ~ "${term}" || email ~ "${term}")`)}
-                onExport={() => query.exportData('teachers.csv')}
+                onSearch={(term) => query.setFilter(`${baseFilter} && (name ~ "${term}" || email ~ "${term}")`)}
+                onExport={handleExport}
                 onRefresh={query.refresh}
                 loading={query.loading}
             />

@@ -60,6 +60,15 @@ Run end-to-end tests:
 pnpm run test:e2e
 ```
 
+## 🛰️ Operations Notes
+
+- The payment/finance server exposes `/api/health` with a metrics snapshot (per-route counts, avg latency, errors) and `/api/metrics` with Prometheus-style counters.
+- Admin-only finance exports and PDF receipts require `x-user-role: admin` and `x-tenant-id` headers; CSV exports are audit-logged.
+- Optional observability:
+    - Set `SENTRY_DSN` (and `SENTRY_TRACES_SAMPLE_RATE` if desired) to enable Sentry tracing/errors.
+    - Set `OTEL_EXPORTER_OTLP_ENDPOINT` to emit OpenTelemetry traces via the built-in Node SDK auto-instrumentation. Optional: `OTEL_EXPORTER_OTLP_HEADERS` (comma-separated key=val), `OTEL_EXPORTER_OTLP_AUTH_TOKEN` for bearer auth.
+- Metrics include latency histograms, request/error counters, and process uptime/start time gauges at `/api/metrics` (Prometheus format).
+
 ## 📝 License
 
 Private - Grow Your Need

@@ -7,7 +7,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: 'primary' | 'success' | 'warning' | 'danger' | 'neutral' | 'outline' | 'default' | 'info';
+  variant?: 'primary' | 'success' | 'warning' | 'danger' | 'neutral' | 'outline' | 'default' | 'info' | 'secondary';
   size?: 'sm' | 'md';
 }
 
@@ -22,7 +22,8 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
       neutral: 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-white/5 dark:text-gray-300 dark:border-white/10',
       outline: 'bg-transparent border border-gray-300 text-gray-600 dark:border-white/20 dark:text-gray-400',
       default: 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-white/5 dark:text-gray-300 dark:border-white/10',
-      info: 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-hud-secondary/10 dark:text-hud-secondary dark:border-hud-secondary/30'
+      info: 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-hud-secondary/10 dark:text-hud-secondary dark:border-hud-secondary/30',
+      secondary: 'bg-gray-100 text-gray-600 border border-gray-200 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'
     };
 
     const sizes = {

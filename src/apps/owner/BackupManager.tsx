@@ -81,7 +81,7 @@ const BackupManager: React.FC = () => {
                         <div>
                             <p className="text-sm text-gray-600">Last Backup</p>
                             <p className="text-lg font-bold text-gray-900 dark:text-white">
-                                {stats?.last_backup ? new Date(stats.last_backup).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never'}
+                                {stats?.lastBackup ? new Date(stats.lastBackup).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never'}
                             </p>
                         </div>
                     </div>
@@ -92,7 +92,7 @@ const BackupManager: React.FC = () => {
                         <Icon name="ServerIcon" className="w-10 h-10 text-purple-600" />
                         <div>
                             <p className="text-sm text-gray-600">Total Size</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{backupService.formatSize(stats?.total_size || 0)}</p>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{backupService.formatSize(stats?.totalSize || 0)}</p>
                         </div>
                     </div>
                 </Card>

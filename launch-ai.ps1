@@ -19,8 +19,8 @@ Write-Host "Installing dependencies..." -ForegroundColor Cyan
 pip install -r ai_service/requirements.txt
 
 # Run the server
-# Run the server with Uvicorn (Production Mode with Workers)
-Write-Host "Starting Concierge AI Service on port 8000 (4 Workers)..." -ForegroundColor Green
+# Run the server with Uvicorn (single worker for ChromaDB compatibility)
+Write-Host "Starting Concierge AI Service on port 8000..." -ForegroundColor Green
 # cd to parent dir to ensure imports work if needed, or stick to current
 $env:PYTHONPATH = ".;ai_service"
-python -m uvicorn ai_service.main:app --host 0.0.0.0 --port 8000 --workers 4
+python -m uvicorn ai_service.main:app --host 0.0.0.0 --port 8000 --workers 1

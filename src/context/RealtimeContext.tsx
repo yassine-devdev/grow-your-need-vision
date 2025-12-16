@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import pb from '../lib/pocketbase';
 import { useAuth } from './AuthContext';
 import { RecordSubscription } from 'pocketbase';
@@ -22,11 +22,27 @@ interface RealtimeContextType {
 
 const RealtimeContext = createContext<RealtimeContextType | undefined>(undefined);
 
+// Debounce helper to prevent excessive re-renders
+const useDebounce = <T,>(value: T, delay: number): T => {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+    useEffect(() => {
+        const handler = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(handler);
+    }, [value, delay]);
+    return debouncedValue;
+};
+
 export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user } = useAuth();
     const [isConnected, setIsConnected] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+    const [onlineUsersRaw, setOnlineUsersRaw] = useState<string[]>([]);
+    
+    // Debounce online users to prevent rapid state updates
+    const onlineUsers = useDebounce(onlineUsersRaw, 500);
+    
+    // Track if audio has been played recently to prevent spam
+    const lastAudioPlayRef = useRef<number>(0);
 
     // 1. Heartbeat & Presence
     useEffect(() => {
@@ -84,18 +100,20 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (e.record.user !== user.id) return; // Client-side filter if needed
 
             if (e.action === 'create') {
-                setNotifications(prev => [e.record, ...prev]);
-                // Play sound or show toast here
-                try {
-                    const audio = new Audio('/assets/notification.mp3');
-                    audio.play().catch(err => console.log("Audio play failed (interaction needed or file missing):", err));
-                } catch (err) {
-                    console.warn("Audio initialization failed:", err);
+                setNotifications(prev => [e.record, ...prev].slice(0, 50)); // Limit to 50 notifications
+                // Play sound with throttling (max once per 2 seconds)
+                const now = Date.now();
+                if (now - lastAudioPlayRef.current > 2000) {
+                    lastAudioPlayRef.current = now;
+                    try {
+                        const audio = new Audio('/assets/notification.mp3');
+                        audio.play().catch(() => {}); // Silent fail
+                    } catch { /* ignore */ }
                 }
             } else if (e.action === 'update') {
                 setNotifications(prev => prev.map(n => n.id === e.record.id ? e.record : n));
             }
-        }).catch(err => console.warn("Notification subscription failed:", err));
+        }).catch(() => {}); // Silent fail for subscription
 
         return () => {
             pb.collection('notifications').unsubscribe('*');
@@ -107,17 +125,34 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (isMockEnv()) return;
         // In a real app, we might have a separate 'presence' collection.
         // Here we listen to 'users' updates to see who is active.
-        // This is a simplified approach.
+        // This is a simplified approach with batch updates.
+        
+        let pendingUpdates: string[] = [];
+        let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+        
+        const flushUpdates = () => {
+            if (pendingUpdates.length > 0) {
+                setOnlineUsersRaw(prev => {
+                    const newSet = new Set([...prev, ...pendingUpdates]);
+                    pendingUpdates = [];
+                    return Array.from(newSet);
+                });
+            }
+        };
         
         const handleUserUpdate = (e: RecordSubscription<any>) => {
             if (e.action === 'update' && e.record.lastActive) {
                 const lastActive = new Date(e.record.lastActive).getTime();
-                const now = new Date().getTime();
+                const now = Date.now();
                 if (now - lastActive < 5 * 60 * 1000) { // Active in last 5 mins
-                    setOnlineUsers(prev => {
-                        if (!prev.includes(e.record.id)) return [...prev, e.record.id];
-                        return prev;
-                    });
+                    pendingUpdates.push(e.record.id);
+                    // Batch updates every 300ms
+                    if (!updateTimeout) {
+                        updateTimeout = setTimeout(() => {
+                            flushUpdates();
+                            updateTimeout = null;
+                        }, 300);
+                    }
                 }
             }
         };
@@ -125,11 +160,12 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pb.collection('users').subscribe('*', handleUserUpdate).catch(() => {});
 
         return () => {
+            if (updateTimeout) clearTimeout(updateTimeout);
             pb.collection('users').unsubscribe('*');
         };
     }, []);
 
-    const markAsRead = async (id: string) => {
+    const markAsRead = useCallback(async (id: string) => {
         if (isMockEnv()) {
             setNotifications(prev => prev.filter(n => n.id !== id));
             return;
@@ -140,10 +176,18 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch (err) {
             console.error("Failed to mark notification as read:", err);
         }
-    };
+    }, []);
+
+    // Memoize context value to prevent unnecessary re-renders
+    const contextValue = useMemo(() => ({
+        isConnected,
+        notifications,
+        onlineUsers,
+        markAsRead
+    }), [isConnected, notifications, onlineUsers, markAsRead]);
 
     return (
-        <RealtimeContext.Provider value={{ isConnected, notifications, onlineUsers, markAsRead }}>
+        <RealtimeContext.Provider value={contextValue}>
             {children}
         </RealtimeContext.Provider>
     );

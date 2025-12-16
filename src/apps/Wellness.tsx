@@ -34,7 +34,7 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
                     steps: 0,
                     calories: 0,
                     sleep_minutes: 0,
-                    mood: 'Neutral',
+                    mood: 'Okay',
                     meals: []
                 });
                 logToUpdate = newLog;

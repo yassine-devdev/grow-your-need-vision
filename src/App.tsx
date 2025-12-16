@@ -65,14 +65,31 @@ const AppContent: React.FC = () => {
 
   useKeyboardShortcuts();
 
+  // Throttled mouse tracking to reduce performance impact
   useLayoutEffect(() => {
+    let rafId: number | null = null;
+    let lastX = 0, lastY = 0;
+    
     const handleMouseMove = (e: MouseEvent) => {
-      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
-      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+      // Only update if moved significantly (>5px) to reduce style recalculations
+      if (Math.abs(e.clientX - lastX) > 5 || Math.abs(e.clientY - lastY) > 5) {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        
+        if (rafId) return; // Skip if already scheduled
+        rafId = requestAnimationFrame(() => {
+          document.documentElement.style.setProperty('--mouse-x', `${lastX}px`);
+          document.documentElement.style.setProperty('--mouse-y', `${lastY}px`);
+          rafId = null;
+        });
+      }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const isAuthPage = location.pathname === '/login';

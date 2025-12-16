@@ -95,7 +95,7 @@ const TeacherClasses: React.FC<Props> = ({ activeTab, activeSubNav }) => {
     const loadRoster = async (classId: string) => {
         try {
             const data = await enrollmentService.getClassEnrollments(classId);
-            setStudents(data.items);
+            setStudents(data.items as EnrollmentRecord[]);
         } catch (error) {
             console.error("Failed to load roster", error);
         }

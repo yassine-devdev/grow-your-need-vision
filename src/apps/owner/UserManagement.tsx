@@ -149,7 +149,6 @@ const UserManagement: React.FC = () => {
                                                 {new Date(user.created).toLocaleDateString()}
                                             </td>
                                             <td className="p-4 text-right">
-                                                <td className="p-4 text-right">
                                                     <DropdownMenu
                                                         trigger={<IconButton name="EllipsisHorizontalIcon" />}
                                                         align="right"
@@ -181,7 +180,7 @@ const UserManagement: React.FC = () => {
                                                             }
                                                         ]}
                                                     />
-                                                </td>
+                                            </td>
                                         </tr>
                                     ))
                                 )}

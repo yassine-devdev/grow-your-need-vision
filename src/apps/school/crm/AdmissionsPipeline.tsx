@@ -17,9 +17,9 @@ const STAGES = [
 ];
 
 const MOCK_INQUIRIES: Inquiry[] = [
-    { id: 'm1', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Taylor Morgan', email: 'taylor@example.com', grade_interest: 'Grade 9', status: 'New Inquiry', source: 'Website' },
-    { id: 'm2', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Jordan Lee', email: 'jordan@example.com', grade_interest: 'Grade 10', status: 'Contacted', source: 'Open House' },
-    { id: 'm3', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Sam Rivera', email: 'sam@example.com', grade_interest: 'Grade 8', status: 'Offer Sent', source: 'Referral' }
+    { id: 'm1', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Taylor Morgan', email: 'taylor@example.com', phone: '555-0101', grade_interest: 'Grade 9', status: 'New Inquiry', source: 'Website', notes: '' },
+    { id: 'm2', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Jordan Lee', email: 'jordan@example.com', phone: '555-0102', grade_interest: 'Grade 10', status: 'Contacted', source: 'Open House', notes: '' },
+    { id: 'm3', collectionId: 'mock', collectionName: 'crm_inquiries', created: new Date().toISOString(), updated: new Date().toISOString(), name: 'Sam Rivera', email: 'sam@example.com', phone: '555-0103', grade_interest: 'Grade 8', status: 'Offer Sent', source: 'Referral', notes: '' }
 ];
 
 const AdmissionsPipeline: React.FC = () => {
@@ -29,9 +29,11 @@ const AdmissionsPipeline: React.FC = () => {
     const [newInquiry, setNewInquiry] = useState<Partial<Inquiry>>({
         name: '',
         email: '',
+        phone: '',
         grade_interest: '',
         status: 'New Inquiry',
-        source: 'Manual Entry'
+        source: 'Manual Entry',
+        notes: ''
     });
 
     useEffect(() => {
@@ -71,13 +73,13 @@ const AdmissionsPipeline: React.FC = () => {
             }
             setIsModalOpen(false);
             fetchInquiries();
-            setNewInquiry({ name: '', email: '', grade_interest: '', status: 'New Inquiry', source: 'Manual Entry' });
+            setNewInquiry({ name: '', email: '', phone: '', grade_interest: '', status: 'New Inquiry', source: 'Manual Entry', notes: '' });
         } catch (e) {
             alert('Failed to create inquiry');
         }
     };
 
-    const updateStatus = async (id: string, newStatus: string) => {
+    const updateStatus = async (id: string, newStatus: Inquiry['status']) => {
         try {
             if (isMockEnv()) {
                 setInquiries((prev) => prev.map((inq) => inq.id === id ? { ...inq, status: newStatus, updated: new Date().toISOString() } : inq));
@@ -133,7 +135,7 @@ const AdmissionsPipeline: React.FC = () => {
                                                     {/* Simple controls to move cards for now */}
                                                     <button onClick={() => {
                                                         const idx = STAGES.findIndex(s => s.title === stage.title);
-                                                        if (idx < STAGES.length - 1) updateStatus(inquiry.id, STAGES[idx + 1].title);
+                                                        if (idx < STAGES.length - 1) updateStatus(inquiry.id, STAGES[idx + 1].title as Inquiry['status']);
                                                     }} className="text-gray-300 hover:text-green-500" title="Move Next">
                                                         <OwnerIcon name="ArrowRightIcon" className="w-4 h-4" />
                                                     </button>

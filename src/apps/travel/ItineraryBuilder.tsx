@@ -130,8 +130,9 @@ export const ItineraryBuilder: React.FC<ItineraryBuilderProps> = ({ destination 
                     status: 'Planning',
                     shared_with: []
                 });
-                setItineraries([created as TravelItinerary, ...itineraries]);
-                setSelectedItinerary(created as TravelItinerary);
+                const newItineraryRecord = created as unknown as TravelItinerary;
+                setItineraries([newItineraryRecord, ...itineraries]);
+                setSelectedItinerary(newItineraryRecord);
             }
 
             setIsCreating(false);

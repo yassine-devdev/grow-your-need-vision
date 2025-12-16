@@ -115,7 +115,7 @@ const EmailTemplateManager: React.FC = () => {
                     <Icon name="CodeBracketIcon" className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm">
                         <p className="font-semibold text-purple-900 dark:text-purple-100">Available Variables</p>
-                        <p className="text-purple-700 dark:text-purple-200">{{ tenant_name }}, {{ user_name }}, {{ platform_name }}, {{ invoice_number }}, {{ amount }}, {{ date }}</p>
+                        <p className="text-purple-700 dark:text-purple-200">{`{{ tenant_name }}, {{ user_name }}, {{ platform_name }}, {{ invoice_number }}, {{ amount }}, {{ date }}`}</p>
                     </div>
                 </div>
             </Card>

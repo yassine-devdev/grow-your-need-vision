@@ -47,10 +47,15 @@ class AIFineTuningService {
                 cost: 0
             });
 
-            await auditLogger.log('fineTuningJobCreate', {
-                job_id: job.id,
-                name: job.name,
-                base_model: job.base_model
+            await auditLogger.log({
+                action: 'fineTuningJobCreate',
+                resource_type: 'ai_finetuning_job',
+                resource_id: job.id,
+                severity: 'info',
+                metadata: {
+                    name: job.name,
+                    base_model: job.base_model
+                }
             });
 
             return job;
@@ -100,7 +105,12 @@ class AIFineTuningService {
             // Simulate training progress
             this.simulateTraining(id);
 
-            await auditLogger.log('fineTuningJobStart', { job_id: id });
+            await auditLogger.log({
+                action: 'fineTuningJobStart',
+                resource_type: 'ai_finetuning_job',
+                resource_id: id,
+                severity: 'info'
+            });
             return job;
         } catch (error) {
             console.error('Error starting job:', error);
@@ -117,7 +127,12 @@ class AIFineTuningService {
                 status: 'cancelled'
             });
 
-            await auditLogger.log('fineTuningJobCancel', { job_id: id });
+            await auditLogger.log({
+                action: 'fineTuningJobCancel',
+                resource_type: 'ai_finetuning_job',
+                resource_id: id,
+                severity: 'info'
+            });
             return job;
         } catch (error) {
             console.error('Error cancelling job:', error);
@@ -131,7 +146,12 @@ class AIFineTuningService {
     async deleteJob(id: string): Promise<boolean> {
         try {
             await pb.collection(this.collection).delete(id);
-            await auditLogger.log('fineTuningJobDelete', { job_id: id });
+            await auditLogger.log({
+                action: 'fineTuningJobDelete',
+                resource_type: 'ai_finetuning_job',
+                resource_id: id,
+                severity: 'warning'
+            });
             return true;
         } catch (error) {
             console.error('Error deleting job:', error);

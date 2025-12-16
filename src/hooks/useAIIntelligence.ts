@@ -34,7 +34,9 @@ export function useUploadIntelligenceFile() {
             aiIntelligenceService.uploadFile(level, file),
         onSuccess: (data) => {
             // Invalidate queries for this level AND all files
-            queryClient.invalidateQueries({ queryKey: ['intelligenceFiles', data.level] });
+            if (data.file) {
+                queryClient.invalidateQueries({ queryKey: ['intelligenceFiles', data.file.level] });
+            }
             queryClient.invalidateQueries({ queryKey: ['intelligenceFiles', 'all'] });
             queryClient.invalidateQueries({ queryKey: ['intelligenceStats'] });
         },

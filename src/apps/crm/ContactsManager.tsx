@@ -79,7 +79,7 @@ const ContactsManager: React.FC = () => {
         reader.onload = async (e) => {
             const csvData = e.target?.result as string;
             try {
-                const result = await importMutation.mutateAsync(csvData);
+                const result = await importMutation.mutateAsync({ csvData, createdBy: 'current-user' });
                 alert(`Imported ${result.success} contacts. ${result.failed} failed.`);
                 if (fileInputRef.current) fileInputRef.current.value = '';
             } catch (error) {

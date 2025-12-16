@@ -47,6 +47,7 @@ export function getRoleDisplayName(role: UserRole): string {
     const displayNames: Record<UserRole, string> = {
         Owner: 'Platform Owner',
         Admin: 'School Administrator',
+        SchoolAdmin: 'School Administrator',
         Teacher: 'Teacher',
         Student: 'Student',
         Parent: 'Parent',

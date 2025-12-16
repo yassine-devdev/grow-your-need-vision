@@ -1,4 +1,5 @@
 import pb from '../lib/pocketbase';
+import { isMockEnv } from '../utils/mockData';
 
 /**
  * Student Academics Service
@@ -15,6 +16,9 @@ export interface StudentGrade {
     credits?: number;
     semester?: string;
     year?: string;
+    score?: number;
+    max_score?: number;
+    weight?: number;
 }
 
 export interface StudentAcademics {
@@ -24,6 +28,114 @@ export interface StudentAcademics {
     currentCourses: number;
 }
 
+export interface StudentEnrollment {
+    id: string;
+    student: string;
+    course: string;
+    status: 'active' | 'completed' | 'dropped';
+    enrolled_at: string;
+}
+
+// Mock data
+const MOCK_GRADES: StudentGrade[] = [
+    {
+        id: 'grade-1',
+        student: 'student-1',
+        course: 'Mathematics 101',
+        grade: 92,
+        letter_grade: 'A-',
+        credits: 3,
+        semester: 'Fall 2024',
+        year: '2024',
+        score: 92,
+        max_score: 100,
+        weight: 3
+    },
+    {
+        id: 'grade-2',
+        student: 'student-1',
+        course: 'Physics 201',
+        grade: 88,
+        letter_grade: 'B+',
+        credits: 4,
+        semester: 'Fall 2024',
+        year: '2024',
+        score: 88,
+        max_score: 100,
+        weight: 4
+    },
+    {
+        id: 'grade-3',
+        student: 'student-1',
+        course: 'English Literature',
+        grade: 95,
+        letter_grade: 'A',
+        credits: 3,
+        semester: 'Fall 2024',
+        year: '2024',
+        score: 95,
+        max_score: 100,
+        weight: 3
+    },
+    {
+        id: 'grade-4',
+        student: 'student-1',
+        course: 'Computer Science',
+        grade: 90,
+        letter_grade: 'A-',
+        credits: 3,
+        semester: 'Spring 2024',
+        year: '2024',
+        score: 90,
+        max_score: 100,
+        weight: 3
+    },
+    {
+        id: 'grade-5',
+        student: 'student-2',
+        course: 'Biology 101',
+        grade: 85,
+        letter_grade: 'B',
+        credits: 4,
+        semester: 'Fall 2024',
+        year: '2024',
+        score: 85,
+        max_score: 100,
+        weight: 4
+    }
+];
+
+const MOCK_ENROLLMENTS: StudentEnrollment[] = [
+    {
+        id: 'enroll-1',
+        student: 'student-1',
+        course: 'Advanced Calculus',
+        status: 'active',
+        enrolled_at: new Date().toISOString()
+    },
+    {
+        id: 'enroll-2',
+        student: 'student-1',
+        course: 'Quantum Physics',
+        status: 'active',
+        enrolled_at: new Date().toISOString()
+    },
+    {
+        id: 'enroll-3',
+        student: 'student-1',
+        course: 'Data Structures',
+        status: 'active',
+        enrolled_at: new Date().toISOString()
+    },
+    {
+        id: 'enroll-4',
+        student: 'student-2',
+        course: 'Chemistry 201',
+        status: 'active',
+        enrolled_at: new Date().toISOString()
+    }
+];
+
 class StudentAcademicsService {
 
     /**
@@ -31,10 +143,27 @@ class StudentAcademicsService {
      * Uses 4.0 scale by default
      */
     async calculateGPA(studentId: string): Promise<number> {
+        if (isMockEnv()) {
+            const studentGrades = MOCK_GRADES.filter(g => g.student === studentId);
+            if (studentGrades.length === 0) return 3.5; // Default mock GPA
+
+            let totalPoints = 0;
+            let totalCredits = 0;
+
+            for (const grade of studentGrades) {
+                const credits = grade.weight || grade.credits || 1;
+                const percentage = grade.max_score ? (grade.score! / grade.max_score) * 100 : grade.grade;
+                const gradePoint = this.convertToGradePoint(percentage);
+                totalPoints += gradePoint * credits;
+                totalCredits += credits;
+            }
+
+            const gpa = totalCredits > 0 ? totalPoints / totalCredits : 0;
+            return Math.round(gpa * 100) / 100;
+        }
+
         try {
-            // Try to get grades from database
-            // Using 'grades' collection which we just created/verified
-            const grades = await pb.collection('grades').getFullList<any>({
+            const grades = await pb.collection('grades').getFullList<StudentGrade>({
                 filter: `student = "${studentId}"`,
                 sort: '-created'
             });
@@ -43,15 +172,12 @@ class StudentAcademicsService {
                 return 0;
             }
 
-            // Calculate GPA (4.0 scale)
             let totalPoints = 0;
             let totalCredits = 0;
 
             for (const grade of grades) {
-                // Assuming weight is roughly equivalent to credits for now, or default to 1
                 const credits = grade.weight || 1;
-                // Normalize score to percentage if max_score is present
-                const percentage = grade.max_score ? (grade.score / grade.max_score) * 100 : grade.score;
+                const percentage = grade.max_score ? (grade.score! / grade.max_score) * 100 : grade.grade;
                 
                 const gradePoint = this.convertToGradePoint(percentage);
                 totalPoints += gradePoint * credits;
@@ -59,10 +185,9 @@ class StudentAcademicsService {
             }
 
             const gpa = totalCredits > 0 ? totalPoints / totalCredits : 0;
-            return Math.round(gpa * 100) / 100; // Round to 2 decimals
+            return Math.round(gpa * 100) / 100;
         } catch (error) {
             console.error('Failed to calculate GPA:', error);
-            // Return 0 or could return a default/placeholder value
             return 0;
         }
     }
@@ -85,20 +210,70 @@ class StudentAcademicsService {
     }
 
     /**
+     * Get student grades
+     */
+    async getGrades(studentId: string): Promise<StudentGrade[]> {
+        if (isMockEnv()) {
+            return MOCK_GRADES.filter(g => g.student === studentId);
+        }
+
+        try {
+            return await pb.collection('grades').getFullList<StudentGrade>({
+                filter: `student = "${studentId}"`,
+                sort: '-created'
+            });
+        } catch (error) {
+            console.error('Failed to get grades:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get student enrollments
+     */
+    async getEnrollments(studentId: string): Promise<StudentEnrollment[]> {
+        if (isMockEnv()) {
+            return MOCK_ENROLLMENTS.filter(e => e.student === studentId);
+        }
+
+        try {
+            return await pb.collection('enrollments').getFullList<StudentEnrollment>({
+                filter: `student = "${studentId}"`,
+                sort: '-enrolled_at'
+            });
+        } catch (error) {
+            console.error('Failed to get enrollments:', error);
+            return [];
+        }
+    }
+
+    /**
      * Get student academic summary
      */
     async getAcademicsSummary(studentId: string): Promise<StudentAcademics> {
+        if (isMockEnv()) {
+            const studentGrades = MOCK_GRADES.filter(g => g.student === studentId);
+            const studentEnrollments = MOCK_ENROLLMENTS.filter(e => e.student === studentId && e.status === 'active');
+            const gpa = await this.calculateGPA(studentId);
+            const totalCredits = studentGrades.reduce((sum, g) => sum + (g.credits || g.weight || 1), 0);
+
+            return {
+                gpa,
+                totalCredits,
+                completedCourses: studentGrades.length,
+                currentCourses: studentEnrollments.length
+            };
+        }
+
         try {
             const gpa = await this.calculateGPA(studentId);
 
-            // Get all grades
-            const grades = await pb.collection('grades').getFullList<any>({
+            const grades = await pb.collection('grades').getFullList<StudentGrade>({
                 filter: `student = "${studentId}"`
             });
 
             const totalCredits = grades.reduce((sum, g) => sum + (g.weight || 1), 0);
 
-            // Get current enrollments
             try {
                 const enrollments = await pb.collection('enrollments').getFullList({
                     filter: `student = "${studentId}"`
@@ -110,8 +285,7 @@ class StudentAcademicsService {
                     completedCourses: grades.length,
                     currentCourses: enrollments.length
                 };
-            } catch (err) {
-                // Enrollments collection might not exist
+            } catch {
                 return {
                     gpa,
                     totalCredits,
@@ -127,6 +301,72 @@ class StudentAcademicsService {
                 completedCourses: 0,
                 currentCourses: 0
             };
+        }
+    }
+
+    /**
+     * Get grades by semester
+     */
+    async getGradesBySemester(studentId: string, semester: string): Promise<StudentGrade[]> {
+        if (isMockEnv()) {
+            return MOCK_GRADES.filter(g => g.student === studentId && g.semester === semester);
+        }
+
+        try {
+            return await pb.collection('grades').getFullList<StudentGrade>({
+                filter: `student = "${studentId}" && semester = "${semester}"`,
+                sort: 'course'
+            });
+        } catch (error) {
+            console.error('Failed to get grades by semester:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get GPA history (by semester)
+     */
+    async getGPAHistory(studentId: string): Promise<{ semester: string; gpa: number }[]> {
+        if (isMockEnv()) {
+            return [
+                { semester: 'Spring 2024', gpa: 3.6 },
+                { semester: 'Fall 2024', gpa: 3.7 }
+            ];
+        }
+
+        try {
+            const grades = await pb.collection('grades').getFullList<StudentGrade>({
+                filter: `student = "${studentId}"`
+            });
+
+            // Group by semester
+            const bySemester: Record<string, StudentGrade[]> = {};
+            grades.forEach(g => {
+                const sem = g.semester || 'Unknown';
+                if (!bySemester[sem]) bySemester[sem] = [];
+                bySemester[sem].push(g);
+            });
+
+            // Calculate GPA for each semester
+            return Object.entries(bySemester).map(([semester, semGrades]) => {
+                let totalPoints = 0;
+                let totalCredits = 0;
+                
+                semGrades.forEach(g => {
+                    const credits = g.weight || 1;
+                    const percentage = g.max_score ? (g.score! / g.max_score) * 100 : g.grade;
+                    totalPoints += this.convertToGradePoint(percentage) * credits;
+                    totalCredits += credits;
+                });
+
+                return {
+                    semester,
+                    gpa: totalCredits > 0 ? Math.round((totalPoints / totalCredits) * 100) / 100 : 0
+                };
+            });
+        } catch (error) {
+            console.error('Failed to get GPA history:', error);
+            return [];
         }
     }
 

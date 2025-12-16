@@ -32,11 +32,16 @@ class CRMAssignmentService {
                 notes
             });
 
-            await auditLogger.log('dealAssign', {
-                assignment_id: assignment.id,
-                deal_id: dealId,
-                assigned_to: userId,
-                role
+            await auditLogger.log({
+                action: 'dealAssign',
+                resource_type: 'deal_assignment',
+                resource_id: assignment.id,
+                severity: 'info',
+                metadata: {
+                    deal_id: dealId,
+                    assigned_to: userId,
+                    role
+                }
             });
 
             return assignment;
@@ -94,7 +99,12 @@ class CRMAssignmentService {
     async removeAssignment(assignmentId: string): Promise<boolean> {
         try {
             await pb.collection(this.collection).delete(assignmentId);
-            await auditLogger.log('dealUnassign', { assignment_id: assignmentId });
+            await auditLogger.log({
+                action: 'dealUnassign',
+                resource_type: 'deal_assignment',
+                resource_id: assignmentId,
+                severity: 'info'
+            });
             return true;
         } catch (error) {
             console.error('Error removing assignment:', error);
@@ -107,7 +117,13 @@ class CRMAssignmentService {
             const updated = await pb.collection(this.collection).update<DealAssignment>(assignmentId, {
                 role: newRole
             });
-            await auditLogger.log('dealRoleUpdate', { assignment_id: assignmentId, role: newRole });
+            await auditLogger.log({
+                action: 'dealRoleUpdate',
+                resource_type: 'deal_assignment',
+                resource_id: assignmentId,
+                severity: 'info',
+                metadata: { role: newRole }
+            });
             return updated;
         } catch (error) {
             console.error('Error updating assignment role:', error);

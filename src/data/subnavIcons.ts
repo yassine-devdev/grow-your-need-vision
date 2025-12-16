@@ -127,6 +127,20 @@ export const SUBNAV_ICONS: Record<string, string> = {
     'Video': 'MediaIcon3D',
     'Music': 'MediaIcon3D',
     
+    // Marketing Tools
+    'Campaigns': 'MegaphoneIcon',
+    'Audience': 'UserGroup',
+    'AI Generator': 'Sparkles',
+    'Personalization': 'AdjustmentsHorizontalIcon',
+    'A/B Testing': 'BeakerIcon',
+    'CDP': 'CircleStackIcon',
+    'Journey Builder': 'MapIcon',
+    'Scoring': 'ChartBarIcon',
+    'Social Scheduler': 'CalendarDaysIcon',
+    'Creative Studio': 'PaintBrushIcon',
+    'Attribution': 'PresentationChartLineIcon',
+    'Experiments': 'BeakerIcon',
+    
     // Misc
     'Tasks': 'CheckCircleIcon',
     'To Do': 'CheckCircleIcon',

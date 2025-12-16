@@ -1,3 +1,4 @@
+// Core Utility Hooks
 export * from './useAsync';
 export * from './useBattery';
 export * from './useClickOutside';
@@ -42,3 +43,40 @@ export * from './useUnmount';
 export * from './useUpdateEffect';
 export * from './useWebWorker';
 export * from './useWindowSize';
+
+// AI Hooks
+export * from './useAICosts';
+export * from './useAIFineTuning';
+export * from './useAIIntelligence';
+export * from './useAIModelRouting';
+export * from './useAIPlayground';
+export * from './useAIUsageAnalytics';
+export { useChat, type Message as ChatMessage } from './useChat';
+
+// CRM Hooks
+export * from './useCRMAnalytics';
+export * from './useCRMAssignments';
+export * from './useCRMContacts';
+export * from './useCRMDeals';
+export * from './useCRMEmails';
+
+// Data Hooks
+export * from './useApiError';
+export * from './useDashboardData';
+export * from './useDataQuery';
+export * from './useFeedback';
+export * from './useFileStorage';
+export * from './useFileUpload';
+export * from './useGamification';
+export * from './useKeyboardShortcuts';
+export * from './useMarketingRealtime';
+export { useMessages, type Message as ConversationMessage } from './useMessages';
+export * from './useNotifications';
+export * from './useOwnerDashboard';
+export * from './usePhase2Data';
+export * from './usePlatformSettings';
+export * from './usePocketBase';
+export * from './useRealtime';
+export * from './useSchoolDashboard';
+export * from './useUserProfile';
+export * from './useValidation';

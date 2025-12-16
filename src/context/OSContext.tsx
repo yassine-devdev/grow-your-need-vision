@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 // Types for OS Windows and Processes
 export interface WindowProcess {
@@ -115,28 +115,47 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const focusApp = useCallback((processId: string) => {
     // Bring to front logic would go here
-    const win = windows.find(w => w.id === processId);
-    if (win) {
-      setActiveOverlayApp(win.appName);
-      setWindows(prev => prev.map(w => w.id === processId ? { ...w, isMinimized: false } : w));
-    }
-  }, [windows]);
+    setWindows(prev => {
+      const win = prev.find(w => w.id === processId);
+      if (win) {
+        setActiveOverlayApp(win.appName);
+        return prev.map(w => w.id === processId ? { ...w, isMinimized: false } : w);
+      }
+      return prev;
+    });
+  }, []);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    activeOverlayApp,
+    windows,
+    launchApp,
+    closeApp,
+    minimizeApp,
+    minimizeAppByName,
+    closeAppByName,
+    focusApp,
+    toggleSidebar,
+    sidebarExpanded,
+    openOverlay,
+    closeOverlay
+  }), [
+    activeOverlayApp,
+    windows,
+    launchApp,
+    closeApp,
+    minimizeApp,
+    minimizeAppByName,
+    closeAppByName,
+    focusApp,
+    toggleSidebar,
+    sidebarExpanded,
+    openOverlay,
+    closeOverlay
+  ]);
 
   return (
-    <OSContext.Provider value={{
-      activeOverlayApp,
-      windows,
-      launchApp,
-      closeApp,
-      minimizeApp,
-      minimizeAppByName,
-      closeAppByName,
-      focusApp,
-      toggleSidebar,
-      sidebarExpanded,
-      openOverlay,
-      closeOverlay
-    }}>
+    <OSContext.Provider value={contextValue}>
       {children}
     </OSContext.Provider>
   );

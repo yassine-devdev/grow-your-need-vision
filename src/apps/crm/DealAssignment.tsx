@@ -8,7 +8,7 @@ import {
     useRemoveAssignment
 } from '../../hooks/useCRMAssignments';
 import { useDeals } from '../../hooks/useCRMDeals';
-import { useCRMContacts } from '../../hooks/useCRMContacts'; // Assuming we have user/contact management or can mock users for now
+import { useContacts } from '../../hooks/useCRMContacts';
 
 // Mock users for assignment demonstration since we don't have a full User Management API exposed here yet
 // In a real app, this would come from a useUsers() hook

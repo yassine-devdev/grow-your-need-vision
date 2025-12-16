@@ -290,7 +290,7 @@ export const PlatformBilling: React.FC<PlatformBillingProps> = ({ activeSubNav =
     };
 
     const tabs = ['Plans', 'Invoices', 'Gateways'];
-    let content: JSX.Element = renderPlansView();
+    let content: React.ReactNode = renderPlansView();
     if (activeSubNav === 'Invoices') content = renderInvoicesView();
     if (activeSubNav === 'Gateways') content = renderGatewaysView();
 

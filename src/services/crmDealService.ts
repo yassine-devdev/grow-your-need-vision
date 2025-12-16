@@ -57,7 +57,13 @@ class CRMDealService {
                 currency: data.currency || 'USD',
                 status: 'open'
             });
-            await auditLogger.log('dealCreate', { deal_id: deal.id, title: deal.title });
+            await auditLogger.log({
+                action: 'dealCreate',
+                resource_type: 'crm_deal',
+                resource_id: deal.id,
+                severity: 'info',
+                metadata: { title: deal.title }
+            });
             return deal;
         } catch (error) {
             console.error('Error creating deal:', error);
@@ -74,7 +80,13 @@ class CRMDealService {
                 currency,
                 weighted_value
             });
-            await auditLogger.log('dealValueUpdate', { deal_id: id, value, currency });
+            await auditLogger.log({
+                action: 'dealValueUpdate',
+                resource_type: 'crm_deal',
+                resource_id: id,
+                severity: 'info',
+                metadata: { value, currency }
+            });
             return updated;
         } catch (error) {
             console.error('Error updating deal value:', error);
@@ -90,7 +102,13 @@ class CRMDealService {
                 probability,
                 weighted_value
             });
-            await auditLogger.log('dealProbabilityUpdate', { deal_id: id, probability });
+            await auditLogger.log({
+                action: 'dealProbabilityUpdate',
+                resource_type: 'crm_deal',
+                resource_id: id,
+                severity: 'info',
+                metadata: { probability }
+            });
             return updated;
         } catch (error) {
             console.error('Error updating probability:', error);
@@ -103,7 +121,13 @@ class CRMDealService {
             const updated = await pb.collection(this.collection).update<Deal>(id, {
                 expected_close_date
             });
-            await auditLogger.log('dealCloseDateUpdate', { deal_id: id, date: expected_close_date });
+            await auditLogger.log({
+                action: 'dealCloseDateUpdate',
+                resource_type: 'crm_deal',
+                resource_id: id,
+                severity: 'info',
+                metadata: { date: expected_close_date }
+            });
             return updated;
         } catch (error) {
             console.error('Error updating close date:', error);
@@ -118,7 +142,12 @@ class CRMDealService {
                 actual_close_date: new Date().toISOString(),
                 probability: 100
             });
-            await auditLogger.log('dealWon', { deal_id: id });
+            await auditLogger.log({
+                action: 'dealWon',
+                resource_type: 'crm_deal',
+                resource_id: id,
+                severity: 'info'
+            });
             return updated;
         } catch (error) {
             console.error('Error marking deal won:', error);
@@ -133,7 +162,12 @@ class CRMDealService {
                 actual_close_date: new Date().toISOString(),
                 probability: 0
             });
-            await auditLogger.log('dealLost', { deal_id: id });
+            await auditLogger.log({
+                action: 'dealLost',
+                resource_type: 'crm_deal',
+                resource_id: id,
+                severity: 'info'
+            });
             return updated;
         } catch (error) {
             console.error('Error marking deal lost:', error);
@@ -179,7 +213,12 @@ class CRMDealService {
     async deleteDeal(id: string): Promise<boolean> {
         try {
             await pb.collection(this.collection).delete(id);
-            await auditLogger.log('dealDelete', { deal_id: id });
+            await auditLogger.log({
+                action: 'dealDelete',
+                resource_type: 'crm_deal',
+                resource_id: id,
+                severity: 'warning'
+            });
             return true;
         } catch (error) {
             console.error('Error deleting deal:', error);

@@ -386,7 +386,7 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
             <BroadcastMessageModal
                 isOpen={isBroadcastModalOpen}
                 onClose={() => setIsBroadcastModalOpen(false)}
-                tenantCount={dashboardData?.kpis.activeTenants.value || 0}
+                tenantCount={Number(dashboardData?.kpis.activeTenants.value) || 0}
             />
         </div>
     );

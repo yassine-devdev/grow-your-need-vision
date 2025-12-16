@@ -53,10 +53,15 @@ class CRMEmailService {
             });
 
             // In production, integrate with SMTP service here
-            await auditLogger.log('emailSent', {
-                email_id: email.id,
-                to,
-                subject
+            await auditLogger.log({
+                action: 'emailSent',
+                resource_type: 'crm_email',
+                resource_id: email.id,
+                severity: 'info',
+                metadata: {
+                    to,
+                    subject
+                }
             });
 
             return email;
@@ -80,7 +85,13 @@ class CRMEmailService {
     async createTemplate(template: Partial<EmailTemplate>): Promise<EmailTemplate> {
         try {
             const created = await pb.collection(this.templateCollection).create<EmailTemplate>(template);
-            await auditLogger.log('emailTemplateCreate', { template_id: created.id, name: created.name });
+            await auditLogger.log({
+                action: 'emailTemplateCreate',
+                resource_type: 'crm_email_template',
+                resource_id: created.id,
+                severity: 'info',
+                metadata: { name: created.name }
+            });
             return created;
         } catch (error) {
             console.error('Error creating template:', error);

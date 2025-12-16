@@ -40,8 +40,6 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
     { name: 'Market', icon: 'MarketIcon3D', side: 'right' },
     { name: 'Services', icon: 'ServicesIcon3D', side: 'right' },
     { name: 'Activities', icon: 'ActivitiesIcon3D', side: 'right' },
-    { name: 'Marketing', icon: 'MegaphoneIcon', side: 'right' },
-    { name: 'Finance', icon: 'BanknotesIcon', side: 'right' },
     { name: 'Travel & Transport', icon: 'TransportIcon3D', side: 'right' },
     { name: 'Sport', icon: 'SportIcon3D', side: 'right' },
     { name: 'Islam', icon: 'IslamIcon3D', side: 'right' },
@@ -49,20 +47,6 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
   ];
 
         const handleAppLaunch = (appName: string) => {
-        if (appName === 'Finance' && typeof window !== 'undefined') {
-            const hash = window.location.hash || '';
-            // In mock/E2E, avoid hash navigation churn that can stall clicks
-            if (isMockEnv()) {
-                setIsDockOpen(false);
-                return;
-            }
-
-            if (hash.includes('/school-admin')) {
-                window.location.hash = '#/school-admin/finance';
-                setIsDockOpen(false);
-                return;
-            }
-        }
         launchApp(appName);
         };
 
@@ -148,7 +132,7 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                             className="group flex flex-col items-center justify-center w-12 h-12 relative"
                             whileHover={{ scale: 1.15, y: -5 }}
                             whileTap={{ scale: 0.9 }}
-                            aria-label={app.name === 'Finance' ? 'Budget Dock' : app.name}
+                            aria-label={app.name}
                         >
                              <div className="w-10 h-10 relative">
                                 <OwnerIcon name={app.icon} className="w-full h-full drop-shadow-md filter" />
@@ -221,7 +205,7 @@ const OwnerFooter: React.FC<FooterProps> = ({ onLaunchApp, activeApps, isMobileS
                                 key={app.name}
                                 onClick={() => handleAppLaunch(app.name)}
                                 className="group flex flex-col items-center justify-center w-12 h-12 relative shrink-0"
-                                aria-label={app.name === 'Finance' ? 'Budget Dock' : app.name}
+                                aria-label={app.name}
                             >
                                  <div className="w-10 h-10 relative">
                                     <OwnerIcon name={app.icon} className="w-full h-full drop-shadow-md" />

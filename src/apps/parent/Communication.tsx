@@ -64,7 +64,7 @@ const ParentCommunication: React.FC<Props> = ({ activeTab, activeSubNav }) => {
             let recipientId = '';
             try {
                 const recipient = await communicationService.findUserByEmail(toEmail);
-                recipientId = recipient.id;
+                recipientId = recipient?.id || '';
             } catch (e) {
                 alert('Recipient not found');
                 return;

@@ -1,4 +1,5 @@
 import { RecordModel } from 'pocketbase';
+import pb from '../lib/pocketbase';
 
 export interface DealContext {
     title?: string;

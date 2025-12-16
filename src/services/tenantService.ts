@@ -138,14 +138,33 @@ export const tenantService = {
     createTenant: async (data: Omit<Tenant, 'id' | 'created' | 'updated' | 'collectionId' | 'collectionName'>) => {
         if (isMockEnv()) {
             ensureMockTenants();
-            const tenant = {
-                ...data,
+            const tenant: Tenant = {
                 id: `mock-tenant-${Date.now()}`,
                 created: new Date().toISOString(),
                 updated: new Date().toISOString(),
                 collectionId: 'mock',
                 collectionName: 'tenants',
-            } as Tenant;
+                name: data.name,
+                subdomain: data.subdomain,
+                custom_domain: data.custom_domain,
+                logo: data.logo,
+                plan: data.plan,
+                status: data.status,
+                subscription_status: data.subscription_status,
+                admin_email: data.admin_email,
+                admin_user: data.admin_user,
+                max_students: data.max_students,
+                max_teachers: data.max_teachers,
+                max_storage_gb: data.max_storage_gb,
+                features_enabled: data.features_enabled,
+                trial_ends_at: data.trial_ends_at,
+                subscription_ends_at: data.subscription_ends_at,
+                stripe_customer_id: data.stripe_customer_id,
+                stripe_subscription_id: data.stripe_subscription_id,
+                metadata: data.metadata,
+                branding: data.branding,
+                settings: data.settings
+            };
             mockTenants.unshift(tenant);
             return tenant;
         }

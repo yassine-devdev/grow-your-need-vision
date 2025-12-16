@@ -30,7 +30,8 @@ const EventsApp: React.FC<EventsAppProps> = ({ activeTab, activeSubNav }) => {
     setLoading(true);
     try {
       const result = await eventService.getEvents();
-      setEvents(result.items || []);
+      // eventService.getEvents returns Event[] directly, not a paginated result
+      setEvents(Array.isArray(result) ? result : []);
     } catch (error) {
       console.error('Error fetching events:', error);
     } finally {

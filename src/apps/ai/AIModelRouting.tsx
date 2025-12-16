@@ -11,7 +11,20 @@ import { RoutingRule } from '../../services/aiModelRoutingService';
 const AIModelRouting: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingRule, setEditingRule] = useState<RoutingRule | null>(null);
-    const [newRule, setNewRule] = useState({
+    const [newRule, setNewRule] = useState<{
+        name: string;
+        priority: number;
+        enabled: boolean;
+        conditions: {
+            token_count: { min?: number; max?: number };
+            cost_sensitivity?: string;
+            response_time?: string;
+            features: string[];
+            tenants: string[];
+        };
+        model_selection: string;
+        fallback_model: string;
+    }>({
         name: '',
         priority: 1,
         enabled: true,

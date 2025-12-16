@@ -84,17 +84,24 @@ export const crmService = {
         }
     },
 
-    async createDeal(data: Omit<Deal, keyof RecordModel>) {
+    async createDeal(data: Partial<Deal>) {
         try {
             if (isMockEnv()) {
                 const newDeal: Deal = {
-                    ...data,
                     id: `mock-deal-${Date.now()}`,
                     collectionId: 'mock',
                     collectionName: 'deals',
                     created: new Date().toISOString(),
                     updated: new Date().toISOString(),
-                } as Deal;
+                    title: data.title || '',
+                    value: data.value || 0,
+                    stage: data.stage || 'Lead',
+                    description: data.description || '',
+                    contact_name: data.contact_name || '',
+                    assigned_to: data.assigned_to || '',
+                    expected_close_date: data.expected_close_date,
+                    probability: data.probability
+                };
                 mockDeals.unshift(newDeal);
                 return newDeal;
             }

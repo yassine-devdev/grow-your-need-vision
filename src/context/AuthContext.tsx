@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import pb from '../lib/pocketbase';
 import { RecordModel } from 'pocketbase';
 import { isMockEnv } from '../utils/mockData';
@@ -181,12 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    setIsImpersonating(false);
-    pb.authStore.clear();
-    setUser(null);
-    setRealUser(null);
-  };
+  // logout is now memoized below the context value
 
   const startImpersonation = async (userId: string) => {
     // Only allowed if real user is Owner or Admin
@@ -215,19 +210,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Memoize logout to prevent re-renders
+  const memoizedLogout = useCallback(() => {
+    setIsImpersonating(false);
+    pb.authStore.clear();
+    setUser(null);
+    setRealUser(null);
+  }, []);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    login,
+    register,
+    logout: memoizedLogout,
+    loading,
+    error,
+    startImpersonation,
+    stopImpersonation,
+    isImpersonating
+  }), [user, login, register, memoizedLogout, loading, error, startImpersonation, stopImpersonation, isImpersonating]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated: !!user,
-      login,
-      register,
-      logout,
-      loading,
-      error,
-      startImpersonation,
-      stopImpersonation,
-      isImpersonating
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

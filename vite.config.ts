@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
       watch: {
         ignored: ['**/pocketbase/**', '**/pb_data/**', '**/*.db', '**/*.db-journal', '**/test_output.txt', '**/ai_service/**', '**/chroma_db/**'],
       },
+      hmr: {
+        overlay: false, // Disable error overlay for performance
+      },
     },
     plugins: [
       react(),

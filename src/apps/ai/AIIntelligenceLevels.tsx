@@ -190,7 +190,7 @@ const AIIntelligenceLevels: React.FC = () => {
                                     {/* Upload Button */}
                                     <div className="mb-4">
                                         <input
-                                            ref={(el) => (fileInputRefs.current[level.level] = el)}
+                                            ref={(el) => { fileInputRefs.current[level.level] = el; }}
                                             type="file"
                                             className="hidden"
                                             onChange={(e) => handleFileSelect(level.level as any, e)}

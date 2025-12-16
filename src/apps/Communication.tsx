@@ -149,7 +149,7 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
             if (!finalRecipientId && toEmail) {
                 try {
                     const user = await communicationService.findUserByEmail(toEmail);
-                    finalRecipientId = user.id;
+                    finalRecipientId = user?.id || '';
                 } catch (e) {
                     addToast(`Recipient with email ${toEmail} not found`, 'error');
                     return;
@@ -713,7 +713,6 @@ const CommunityView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => 
                 title,
                 content,
                 author: currentUser.id,
-                likes: 0,
                 tags: tags.split(',').map(t => t.trim()).filter(t => t)
             });
             addToast('Topic created successfully', 'success');

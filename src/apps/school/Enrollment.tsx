@@ -47,7 +47,7 @@ export const Enrollment: React.FC = () => {
         setLoading(true);
         try {
             const result = await enrollmentService.getClassEnrollments(classId);
-            setEnrollments(result.items);
+            setEnrollments(result.items as EnrollmentRecord[]);
         } catch (error) {
             console.error('Failed to load enrollments:', error);
         } finally {
@@ -59,7 +59,7 @@ export const Enrollment: React.FC = () => {
         if (!window.confirm('Are you sure you want to withdraw this student?')) return;
 
         try {
-            await enrollmentService.updateStatus(enrollmentId, 'Dropped');
+            await enrollmentService.updateStatus(enrollmentId, 'dropped');
             await fetchEnrollments(selectedClass);
         } catch (error) {
             console.error('Failed to withdraw student:', error);
@@ -175,8 +175,8 @@ export const Enrollment: React.FC = () => {
                                             {new Date(enrollment.created).toLocaleDateString()}
                                         </td>
                                         <td className="py-3 px-4">
-                                            <Badge variant={enrollment.status === 'Active' ? 'success' : 'neutral'}>
-                                                {enrollment.status || 'Active'}
+                                            <Badge variant={enrollment.status === 'active' ? 'success' : 'neutral'}>
+                                                {enrollment.status || 'active'}
                                             </Badge>
                                         </td>
                                         <td className="py-3 px-4 text-right">

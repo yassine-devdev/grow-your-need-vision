@@ -47,7 +47,13 @@ class AIModelRoutingService {
     async createRule(data: Partial<RoutingRule>): Promise<RoutingRule> {
         try {
             const rule = await pb.collection(this.collection).create<RoutingRule>(data);
-            await auditLogger.log('routingRuleCreate', { rule_id: rule.id, name: rule.name });
+            await auditLogger.log({
+                action: 'routingRuleCreate',
+                resource_type: 'ai_routing_rule',
+                resource_id: rule.id,
+                severity: 'info',
+                metadata: { name: rule.name }
+            });
             return rule;
         } catch (error) {
             console.error('Error creating rule:', error);
@@ -61,7 +67,12 @@ class AIModelRoutingService {
     async updateRule(id: string, data: Partial<RoutingRule>): Promise<RoutingRule> {
         try {
             const rule = await pb.collection(this.collection).update<RoutingRule>(id, data);
-            await auditLogger.log('routingRuleUpdate', { rule_id: id });
+            await auditLogger.log({
+                action: 'routingRuleUpdate',
+                resource_type: 'ai_routing_rule',
+                resource_id: id,
+                severity: 'info'
+            });
             return rule;
         } catch (error) {
             console.error('Error updating rule:', error);
@@ -75,7 +86,12 @@ class AIModelRoutingService {
     async deleteRule(id: string): Promise<boolean> {
         try {
             await pb.collection(this.collection).delete(id);
-            await auditLogger.log('routingRuleDelete', { rule_id: id });
+            await auditLogger.log({
+                action: 'routingRuleDelete',
+                resource_type: 'ai_routing_rule',
+                resource_id: id,
+                severity: 'warning'
+            });
             return true;
         } catch (error) {
             console.error('Error deleting rule:', error);

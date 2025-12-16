@@ -27,7 +27,7 @@ export const EventsContentManager: React.FC = () => {
         setLoading(true);
         try {
             const data = await eventService.getEvents();
-            setEvents(data);
+            setEvents(data.items || []);
         } catch (error) {
             showToast('Failed to load events', 'error');
         } finally {

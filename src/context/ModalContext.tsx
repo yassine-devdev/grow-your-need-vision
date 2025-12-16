@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useCallback, useContext, ReactNode } from 'react';
 import { Modal } from '../components/shared/ui/Modal';
 
 interface ModalConfig {
@@ -10,9 +10,21 @@ interface ModalConfig {
 interface ModalContextType {
   openModal: (config: ModalConfig) => void;
   closeModal: () => void;
+  isOpen: boolean;
 }
 
 export const ModalContext = createContext<ModalContextType | undefined>(undefined);
+
+/**
+ * Hook to access modal context
+ */
+export function useModal(): ModalContextType {
+  const context = useContext(ModalContext);
+  if (!context) {
+    throw new Error('useModal must be used within a ModalProvider');
+  }
+  return context;
+}
 
 export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,7 +41,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   return (
-    <ModalContext.Provider value={{ openModal, closeModal }}>
+    <ModalContext.Provider value={{ openModal, closeModal, isOpen }}>
       {children}
       {config && (
         <Modal

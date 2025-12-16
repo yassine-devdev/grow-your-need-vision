@@ -9,8 +9,67 @@ export const DeveloperPortal: React.FC<{ onBack: () => void }> = ({ onBack }) =>
     const [myApps, setMyApps] = useState<MarketplaceApp[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'apps' | 'analytics' | 'revenue'>('apps');
+    
+    // Submit App Modal State
+    const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [category, setCategory] = useState('Marketing');
+    const [price, setPrice] = useState('Free');
+    const [iconName, setIconName] = useState('CubeIcon');
 
-    // ... existing fetch logic ...
+    useEffect(() => {
+        fetchMyApps();
+    }, []);
+
+    const fetchMyApps = async () => {
+        setLoading(true);
+        try {
+            const user = pb.authStore.model;
+            if (user) {
+                const apps = await marketplaceService.getDeveloperApps(user.id);
+                setMyApps(apps);
+            }
+        } catch (error) {
+            console.error('Error fetching developer apps:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async () => {
+        try {
+            const user = pb.authStore.model;
+            if (!user) return;
+            
+            await marketplaceService.createApp({
+                name,
+                description,
+                category,
+                price,
+                icon: iconName,
+                developer: user.id,
+                verified: false,
+                installs: 0,
+                rating: 0
+            });
+            
+            addToast('App submitted for review!', 'success');
+            setIsSubmitOpen(false);
+            
+            // Reset form
+            setName('');
+            setDescription('');
+            setCategory('Marketing');
+            setPrice('Free');
+            setIconName('CubeIcon');
+            
+            fetchMyApps();
+        } catch (error) {
+            console.error('Error submitting app:', error);
+            addToast('Failed to submit app', 'error');
+        }
+    };
 
     const renderAppsTab = () => (
         <>

@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { legalDocsService, LegalDocument } from '../services/legalDocsService';
 import { emailTemplateService } from '../services/emailTemplateService';
-import { webhookService, Webhook } from '../services/webhookService';
+import { webhookService, Webhook, CreateWebhookData } from '../services/webhookService';
 import { reportSchedulerService, ScheduledReport } from '../services/reportSchedulerService';
 import { backupService, Backup } from '../services/backupService';
 import { systemHealthService, HealthMetric } from '../services/systemHealthService';
-import { broadcastService, BroadcastMessage } from '../services/broadcastService';
+import { broadcastService, BroadcastMessage, CreateBroadcastData } from '../services/broadcastService';
 
 // Legal Documents Hooks
 export function useLegalDocuments() {
@@ -39,7 +39,7 @@ export function useWebhooks() {
 export function useCreateWebhook() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: Omit<Webhook, 'id' | 'created' | 'updated' | 'success_rate'>) =>
+        mutationFn: (data: CreateWebhookData) =>
             webhookService.create(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['webhooks'] });
@@ -84,7 +84,7 @@ export function useBackups() {
 export function useBackupStats() {
     return useQuery({
         queryKey: ['backupStats'],
-        queryFn: () => backupService.getStats(),
+        queryFn: () => backupService.getStatistics(),
         staleTime: 5 * 60 * 1000,
     });
 }
@@ -129,7 +129,7 @@ export function useOverallHealth() {
 export function useSendBroadcast() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: Omit<BroadcastMessage, 'id' | 'created' | 'updated' | 'sent_at' | 'recipient_count'>) =>
+        mutationFn: (data: CreateBroadcastData) =>
             broadcastService.send(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['broadcasts'] });

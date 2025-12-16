@@ -115,7 +115,8 @@ export function useImportContacts() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (csvData: string) => crmContactsService.importContacts(csvData),
+        mutationFn: ({ csvData, createdBy }: { csvData: string; createdBy: string }) => 
+            crmContactsService.importContacts(csvData, createdBy),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['contacts'] });
             queryClient.invalidateQueries({ queryKey: ['contactStats'] });

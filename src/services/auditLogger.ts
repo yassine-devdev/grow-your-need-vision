@@ -279,6 +279,16 @@ export const auditLogger = new AuditLogger();
 
 // Export helper functions for common use cases
 export const auditLog = {
+    // Generic log method for flexible audit logging
+    log: (action: string, metadata: Record<string, any> = {}, severity: 'info' | 'warning' | 'critical' = 'info') =>
+        auditLogger.log({
+            action,
+            resource_type: metadata.resource_type || 'system',
+            resource_id: metadata.resource_id,
+            severity,
+            metadata
+        }),
+
     tenantCreate: (tenantId: string, tenantName: string, tenantType: string) =>
         auditLogger.logTenantCreate(tenantId, tenantName, tenantType),
 

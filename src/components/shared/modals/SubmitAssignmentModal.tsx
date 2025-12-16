@@ -89,7 +89,7 @@ export const SubmitAssignmentModal: React.FC<SubmitAssignmentModalProps> = ({
             const submission = await assignmentService.submitAssignment(
                 assignment.id,
                 studentId,
-                notes
+                { notes, content: '' }
             );
 
             // Upload files

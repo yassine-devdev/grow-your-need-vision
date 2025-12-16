@@ -194,13 +194,63 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
     };
 
     const handleExportDeals = (format: 'pdf' | 'excel') => {
-        console.log(`Exporting deals as ${format}...`);
-        // TODO: Implement export logic
+        if (deals.length === 0) {
+            alert('No deals to export');
+            return;
+        }
+
+        const headers = ['Title', 'Stage', 'Value', 'Contact', 'Assigned To', 'Created'];
+        const data = deals.map(d => [
+            d.title,
+            d.stage,
+            `$${d.value.toLocaleString()}`,
+            d.contact_name || 'N/A',
+            d.assigned_to || 'Unassigned',
+            new Date(d.created || Date.now()).toLocaleDateString()
+        ]);
+
+        if (format === 'pdf') {
+            reportService.exportToPDF('CRM Deals Report', headers, data, 'crm-deals');
+        } else {
+            const excelData = deals.map(d => ({
+                Title: d.title,
+                Stage: d.stage,
+                Value: d.value,
+                Contact: d.contact_name || 'N/A',
+                'Assigned To': d.assigned_to || 'Unassigned',
+                Description: d.description || '',
+                Created: new Date(d.created || Date.now()).toLocaleDateString()
+            }));
+            reportService.exportToExcel(excelData, 'CRM Deals', 'crm-deals');
+        }
     };
 
     const handleExportForecast = (format: 'pdf' | 'excel') => {
-        console.log(`Exporting forecast as ${format}...`);
-        // TODO: Implement export logic
+        if (forecast.length === 0) {
+            alert('No forecast data to export');
+            return;
+        }
+
+        const headers = ['Month', 'Predicted Revenue', 'Closed Revenue', 'Pipeline'];
+        const data = forecast.map(f => [
+            f.month,
+            `$${f.predicted.toLocaleString()}`,
+            `$${f.closed.toLocaleString()}`,
+            `$${f.pipeline.toLocaleString()}`
+        ]);
+
+        if (format === 'pdf') {
+            reportService.exportToPDF('Revenue Forecast Report', headers, data, 'revenue-forecast');
+        } else {
+            const excelData = forecast.map(f => ({
+                Month: f.month,
+                'Predicted Revenue': f.predicted,
+                'Closed Revenue': f.closed,
+                'Pipeline Value': f.pipeline,
+                'Close Rate': `${((f.closed / f.predicted) * 100).toFixed(1)}%`
+            }));
+            reportService.exportToExcel(excelData, 'Revenue Forecast', 'revenue-forecast');
+        }
     };
 
     return (

@@ -72,6 +72,16 @@ export function useRunReport() {
     });
 }
 
+export function useCreateScheduledReport() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: Parameters<typeof reportSchedulerService.create>[0]) => reportSchedulerService.create(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['scheduledReports'] });
+        },
+    });
+}
+
 // Backups Hooks
 export function useBackups() {
     return useQuery({

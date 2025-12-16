@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Icon, Badge, Button } from '../../components/shared/ui/CommonUI';
-import { useWebhooks, useTestWebhook } from '../../hooks/usePhase2Data';
+import { useWebhooks, useTestWebhook, useCreateWebhook } from '../../hooks/usePhase2Data';
+import { webhookService, type Webhook, type CreateWebhookData } from '../../services/webhookService';
+
+const AVAILABLE_EVENTS = [
+    'tenant.created', 'tenant.updated', 'tenant.deleted', 'tenant.suspended',
+    'user.created', 'user.updated', 'user.deleted', 'user.login',
+    'subscription.created', 'subscription.updated', 'subscription.cancelled',
+    'payment.completed', 'payment.failed', 'payment.refunded',
+    'invoice.created', 'invoice.paid', 'invoice.overdue'
+];
 
 const WebhookManager: React.FC = () => {
-    const { data: webhooks, isLoading, error } = useWebhooks();
+    const { data: webhooks, isLoading, error, refetch } = useWebhooks();
     const testMutation = useTestWebhook();
+    const createMutation = useCreateWebhook();
+    
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
+    const [webhookForm, setWebhookForm] = useState<CreateWebhookData>({
+        name: '',
+        url: '',
+        events: [],
+        secret: ''
+    });
 
     const handleTest = async (id: string) => {
         try {
@@ -13,6 +33,73 @@ const WebhookManager: React.FC = () => {
         } catch (error) {
             alert('Webhook test failed');
         }
+    };
+
+    const handleCreate = async () => {
+        if (!webhookForm.name || !webhookForm.url || webhookForm.events.length === 0) {
+            alert('Please fill in all required fields');
+            return;
+        }
+        try {
+            await createMutation.mutateAsync(webhookForm);
+            setShowAddModal(false);
+            setWebhookForm({ name: '', url: '', events: [], secret: '' });
+        } catch (error) {
+            alert('Failed to create webhook');
+        }
+    };
+
+    const handleEdit = (webhook: Webhook) => {
+        setEditingWebhook(webhook);
+        setWebhookForm({
+            name: webhook.name,
+            url: webhook.url,
+            events: Array.isArray(webhook.events) ? webhook.events : JSON.parse(webhook.events as any),
+            secret: webhook.secret || ''
+        });
+        setShowEditModal(true);
+    };
+
+    const handleUpdate = async () => {
+        if (!editingWebhook) return;
+        try {
+            await webhookService.update(editingWebhook.id, webhookForm);
+            setShowEditModal(false);
+            setEditingWebhook(null);
+            setWebhookForm({ name: '', url: '', events: [], secret: '' });
+            refetch();
+        } catch (error) {
+            alert('Failed to update webhook');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this webhook?')) return;
+        try {
+            await webhookService.delete(id);
+            refetch();
+        } catch (error) {
+            alert('Failed to delete webhook');
+        }
+    };
+
+    const handleToggleStatus = async (webhook: Webhook) => {
+        try {
+            const newStatus = webhook.status === 'active' ? 'paused' : 'active';
+            await webhookService.update(webhook.id, { status: newStatus });
+            refetch();
+        } catch (error) {
+            alert('Failed to update webhook status');
+        }
+    };
+
+    const toggleEvent = (event: string) => {
+        setWebhookForm(prev => ({
+            ...prev,
+            events: prev.events.includes(event)
+                ? prev.events.filter(e => e !== event)
+                : [...prev.events, event]
+        }));
     };
 
     if (isLoading) {
@@ -39,7 +126,7 @@ const WebhookManager: React.FC = () => {
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Webhook Management</h2>
                     <p className="text-sm text-gray-500 mt-1">Configure webhooks for real-time event notifications</p>
                 </div>
-                <Button variant="primary">
+                <Button variant="primary" onClick={() => setShowAddModal(true)}>
                     <Icon name="PlusIcon" className="w-4 h-4 mr-2" />
                     Add Webhook
                 </Button>
@@ -83,9 +170,24 @@ const WebhookManager: React.FC = () => {
                                     <Icon name="PlayIcon" className="w-4 h-4 mr-1" />
                                     {testMutation.isPending ? 'Testing...' : 'Test'}
                                 </Button>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={() => handleEdit(webhook)}>
                                     <Icon name="PencilIcon" className="w-4 h-4 mr-1" />
                                     Edit
+                                </Button>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleToggleStatus(webhook)}
+                                >
+                                    {webhook.status === 'active' ? 'Pause' : 'Activate'}
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleDelete(webhook.id)}
+                                    className="text-red-500"
+                                >
+                                    <Icon name="TrashIcon" className="w-4 h-4" />
                                 </Button>
                             </div>
                         </div>
@@ -109,6 +211,87 @@ const WebhookManager: React.FC = () => {
                     </div>
                 </div>
             </Card>
+
+            {/* Add/Edit Webhook Modal */}
+            {(showAddModal || showEditModal) && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                            {showEditModal ? 'Edit Webhook' : 'Add Webhook'}
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                                <input
+                                    type="text"
+                                    value={webhookForm.name}
+                                    onChange={(e) => setWebhookForm({ ...webhookForm, name: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="My Webhook"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL *</label>
+                                <input
+                                    type="url"
+                                    value={webhookForm.url}
+                                    onChange={(e) => setWebhookForm({ ...webhookForm, url: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="https://your-server.com/webhook"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secret (optional)</label>
+                                <input
+                                    type="text"
+                                    value={webhookForm.secret}
+                                    onChange={(e) => setWebhookForm({ ...webhookForm, secret: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="Your webhook secret for HMAC verification"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Events *</label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 dark:border-gray-700 rounded-lg">
+                                    {AVAILABLE_EVENTS.map((event) => (
+                                        <label key={event} className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={webhookForm.events.includes(event)}
+                                                onChange={() => toggleEvent(event)}
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm text-gray-700 dark:text-gray-300">{event}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={() => { 
+                                        setShowAddModal(false); 
+                                        setShowEditModal(false); 
+                                        setEditingWebhook(null);
+                                        setWebhookForm({ name: '', url: '', events: [], secret: '' });
+                                    }} 
+                                    className="flex-1"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={showEditModal ? handleUpdate : handleCreate} 
+                                    className="flex-1"
+                                    disabled={createMutation.isPending}
+                                >
+                                    {createMutation.isPending ? 'Saving...' : (showEditModal ? 'Save Changes' : 'Create Webhook')}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

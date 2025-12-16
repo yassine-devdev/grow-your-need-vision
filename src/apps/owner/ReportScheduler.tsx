@@ -1,10 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Icon, Badge, Button } from '../../components/shared/ui/CommonUI';
-import { useScheduledReports, useRunReport } from '../../hooks/usePhase2Data';
+import { useScheduledReports, useRunReport, useCreateScheduledReport } from '../../hooks/usePhase2Data';
+import { reportSchedulerService, type ScheduledReport, type CreateReportData } from '../../services/reportSchedulerService';
+
+const REPORT_TYPES = ['revenue', 'usage', 'tenants', 'engagement', 'compliance', 'performance'] as const;
+const FREQUENCIES = ['daily', 'weekly', 'monthly', 'quarterly'] as const;
+const FORMATS = ['pdf', 'csv', 'excel', 'json'] as const;
 
 const ReportScheduler: React.FC = () => {
-    const { data: reports, isLoading, error } = useScheduledReports();
+    const { data: reports, isLoading, error, refetch } = useScheduledReports();
     const runMutation = useRunReport();
+    const createMutation = useCreateScheduledReport();
+    
+    const [showModal, setShowModal] = useState(false);
+    const [editingReport, setEditingReport] = useState<ScheduledReport | null>(null);
+    const [formData, setFormData] = useState<CreateReportData>({
+        name: '',
+        type: 'revenue',
+        frequency: 'weekly',
+        recipients: [''],
+        format: 'pdf',
+        description: ''
+    });
+    const [saving, setSaving] = useState(false);
 
     const handleRunNow = async (id: string, name: string) => {
         try {
@@ -13,6 +31,93 @@ const ReportScheduler: React.FC = () => {
         } catch (error) {
             alert('Failed to run report');
         }
+    };
+
+    const handleCreate = () => {
+        setEditingReport(null);
+        setFormData({
+            name: '',
+            type: 'revenue',
+            frequency: 'weekly',
+            recipients: [''],
+            format: 'pdf',
+            description: ''
+        });
+        setShowModal(true);
+    };
+
+    const handleEdit = (report: ScheduledReport) => {
+        setEditingReport(report);
+        const recipients = Array.isArray(report.recipients) ? report.recipients : JSON.parse(report.recipients as any);
+        setFormData({
+            name: report.name,
+            type: report.type,
+            frequency: report.frequency,
+            recipients: recipients.length ? recipients : [''],
+            format: report.format,
+            description: report.description || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleSave = async () => {
+        if (!formData.name || formData.recipients.filter(r => r.trim()).length === 0) {
+            alert('Please fill in name and at least one recipient');
+            return;
+        }
+        
+        setSaving(true);
+        try {
+            const cleanedRecipients = formData.recipients.filter(r => r.trim());
+            const payload = { ...formData, recipients: cleanedRecipients };
+            
+            if (editingReport) {
+                await reportSchedulerService.update(editingReport.id, payload);
+            } else {
+                await createMutation.mutateAsync(payload);
+            }
+            setShowModal(false);
+            refetch();
+        } catch (error) {
+            console.error('Failed to save report:', error);
+            alert('Failed to save report');
+        }
+        setSaving(false);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this scheduled report?')) return;
+        try {
+            await reportSchedulerService.delete(id);
+            refetch();
+        } catch (error) {
+            alert('Failed to delete report');
+        }
+    };
+
+    const handleToggleStatus = async (report: ScheduledReport) => {
+        try {
+            const newStatus = report.status === 'active' ? 'paused' : 'active';
+            await reportSchedulerService.updateStatus(report.id, newStatus);
+            refetch();
+        } catch (error) {
+            alert('Failed to update report status');
+        }
+    };
+
+    const addRecipient = () => {
+        setFormData({ ...formData, recipients: [...formData.recipients, ''] });
+    };
+
+    const updateRecipient = (index: number, value: string) => {
+        const newRecipients = [...formData.recipients];
+        newRecipients[index] = value;
+        setFormData({ ...formData, recipients: newRecipients });
+    };
+
+    const removeRecipient = (index: number) => {
+        const newRecipients = formData.recipients.filter((_, i) => i !== index);
+        setFormData({ ...formData, recipients: newRecipients.length ? newRecipients : [''] });
     };
 
     if (isLoading) {
@@ -39,7 +144,7 @@ const ReportScheduler: React.FC = () => {
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Report Scheduling</h2>
                     <p className="text-sm text-gray-500 mt-1">Automate report generation and distribution</p>
                 </div>
-                <Button variant="primary">
+                <Button variant="primary" onClick={handleCreate}>
                     <Icon name="PlusIcon" className="w-4 h-4 mr-2" />
                     Schedule Report
                 </Button>
@@ -104,9 +209,24 @@ const ReportScheduler: React.FC = () => {
                                         <Icon name="PlayIcon" className="w-4 h-4 mr-1" />
                                         {runMutation.isPending ? 'Running...' : 'Run Now'}
                                     </Button>
-                                    <Button variant="outline" size="sm">
+                                    <Button variant="outline" size="sm" onClick={() => handleEdit(report)}>
                                         <Icon name="PencilIcon" className="w-4 h-4 mr-1" />
                                         Edit
+                                    </Button>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handleToggleStatus(report)}
+                                    >
+                                        {report.status === 'active' ? 'Pause' : 'Resume'}
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => handleDelete(report.id)}
+                                        className="text-red-500"
+                                    >
+                                        <Icon name="TrashIcon" className="w-4 h-4" />
                                     </Button>
                                 </div>
                             </div>
@@ -125,6 +245,105 @@ const ReportScheduler: React.FC = () => {
                     </div>
                 </div>
             </Card>
+
+            {/* Create/Edit Modal */}
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                            {editingReport ? 'Edit Scheduled Report' : 'Schedule New Report'}
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Report Name *</label>
+                                <input
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="e.g., Weekly Revenue Report"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                                    <select
+                                        value={formData.type}
+                                        onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    >
+                                        {REPORT_TYPES.map(type => (
+                                            <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequency</label>
+                                    <select
+                                        value={formData.frequency}
+                                        onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any })}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    >
+                                        {FREQUENCIES.map(freq => (
+                                            <option key={freq} value={freq}>{freq.charAt(0).toUpperCase() + freq.slice(1)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Format</label>
+                                <select
+                                    value={formData.format}
+                                    onChange={(e) => setFormData({ ...formData, format: e.target.value as any })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                >
+                                    {FORMATS.map(fmt => (
+                                        <option key={fmt} value={fmt}>{fmt.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recipients *</label>
+                                <div className="space-y-2">
+                                    {formData.recipients.map((email, idx) => (
+                                        <div key={idx} className="flex gap-2">
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => updateRecipient(idx, e.target.value)}
+                                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                                placeholder="email@example.com"
+                                            />
+                                            <Button variant="ghost" size="sm" onClick={() => removeRecipient(idx)} className="text-red-500">
+                                                <Icon name="XMarkIcon" className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button variant="outline" size="sm" onClick={addRecipient} className="mt-2">
+                                    <Icon name="PlusIcon" className="w-4 h-4 mr-1" /> Add Recipient
+                                </Button>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                                <textarea
+                                    value={formData.description || ''}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    rows={3}
+                                    placeholder="Optional description..."
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <Button variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
+                                <Button variant="primary" onClick={handleSave} className="flex-1" disabled={saving}>
+                                    {saving ? 'Saving...' : (editingReport ? 'Save Changes' : 'Schedule Report')}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

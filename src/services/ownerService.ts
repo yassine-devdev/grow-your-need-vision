@@ -505,6 +505,18 @@ class OwnerService {
         return await pb.collection('subscription_plans').update<SubscriptionPlan>(id, data);
     }
 
+    async deleteSubscriptionPlan(id: string): Promise<boolean> {
+        await pb.collection('subscription_plans').delete(id);
+        return true;
+    }
+
+    async toggleSubscriptionPlanStatus(id: string): Promise<SubscriptionPlan> {
+        const plan = await pb.collection('subscription_plans').getOne<SubscriptionPlan>(id);
+        return await pb.collection('subscription_plans').update<SubscriptionPlan>(id, {
+            is_active: !plan.is_active
+        });
+    }
+
     // --- Analytics & Finance ---
 
     async getTopVisitedPages(): Promise<RecordModel[]> {

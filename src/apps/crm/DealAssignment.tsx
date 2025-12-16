@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Icon, Button, Badge } from '../../components/shared/ui/CommonUI';
 import {
     useAssignedDeals,
@@ -9,20 +9,33 @@ import {
 } from '../../hooks/useCRMAssignments';
 import { useDeals } from '../../hooks/useCRMDeals';
 import { useContacts } from '../../hooks/useCRMContacts';
-
-// Mock users for assignment demonstration since we don't have a full User Management API exposed here yet
-// In a real app, this would come from a useUsers() hook
-const MOCK_USERS = [
-    { id: 'user1', name: 'Alice Sales', role: 'Sales Rep' },
-    { id: 'user2', name: 'Bob Manager', role: 'Sales Manager' },
-    { id: 'user3', name: 'Charlie SDR', role: 'SDR' },
-];
+import { crmAssignmentService, TeamMember } from '../../services/crmAssignmentService';
+import { useAuth } from '../../context/AuthContext';
 
 const DealAssignment: React.FC = () => {
+    const { user } = useAuth();
     const { data: deals } = useDeals();
     const [selectedDeal, setSelectedDeal] = useState<string>('');
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(true);
 
-    const { data: team } = useDealTeam(selectedDeal);
+    // Load team members on mount
+    useEffect(() => {
+        const loadTeamMembers = async () => {
+            setLoadingMembers(true);
+            try {
+                const members = await crmAssignmentService.getTeamMembers();
+                setTeamMembers(members);
+            } catch (err) {
+                console.error('Failed to load team members:', err);
+            } finally {
+                setLoadingMembers(false);
+            }
+        };
+        loadTeamMembers();
+    }, []);
+
+    const { data: team, refetch: refetchTeam } = useDealTeam(selectedDeal);
     const assignDeal = useAssignDeal();
     const removeAssignment = useRemoveAssignment();
 
@@ -37,15 +50,22 @@ const DealAssignment: React.FC = () => {
             dealId: selectedDeal,
             userId: assignUser,
             role: assignRole,
-            assignedBy: 'current_user_id', // Mock ID
+            assignedBy: user?.id || 'system',
             notes: 'Assigned via Dashboard'
         });
 
         setAssignUser('');
+        refetchTeam();
+    };
+
+    const handleRemove = async (assignmentId: string) => {
+        await removeAssignment.mutateAsync(assignmentId);
+        refetchTeam();
     };
 
     const getDealTitle = (id: string) => deals?.find(d => d.id === id)?.title || 'Unknown Deal';
-    const getUserName = (id: string) => MOCK_USERS.find(u => u.id === id)?.name || id;
+    const getUserName = (id: string) => teamMembers.find(u => u.id === id)?.name || id;
+    const getUserRole = (id: string) => teamMembers.find(u => u.id === id)?.role || 'Team Member';
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -91,10 +111,15 @@ const DealAssignment: React.FC = () => {
                                     className="flex-1 p-2 rounded border dark:bg-gray-900"
                                     value={assignUser}
                                     onChange={(e) => setAssignUser(e.target.value)}
+                                    disabled={loadingMembers}
                                 >
-                                    <option value="">Select Team Member...</option>
-                                    {MOCK_USERS.map(user => (
-                                        <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
+                                    <option value="">
+                                        {loadingMembers ? 'Loading team members...' : 'Select Team Member...'}
+                                    </option>
+                                    {teamMembers.map(member => (
+                                        <option key={member.id} value={member.id}>
+                                            {member.name} ({member.role})
+                                        </option>
                                     ))}
                                 </select>
                                 <select
@@ -126,17 +151,20 @@ const DealAssignment: React.FC = () => {
                                             </div>
                                             <div>
                                                 <p className="font-bold">{getUserName(assignment.assigned_to)}</p>
-                                                <p className="text-xs text-gray-500">Assigned {new Date(assignment.assigned_at).toLocaleDateString()}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {getUserRole(assignment.assigned_to)} | Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <Badge variant={assignment.role === 'owner' ? 'success' : 'info'}>
+                                            <Badge variant={assignment.role === 'owner' ? 'success' : assignment.role === 'collaborator' ? 'info' : 'neutral'}>
                                                 {assignment.role}
                                             </Badge>
                                             <button
-                                                onClick={() => removeAssignment.mutate(assignment.id)}
+                                                onClick={() => handleRemove(assignment.id)}
                                                 className="text-red-500 hover:text-red-700 p-2"
                                                 title="Remove"
+                                                disabled={removeAssignment.isPending}
                                             >
                                                 <Icon name="TrashIcon" className="w-4 h-4" />
                                             </button>

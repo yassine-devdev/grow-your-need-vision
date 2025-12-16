@@ -1,16 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Icon, Badge, Button } from '../../components/shared/ui/CommonUI';
 import { auditLog } from '../../services/auditLogger';
-
-interface StaffMember {
-    id: string;
-    name: string;
-    email: string;
-    role: 'Super Admin' | 'Admin' | 'Support';
-    status: 'active' | 'suspended';
-    last_login: string;
-    mfa_enabled: boolean;
-}
+import { securitySettingsService, type StaffMember, type IPWhitelistEntry, type SecuritySettings as SecuritySettingsType } from '../../services/securitySettingsService';
 
 interface Permission {
     id: string;
@@ -22,43 +13,36 @@ interface Permission {
 }
 
 const SecuritySettings: React.FC = () => {
-    const [staff, setStaff] = useState<StaffMember[]>([
-        {
-            id: '1',
-            name: 'John Doe',
-            email: 'john@growyourneed.com',
-            role: 'Super Admin',
-            status: 'active',
-            last_login: '2 hours ago',
-            mfa_enabled: true
-        },
-        {
-            id: '2',
-            name: 'Jane Smith',
-            email: 'jane@growyourneed.com',
-            role: 'Admin',
-            status: 'active',
-            last_login: '1 day ago',
-            mfa_enabled: true
-        },
-        {
-            id: '3',
-            name: 'Bob Johnson',
-            email: 'bob@growyourneed.com',
-            role: 'Support',
-            status: 'active',
-            last_login: '3 days ago',
-            mfa_enabled: false
-        }
-    ]);
-
-    const [mfaRequired, setMfaRequired] = useState(true);
-    const [sessionTimeout, setSessionTimeout] = useState(60); // minutes
-    const [ipWhitelist, setIpWhitelist] = useState<string[]>([
-        '203.0.113.0/24',
-        '198.51.100.42'
-    ]);
+    const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [ipWhitelist, setIpWhitelist] = useState<IPWhitelistEntry[]>([]);
+    const [settings, setSettings] = useState<SecuritySettingsType | null>(null);
+    const [loading, setLoading] = useState(true);
     const [newIP, setNewIP] = useState('');
+    const [newIPDescription, setNewIPDescription] = useState('');
+    const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+    const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+    const [staffForm, setStaffForm] = useState({ name: '', email: '', role: 'Admin' as 'Super Admin' | 'Admin' | 'Support' });
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [staffData, ipData, settingsData] = await Promise.all([
+                securitySettingsService.getStaffMembers(),
+                securitySettingsService.getIPWhitelist(),
+                securitySettingsService.getSecuritySettings()
+            ]);
+            setStaff(staffData);
+            setIpWhitelist(ipData);
+            setSettings(settingsData);
+        } catch (error) {
+            console.error('Failed to load security data:', error);
+        }
+        setLoading(false);
+    };
 
     const permissions: Permission[] = [
         {
@@ -112,41 +96,113 @@ const SecuritySettings: React.FC = () => {
     ];
 
     const handleToggleMFA = async (staffId: string) => {
-        setStaff(staff.map(s =>
-            s.id === staffId ? { ...s, mfa_enabled: !s.mfa_enabled } : s
-        ));
+        try {
+            const updated = await securitySettingsService.toggleStaffMFA(staffId);
+            if (updated) {
+                setStaff(staff.map(s => s.id === staffId ? updated : s));
+            }
+        } catch (error) {
+            console.error('Failed to toggle MFA:', error);
+        }
     };
 
     const handleToggleStaffStatus = async (staffId: string) => {
-        const member = staff.find(s => s.id === staffId);
-        if (member) {
-            const newStatus = member.status === 'active' ? 'suspended' : 'active';
-            setStaff(staff.map(s =>
-                s.id === staffId ? { ...s, status: newStatus } : s
-            ));
+        try {
+            const updated = await securitySettingsService.toggleStaffStatus(staffId);
+            if (updated) {
+                setStaff(staff.map(s => s.id === staffId ? updated : s));
+            }
+        } catch (error) {
+            console.error('Failed to toggle staff status:', error);
         }
     };
 
-    const handleAddIP = () => {
-        if (newIP && !ipWhitelist.includes(newIP)) {
-            setIpWhitelist([...ipWhitelist, newIP]);
-            setNewIP('');
+    const handleAddIP = async () => {
+        if (newIP && !ipWhitelist.some(ip => ip.ip === newIP)) {
+            try {
+                const newEntry = await securitySettingsService.addIPToWhitelist(newIP, newIPDescription || 'Added manually');
+                setIpWhitelist([...ipWhitelist, newEntry]);
+                setNewIP('');
+                setNewIPDescription('');
+            } catch (error) {
+                console.error('Failed to add IP:', error);
+            }
         }
     };
 
-    const handleRemoveIP = (ip: string) => {
-        setIpWhitelist(ipWhitelist.filter(i => i !== ip));
+    const handleRemoveIP = async (ipId: string) => {
+        try {
+            await securitySettingsService.removeIPFromWhitelist(ipId);
+            setIpWhitelist(ipWhitelist.filter(i => i.id !== ipId));
+        } catch (error) {
+            console.error('Failed to remove IP:', error);
+        }
     };
 
     const handleToggleMFAPolicy = async () => {
-        const newValue = !mfaRequired;
-        await auditLog.settingsChange('mfa_required', mfaRequired, newValue);
-        setMfaRequired(newValue);
+        if (!settings) return;
+        try {
+            const newValue = !settings.mfa_required;
+            await auditLog.settingsChange('mfa_required', settings.mfa_required, newValue);
+            const updated = await securitySettingsService.updateSecuritySettings({ mfa_required: newValue });
+            setSettings(updated);
+        } catch (error) {
+            console.error('Failed to toggle MFA policy:', error);
+        }
     };
 
-    const handleUpdateSessionTimeout = (minutes: number) => {
-        setSessionTimeout(minutes);
-        auditLog.settingsChange('session_timeout', sessionTimeout, minutes);
+    const handleUpdateSessionTimeout = async (minutes: number) => {
+        if (!settings) return;
+        try {
+            await auditLog.settingsChange('session_timeout', settings.session_timeout, minutes);
+            const updated = await securitySettingsService.updateSecuritySettings({ session_timeout: minutes });
+            setSettings(updated);
+        } catch (error) {
+            console.error('Failed to update session timeout:', error);
+        }
+    };
+
+    const handleAddStaff = async () => {
+        if (!staffForm.name || !staffForm.email) return;
+        try {
+            const newStaff = await securitySettingsService.createStaff({
+                name: staffForm.name,
+                email: staffForm.email,
+                role: staffForm.role
+            });
+            setStaff([...staff, newStaff]);
+            setStaffForm({ name: '', email: '', role: 'Admin' });
+            setShowAddStaffModal(false);
+        } catch (error) {
+            console.error('Failed to add staff:', error);
+        }
+    };
+
+    const handleUpdateStaff = async () => {
+        if (!editingStaff) return;
+        try {
+            const updated = await securitySettingsService.updateStaff(editingStaff.id, {
+                name: editingStaff.name,
+                email: editingStaff.email,
+                role: editingStaff.role
+            });
+            if (updated) {
+                setStaff(staff.map(s => s.id === editingStaff.id ? updated : s));
+            }
+            setEditingStaff(null);
+        } catch (error) {
+            console.error('Failed to update staff:', error);
+        }
+    };
+
+    const handleDeleteStaff = async (staffId: string) => {
+        if (!confirm('Are you sure you want to remove this staff member?')) return;
+        try {
+            await securitySettingsService.deleteStaff(staffId);
+            setStaff(staff.filter(s => s.id !== staffId));
+        } catch (error) {
+            console.error('Failed to delete staff:', error);
+        }
     };
 
     return (
@@ -173,11 +229,11 @@ const SecuritySettings: React.FC = () => {
                         </div>
                         <button
                             onClick={handleToggleMFAPolicy}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${mfaRequired ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings?.mfa_required ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
                                 }`}
                         >
                             <span
-                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${mfaRequired ? 'translate-x-7' : 'translate-x-1'
+                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings?.mfa_required ? 'translate-x-7' : 'translate-x-1'
                                     }`}
                             />
                         </button>
@@ -195,14 +251,14 @@ const SecuritySettings: React.FC = () => {
                                 min="15"
                                 max="480"
                                 step="15"
-                                value={sessionTimeout}
+                                value={settings?.session_timeout || 60}
                                 onChange={(e) => handleUpdateSessionTimeout(parseInt(e.target.value))}
                                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                             />
                             <div className="w-32 text-right">
-                                <span className="font-bold text-gray-900 dark:text-white">{sessionTimeout} min</span>
+                                <span className="font-bold text-gray-900 dark:text-white">{settings?.session_timeout || 60} min</span>
                                 <p className="text-xs text-gray-500">
-                                    {sessionTimeout < 60 ? `${sessionTimeout} minutes` : `${(sessionTimeout / 60).toFixed(1)} hours`}
+                                    {(settings?.session_timeout || 60) < 60 ? `${settings?.session_timeout || 60} minutes` : `${((settings?.session_timeout || 60) / 60).toFixed(1)} hours`}
                                 </p>
                             </div>
                         </div>
@@ -226,14 +282,24 @@ const SecuritySettings: React.FC = () => {
                                 onChange={(e) => setNewIP(e.target.value)}
                                 className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
                             />
+                            <input
+                                type="text"
+                                placeholder="Description (optional)"
+                                value={newIPDescription}
+                                onChange={(e) => setNewIPDescription(e.target.value)}
+                                className="w-48 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                            />
                             <Button variant="primary" onClick={handleAddIP}>Add IP</Button>
                         </div>
 
                         <div className="space-y-2">
-                            {ipWhitelist.map((ip, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <code className="text-sm font-mono text-gray-900 dark:text-white">{ip}</code>
-                                    <Button variant="ghost" size="sm" onClick={() => handleRemoveIP(ip)}>
+                            {ipWhitelist.map((ipEntry) => (
+                                <div key={ipEntry.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div>
+                                        <code className="text-sm font-mono text-gray-900 dark:text-white">{ipEntry.ip}</code>
+                                        <p className="text-xs text-gray-500">{ipEntry.description}</p>
+                                    </div>
+                                    <Button variant="ghost" size="sm" onClick={() => handleRemoveIP(ipEntry.id)}>
                                         <Icon name="XMarkIcon" className="w-4 h-4 text-red-500" />
                                     </Button>
                                 </div>
@@ -247,12 +313,18 @@ const SecuritySettings: React.FC = () => {
             <Card className="p-6">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Owner Staff</h3>
-                    <Button variant="primary">
+                    <Button variant="primary" onClick={() => setShowAddStaffModal(true)}>
                         <Icon name="PlusIcon" className="w-4 h-4 mr-2" />
                         Add Staff Member
                     </Button>
                 </div>
 
+                {loading ? (
+                    <div className="text-center py-8">
+                        <Icon name="ArrowPathIcon" className="w-8 h-8 animate-spin text-blue-500 mx-auto" />
+                        <p className="text-gray-500 mt-2">Loading staff...</p>
+                    </div>
+                ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50 dark:bg-gray-800">
@@ -300,7 +372,14 @@ const SecuritySettings: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {member.last_login}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setEditingStaff(member)}
+                                        >
+                                            Edit
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -308,12 +387,21 @@ const SecuritySettings: React.FC = () => {
                                         >
                                             {member.status === 'active' ? 'Suspend' : 'Activate'}
                                         </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteStaff(member.id)}
+                                            className="text-red-500"
+                                        >
+                                            Delete
+                                        </Button>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
+                )}
             </Card>
 
             {/* Permissions Matrix */}
@@ -371,6 +459,98 @@ const SecuritySettings: React.FC = () => {
                     </div>
                 </div>
             </Card>
+
+            {/* Add Staff Modal */}
+            {showAddStaffModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Card className="w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add Staff Member</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    value={staffForm.name}
+                                    onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="Full name"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    value={staffForm.email}
+                                    onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="email@growyourneed.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                                <select
+                                    value={staffForm.role}
+                                    onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value as 'Super Admin' | 'Admin' | 'Support' })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                >
+                                    <option value="Support">Support</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Super Admin">Super Admin</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <Button variant="secondary" onClick={() => setShowAddStaffModal(false)} className="flex-1">Cancel</Button>
+                                <Button variant="primary" onClick={handleAddStaff} className="flex-1">Add Staff</Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Edit Staff Modal */}
+            {editingStaff && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Card className="w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Edit Staff Member</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    value={editingStaff.name}
+                                    onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    value={editingStaff.email}
+                                    onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                                <select
+                                    value={editingStaff.role}
+                                    onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as 'Super Admin' | 'Admin' | 'Support' })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                >
+                                    <option value="Support">Support</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Super Admin">Super Admin</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <Button variant="secondary" onClick={() => setEditingStaff(null)} className="flex-1">Cancel</Button>
+                                <Button variant="primary" onClick={handleUpdateStaff} className="flex-1">Save Changes</Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

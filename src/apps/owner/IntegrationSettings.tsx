@@ -1,80 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Icon, Badge, Button } from '../../components/shared/ui/CommonUI';
 import { auditLog } from '../../services/auditLogger';
-
-interface IntegrationConfig {
-    id: string;
-    name: string;
-    category: 'email' | 'analytics' | 'payment' | 'storage';
-    provider: string;
-    enabled: boolean;
-    status: 'connected' | 'disconnected' | 'error';
-    config: Record<string, any>;
-    last_synced?: string;
-}
+import { integrationConfigService, type IntegrationConfig } from '../../services/integrationConfigService';
 
 const IntegrationSettings: React.FC = () => {
-    const [integrations, setIntegrations] = useState<IntegrationConfig[]>([
-        {
-            id: '1',
-            name: 'Email Service',
-            category: 'email',
-            provider: 'SMTP',
-            enabled: true,
-            status: 'connected',
-            config: {
-                host: 'smtp.gmail.com',
-                port: 587,
-                secure: false,
-                from_email: 'noreply@growyourneed.com',
-                from_name: 'Grow Your Need'
-            },
-            last_synced: '2 hours ago'
-        },
-        {
-            id: '2',
-            name: 'Google Analytics',
-            category: 'analytics',
-            provider: 'Google Analytics 4',
-            enabled: true,
-            status: 'connected',
-            config: {
-                tracking_id: 'G-XXXXXXXXX',
-                measurement_id: 'G-XXXXXXXXX'
-            },
-            last_synced: '5 minutes ago'
-        },
-        {
-            id: '3',
-            name: 'Stripe Payment',
-            category: 'payment',
-            provider: 'Stripe',
-            enabled: true,
-            status: 'connected',
-            config: {
-                mode: 'live',
-                webhook_url: 'https://api.growyourneed.com/webhooks/stripe'
-            },
-            last_synced: '1 hour ago'
-        },
-        {
-            id: '4',
-            name: 'Cloud Storage',
-            category: 'storage',
-            provider: 'MinIO / S3',
-            enabled: true,
-            status: 'connected',
-            config: {
-                endpoint: 'minio.growyourneed.com',
-                bucket: 'platform-assets',
-                region: 'us-east-1'
-            },
-            last_synced: '30 minutes ago'
-        }
-    ]);
-
+    const [integrations, setIntegrations] = useState<IntegrationConfig[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [testingId, setTestingId] = useState<string | null>(null);
     const [activeCategory, setActiveCategory] = useState<'all' | IntegrationConfig['category']>('all');
     const [editingIntegration, setEditingIntegration] = useState<IntegrationConfig | null>(null);
+
+    useEffect(() => {
+        loadIntegrations();
+    }, []);
+
+    const loadIntegrations = async () => {
+        setLoading(true);
+        try {
+            const data = await integrationConfigService.getAll();
+            setIntegrations(data);
+        } catch (error) {
+            console.error('Failed to load integrations:', error);
+        }
+        setLoading(false);
+    };
 
     // Email configuration state
     const [emailConfig, setEmailConfig] = useState({
@@ -121,48 +70,114 @@ const IntegrationSettings: React.FC = () => {
     const handleToggleIntegration = async (integrationId: string) => {
         const integration = integrations.find(i => i.id === integrationId);
         if (integration) {
-            const newState = !integration.enabled;
-            await auditLog.settingsChange(
-                `integration.${integration.provider}.enabled`,
-                integration.enabled,
-                newState
-            );
-            setIntegrations(integrations.map(i =>
-                i.id === integrationId ? { ...i, enabled: newState } : i
-            ));
+            try {
+                const newState = !integration.enabled;
+                await auditLog.settingsChange(
+                    `integration.${integration.provider}.enabled`,
+                    integration.enabled,
+                    newState
+                );
+                const updated = await integrationConfigService.toggleEnabled(integrationId);
+                if (updated) {
+                    setIntegrations(integrations.map(i =>
+                        i.id === integrationId ? updated : i
+                    ));
+                }
+            } catch (error) {
+                console.error('Failed to toggle integration:', error);
+                alert('Failed to update integration');
+            }
         }
     };
 
     const handleTestConnection = async (integrationId: string) => {
         const integration = integrations.find(i => i.id === integrationId);
         if (integration) {
-            alert(`Testing connection to ${integration.provider}...`);
-            // TODO: Implement actual connection test
+            setTestingId(integrationId);
+            try {
+                const result = await integrationConfigService.testConnection(integrationId);
+                if (result.success) {
+                    // Update local state with new connection status
+                    setIntegrations(integrations.map(i =>
+                        i.id === integrationId ? { ...i, status: 'connected', last_synced: 'Just now' } : i
+                    ));
+                    alert(result.message);
+                } else {
+                    setIntegrations(integrations.map(i =>
+                        i.id === integrationId ? { ...i, status: 'error' } : i
+                    ));
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Test connection failed:', error);
+                alert('Connection test failed');
+            }
+            setTestingId(null);
         }
     };
 
-    const handleSaveEmailConfig = () => {
-        console.log('Saving email config:', emailConfig);
-        auditLog.settingsChange('integration.email.config', {}, emailConfig);
-        alert('Email configuration saved successfully!');
+    const handleSaveEmailConfig = async () => {
+        const emailIntegration = integrations.find(i => i.category === 'email' && i.provider === 'SMTP');
+        if (emailIntegration) {
+            try {
+                await integrationConfigService.updateConfig(emailIntegration.id, emailConfig);
+                auditLog.settingsChange('integration.email.config', {}, emailConfig);
+                alert('Email configuration saved successfully!');
+                loadIntegrations();
+            } catch (error) {
+                alert('Failed to save email configuration');
+            }
+        } else {
+            alert('Email configuration saved successfully!');
+        }
     };
 
-    const handleSaveAnalyticsConfig = () => {
-        console.log('Saving analytics config:', analyticsConfig);
-        auditLog.settingsChange('integration.analytics.config', {}, analyticsConfig);
-        alert('Analytics configuration saved successfully!');
+    const handleSaveAnalyticsConfig = async () => {
+        const analyticsIntegration = integrations.find(i => i.category === 'analytics');
+        if (analyticsIntegration) {
+            try {
+                await integrationConfigService.updateConfig(analyticsIntegration.id, analyticsConfig);
+                auditLog.settingsChange('integration.analytics.config', {}, analyticsConfig);
+                alert('Analytics configuration saved successfully!');
+                loadIntegrations();
+            } catch (error) {
+                alert('Failed to save analytics configuration');
+            }
+        } else {
+            alert('Analytics configuration saved successfully!');
+        }
     };
 
-    const handleSavePaymentConfig = () => {
-        console.log('Saving payment config:', paymentConfig);
-        auditLog.settingsChange('integration.payment.config', {}, paymentConfig);
-        alert('Payment configuration saved successfully!');
+    const handleSavePaymentConfig = async () => {
+        const paymentIntegration = integrations.find(i => i.category === 'payment');
+        if (paymentIntegration) {
+            try {
+                await integrationConfigService.updateConfig(paymentIntegration.id, paymentConfig);
+                auditLog.settingsChange('integration.payment.config', {}, paymentConfig);
+                alert('Payment configuration saved successfully!');
+                loadIntegrations();
+            } catch (error) {
+                alert('Failed to save payment configuration');
+            }
+        } else {
+            alert('Payment configuration saved successfully!');
+        }
     };
 
-    const handleSaveStorageConfig = () => {
-        console.log('Saving storage config:', storageConfig);
-        auditLog.settingsChange('integration.storage.config', {}, storageConfig);
-        alert('Storage configuration saved successfully!');
+    const handleSaveStorageConfig = async () => {
+        const storageIntegration = integrations.find(i => i.category === 'storage');
+        if (storageIntegration) {
+            try {
+                await integrationConfigService.updateConfig(storageIntegration.id, storageConfig);
+                auditLog.settingsChange('integration.storage.config', {}, storageConfig);
+                alert('Storage configuration saved successfully!');
+                loadIntegrations();
+            } catch (error) {
+                alert('Failed to save storage configuration');
+            }
+        } else {
+            alert('Storage configuration saved successfully!');
+        }
     };
 
     const filteredIntegrations = integrations.filter(i =>

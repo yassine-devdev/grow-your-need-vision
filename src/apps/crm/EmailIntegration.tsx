@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Icon, Button, Badge } from '../../components/shared/ui/CommonUI';
 import {
     useEmailHistory,
@@ -8,22 +8,73 @@ import {
 } from '../../hooks/useCRMEmails';
 import { useContacts } from '../../hooks/useCRMContacts';
 import { CRMContact } from '../../services/crmContactsService';
-import { Email, EmailTemplate } from '../../services/crmEmailService';
+import { Email, EmailTemplate, crmEmailService } from '../../services/crmEmailService';
+import { crmAnalyticsService } from '../../services/crmAnalyticsService';
+
+interface EmailAnalytics {
+    openRate: number;
+    clickRate: number;
+    totalSent: number;
+    totalOpened: number;
+    totalClicked: number;
+    byDate: { date: string; sent: number; opened: number; clicked: number }[];
+}
 
 const EmailIntegration: React.FC = () => {
     const [selectedContact, setSelectedContact] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'compose' | 'history' | 'templates' | 'analytics'>('compose');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
+    const [draftId, setDraftId] = useState<string | null>(null);
+    const [analytics, setAnalytics] = useState<EmailAnalytics | null>(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
+    const [newTemplate, setNewTemplate] = useState({ name: '', category: 'general', subject: '', body: '' });
 
     // Hooks
     const { data: contacts, isLoading: contactsLoading } = useContacts();
-    const { data: history, isLoading: historyLoading } = useEmailHistory(selectedContact);
-    const { data: templates, isLoading: templatesLoading } = useEmailTemplates();
+    const { data: history, isLoading: historyLoading, refetch: refetchHistory } = useEmailHistory(selectedContact);
+    const { data: templates, isLoading: templatesLoading, refetch: refetchTemplates } = useEmailTemplates();
     const { mutateAsync: sendEmail, isPending: sending } = useSendEmail();
     const { mutateAsync: createTemplate } = useCreateTemplate();
 
     const contact = contacts?.find((c: CRMContact) => c.id === selectedContact);
+
+    // Load analytics when analytics tab is active
+    useEffect(() => {
+        if (activeTab === 'analytics') {
+            loadAnalytics();
+        }
+    }, [activeTab]);
+
+    const loadAnalytics = async () => {
+        setAnalyticsLoading(true);
+        try {
+            const data = await crmAnalyticsService.getEmailAnalytics();
+            setAnalytics(data);
+        } catch (err) {
+            console.error('Failed to load analytics:', err);
+        } finally {
+            setAnalyticsLoading(false);
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        if (!contact || !subject) return;
+        try {
+            const draft = await crmEmailService.saveDraft({
+                contactId: contact.id,
+                subject,
+                body,
+                id: draftId || undefined
+            });
+            setDraftId(draft.id);
+            alert('Draft saved successfully');
+        } catch (err) {
+            console.error('Failed to save draft:', err);
+            alert('Failed to save draft');
+        }
+    };
 
     const handleSend = async () => {
         if (!contact || !subject || !body) return;
@@ -36,12 +87,48 @@ const EmailIntegration: React.FC = () => {
                 options: { contactId: contact.id }
             });
 
+            // Clear draft if it exists
+            if (draftId) {
+                await crmEmailService.deleteDraft(draftId);
+                setDraftId(null);
+            }
+
             setSubject('');
             setBody('');
+            refetchHistory();
             setActiveTab('history');
         } catch (err) {
             console.error(err);
             alert('Failed to send email');
+        }
+    };
+
+    const handleCreateTemplate = async () => {
+        if (!newTemplate.name || !newTemplate.subject) return;
+        try {
+            await createTemplate({
+                name: newTemplate.name,
+                category: newTemplate.category,
+                subject_template: newTemplate.subject,
+                body_template: newTemplate.body
+            });
+            setNewTemplate({ name: '', category: 'general', subject: '', body: '' });
+            setShowNewTemplateModal(false);
+            refetchTemplates();
+        } catch (err) {
+            console.error('Failed to create template:', err);
+            alert('Failed to create template');
+        }
+    };
+
+    const handleDeleteTemplate = async (templateId: string) => {
+        if (!confirm('Are you sure you want to delete this template?')) return;
+        try {
+            await crmEmailService.deleteTemplate(templateId);
+            refetchTemplates();
+        } catch (err) {
+            console.error('Failed to delete template:', err);
+            alert('Failed to delete template');
         }
     };
 
@@ -158,8 +245,10 @@ const EmailIntegration: React.FC = () => {
                                     onChange={(e) => setBody(e.target.value)}
                                 />
                                 <div className="flex justify-end gap-2">
-                                    <Button variant="secondary" onClick={() => { }}>Save Draft</Button>
-                                    <Button variant="primary" icon="PaperAirplaneIcon" onClick={handleSend} disabled={sending}>
+                                    <Button variant="secondary" onClick={handleSaveDraft} disabled={!subject}>
+                                        {draftId ? 'Update Draft' : 'Save Draft'}
+                                    </Button>
+                                    <Button variant="primary" icon="PaperAirplaneIcon" onClick={handleSend} disabled={sending || !subject || !body}>
                                         {sending ? 'Sending...' : 'Send Email'}
                                     </Button>
                                 </div>
@@ -202,14 +291,86 @@ const EmailIntegration: React.FC = () => {
                     <div>
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-bold text-lg">Email Templates</h3>
-                            <Button variant="primary" icon="PlusIcon">New Template</Button>
+                            <Button variant="primary" icon="PlusIcon" onClick={() => setShowNewTemplateModal(true)}>
+                                New Template
+                            </Button>
                         </div>
+                        
+                        {showNewTemplateModal && (
+                            <div className="mb-6 p-4 border border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                                <h4 className="font-bold mb-4">Create New Template</h4>
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Template Name"
+                                        className="w-full p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                                        value={newTemplate.name}
+                                        onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
+                                    />
+                                    <select
+                                        className="w-full p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                                        value={newTemplate.category}
+                                        onChange={(e) => setNewTemplate(prev => ({ ...prev, category: e.target.value }))}
+                                    >
+                                        <option value="general">General</option>
+                                        <option value="sales">Sales</option>
+                                        <option value="follow-up">Follow Up</option>
+                                        <option value="onboarding">Onboarding</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        placeholder="Subject (use {{first_name}}, {{company}} for variables)"
+                                        className="w-full p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
+                                        value={newTemplate.subject}
+                                        onChange={(e) => setNewTemplate(prev => ({ ...prev, subject: e.target.value }))}
+                                    />
+                                    <textarea
+                                        placeholder="Body content..."
+                                        className="w-full p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-32"
+                                        value={newTemplate.body}
+                                        onChange={(e) => setNewTemplate(prev => ({ ...prev, body: e.target.value }))}
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <Button variant="secondary" onClick={() => setShowNewTemplateModal(false)}>Cancel</Button>
+                                        <Button variant="primary" onClick={handleCreateTemplate}>Create Template</Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {templates?.map((t: EmailTemplate) => (
-                                <div key={t.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
-                                    <h4 className="font-bold mb-1">{t.name}</h4>
-                                    <div className="text-xs text-gray-500 mb-2">{t.category}</div>
-                                    <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{t.subject_template}</div>
+                            {templatesLoading ? (
+                                <div className="col-span-2 text-center py-10 text-gray-500">Loading templates...</div>
+                            ) : templates?.length === 0 ? (
+                                <div className="col-span-2 text-center py-10 text-gray-500">No templates yet. Create your first one!</div>
+                            ) : templates?.map((t: EmailTemplate) => (
+                                <div key={t.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow group">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-bold mb-1">{t.name}</h4>
+                                            <Badge variant="neutral" size="sm">{t.category}</Badge>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteTemplate(t.id)}
+                                            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                                        >
+                                            <Icon name="TrashIcon" className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-2">{t.subject_template}</div>
+                                    {selectedContact && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="mt-3"
+                                            onClick={() => {
+                                                applyTemplate(t.id);
+                                                setActiveTab('compose');
+                                            }}
+                                        >
+                                            Use Template
+                                        </Button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -218,24 +379,80 @@ const EmailIntegration: React.FC = () => {
 
                 {activeTab === 'analytics' && (
                     <div className="space-y-6">
-                        <h3 className="font-bold text-lg">Email Performance</h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-blue-600">24.5%</div>
-                                <div className="text-sm text-gray-500">Open Rate</div>
-                            </div>
-                            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-green-600">12.8%</div>
-                                <div className="text-sm text-gray-500">Click Rate</div>
-                            </div>
-                            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-purple-600">342</div>
-                                <div className="text-sm text-gray-500">Total Sent</div>
-                            </div>
+                        <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-lg">Email Performance</h3>
+                            <Button variant="secondary" size="sm" onClick={loadAnalytics} disabled={analyticsLoading}>
+                                <Icon name="ArrowPathIcon" className={`w-4 h-4 mr-1 ${analyticsLoading ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </Button>
                         </div>
-                        <div className="h-64 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center text-gray-400">
-                            Chart Placeholder (Engagement over time)
-                        </div>
+                        
+                        {analyticsLoading ? (
+                            <div className="text-center py-10">Loading analytics...</div>
+                        ) : analytics ? (
+                            <>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-blue-600">{analytics.openRate.toFixed(1)}%</div>
+                                        <div className="text-sm text-gray-500">Open Rate</div>
+                                        <div className="text-xs text-gray-400 mt-1">{analytics.totalOpened} / {analytics.totalSent} emails</div>
+                                    </div>
+                                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-green-600">{analytics.clickRate.toFixed(1)}%</div>
+                                        <div className="text-sm text-gray-500">Click Rate</div>
+                                        <div className="text-xs text-gray-400 mt-1">{analytics.totalClicked} clicked links</div>
+                                    </div>
+                                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+                                        <div className="text-2xl font-bold text-purple-600">{analytics.totalSent}</div>
+                                        <div className="text-sm text-gray-500">Total Sent</div>
+                                        <div className="text-xs text-gray-400 mt-1">Last 30 days</div>
+                                    </div>
+                                </div>
+                                
+                                {/* Engagement Over Time Chart */}
+                                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <h4 className="font-semibold mb-4">Engagement Over Time</h4>
+                                    <div className="h-48 flex items-end justify-between gap-2">
+                                        {analytics.byDate.slice(-14).map((day, i) => {
+                                            const maxSent = Math.max(...analytics.byDate.map(d => d.sent), 1);
+                                            const sentHeight = (day.sent / maxSent) * 100;
+                                            const openedHeight = (day.opened / maxSent) * 100;
+                                            return (
+                                                <div key={i} className="flex-1 flex flex-col items-center">
+                                                    <div className="w-full flex flex-col gap-1 h-40 justify-end">
+                                                        <div 
+                                                            className="w-full bg-blue-400 rounded-t transition-all"
+                                                            style={{ height: `${sentHeight}%` }}
+                                                            title={`${day.sent} sent`}
+                                                        />
+                                                        <div 
+                                                            className="w-full bg-green-400 rounded-t transition-all"
+                                                            style={{ height: `${openedHeight}%` }}
+                                                            title={`${day.opened} opened`}
+                                                        />
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 mt-1">
+                                                        {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="flex gap-4 justify-center mt-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-blue-400 rounded" />
+                                            <span className="text-sm text-gray-500">Sent</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-green-400 rounded" />
+                                            <span className="text-sm text-gray-500">Opened</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-center py-10 text-gray-500">No analytics data available</div>
+                        )}
                     </div>
                 )}
             </Card>

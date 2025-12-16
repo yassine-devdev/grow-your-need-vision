@@ -1,155 +1,110 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Icon, Badge, Button } from '../../components/shared/ui/CommonUI';
-import { auditLog } from '../../services/auditLogger';
-
-interface FeatureFlag {
-    id: string;
-    name: string;
-    key: string;
-    description: string;
-    enabled: boolean;
-    category: 'core' | 'ai' | 'payment' | 'communication' | 'analytics' | 'overlay';
-    rollout_percentage: number;
-    plan_restrictions: string[];
-    created: string;
-    updated: string;
-}
+import { Card, Icon, Badge, Button, Modal } from '../../components/shared/ui/CommonUI';
+import { featureFlagService, FeatureFlag } from '../../services/featureFlagService';
 
 const FeatureFlags: React.FC = () => {
-    const [flags, setFlags] = useState<FeatureFlag[]>([
-        {
-            id: '1',
-            name: 'AI Features',
-            key: 'enable_ai_features',
-            description: 'Enable AI-powered content generation, chatbots, and intelligent recommendations',
-            enabled: true,
-            category: 'ai',
-            rollout_percentage: 100,
-            plan_restrictions: ['Premium', 'Enterprise'],
-            created: '2024-01-01',
-            updated: '2024-01-15'
-        },
-        {
-            id: '2',
-            name: 'Payment Processing',
-            key: 'enable_payment_processing',
-            description: 'Allow tenants to accept payments through Stripe and PayPal',
-            enabled: true,
-            category: 'payment',
-            rollout_percentage: 100,
-            plan_restrictions: [],
-            created: '2024-01-01',
-            updated: '2024-01-10'
-        },
-        {
-            id: '3',
-            name: 'Advanced Analytics',
-            key: 'enable_advanced_analytics',
-            description: 'Detailed analytics dashboards with custom reports and data export',
-            enabled: true,
-            category: 'analytics',
-            rollout_percentage: 80,
-            plan_restrictions: ['Premium', 'Enterprise'],
-            created: '2024-01-01',
-            updated: '2024-01-20'
-        },
-        {
-            id: '4',
-            name: 'Video Streaming',
-            key: 'enable_video_streaming',
-            description: 'Live TV and video streaming capabilities in Media overlay',
-            enabled: false,
-            category: 'overlay',
-            rollout_percentage: 0,
-            plan_restrictions: ['Enterprise'],
-            created: '2024-01-05',
-            updated: '2024-01-05'
-        },
-        {
-            id: '5',
-            name: 'Email Campaigns',
-            key: 'enable_email_campaigns',
-            description: 'Bulk email campaigns and automated drip sequences',
-            enabled: true,
-            category: 'communication',
-            rollout_percentage: 100,
-            plan_restrictions: [],
-            created: '2024-01-01',
-            updated: '2024-01-12'
-        },
-        {
-            id: '6',
-            name: 'Gamification Engine',
-            key: 'enable_gamification',
-            description: 'Badges, achievements, leaderboards, and reward systems',
-            enabled: true,
-            category: 'overlay',
-            rollout_percentage: 100,
-            plan_restrictions: [],
-            created: '2024-01-01',
-            updated: '2024-01-18'
-        },
-        {
-            id: '7',
-            name: 'Real-time Collaboration',
-            key: 'enable_realtime_collaboration',
-            description: 'WebSocket-based real-time editing and collaboration features',
-            enabled: false,
-            category: 'core',
-            rollout_percentage: 25,
-            plan_restrictions: ['Premium', 'Enterprise'],
-            created: '2024-01-10',
-            updated: '2024-01-20'
-        },
-        {
-            id: '8',
-            name: 'Multi-language Support',
-            key: 'enable_i18n',
-            description: 'Internationalization with automatic translation',
-            enabled: false,
-            category: 'core',
-            rollout_percentage: 0,
-            plan_restrictions: ['Enterprise'],
-            created: '2024-01-15',
-            updated: '2024-01-15'
-        }
-    ]);
-
+    const [flags, setFlags] = useState<FeatureFlag[]>([]);
+    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | FeatureFlag['category']>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [editingFlag, setEditingFlag] = useState<FeatureFlag | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [newFlag, setNewFlag] = useState({
+        name: '',
+        key: '',
+        description: '',
+        category: 'core' as FeatureFlag['category'],
+        enabled: false,
+        rolloutPercentage: 100,
+        planRestriction: null as FeatureFlag['planRestriction']
+    });
+
+    useEffect(() => {
+        loadFlags();
+    }, []);
+
+    const loadFlags = async () => {
+        setLoading(true);
+        try {
+            const data = await featureFlagService.getAllFlags();
+            setFlags(data);
+        } catch (error) {
+            console.error('Failed to load flags:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleToggleFlag = async (flagId: string) => {
         const flag = flags.find(f => f.id === flagId);
         if (!flag) return;
 
-        const newState = !flag.enabled;
-
-        // Log the change
-        await auditLog.featureFlagChange(flag.key, newState);
-
-        setFlags(flags.map(f =>
-            f.id === flagId
-                ? { ...f, enabled: newState, updated: new Date().toISOString() }
-                : f
-        ));
+        try {
+            const updated = await featureFlagService.toggleFlag(flagId, !flag.enabled);
+            setFlags(flags.map(f => f.id === flagId ? updated : f));
+        } catch (error) {
+            console.error('Failed to toggle flag:', error);
+            alert('Failed to update feature flag');
+        }
     };
 
-    const handleUpdateRollout = (flagId: string, percentage: number) => {
-        setFlags(flags.map(f =>
-            f.id === flagId
-                ? { ...f, rollout_percentage: percentage, updated: new Date().toISOString() }
-                : f
-        ));
+    const handleUpdateRollout = async (flagId: string, percentage: number) => {
+        try {
+            const updated = await featureFlagService.updateRollout(flagId, percentage);
+            setFlags(flags.map(f => f.id === flagId ? updated : f));
+        } catch (error) {
+            console.error('Failed to update rollout:', error);
+        }
     };
 
-    const handleUpdatePlanRestrictions = (flagId: string, plans: string[]) => {
-        setFlags(flags.map(f =>
-            f.id === flagId
-                ? { ...f, plan_restrictions: plans, updated: new Date().toISOString() }
-                : f
-        ));
+    const handleCreateFlag = async () => {
+        if (!newFlag.name || !newFlag.key) {
+            alert('Name and key are required');
+            return;
+        }
+
+        try {
+            const created = await featureFlagService.createFlag(newFlag);
+            setFlags([created, ...flags]);
+            setIsCreateModalOpen(false);
+            setNewFlag({
+                name: '',
+                key: '',
+                description: '',
+                category: 'core',
+                enabled: false,
+                rolloutPercentage: 100,
+                planRestriction: null
+            });
+        } catch (error) {
+            console.error('Failed to create flag:', error);
+            alert('Failed to create feature flag');
+        }
+    };
+
+    const handleDeleteFlag = async (flagId: string) => {
+        if (!confirm('Are you sure you want to delete this feature flag?')) return;
+
+        try {
+            await featureFlagService.deleteFlag(flagId);
+            setFlags(flags.filter(f => f.id !== flagId));
+        } catch (error) {
+            console.error('Failed to delete flag:', error);
+            alert('Failed to delete feature flag');
+        }
+    };
+
+    const handleEditFlag = async () => {
+        if (!editingFlag) return;
+
+        try {
+            const updated = await featureFlagService.updateFlag(editingFlag.id, editingFlag);
+            setFlags(flags.map(f => f.id === editingFlag.id ? updated : f));
+            setEditingFlag(null);
+        } catch (error) {
+            console.error('Failed to update flag:', error);
+            alert('Failed to update feature flag');
+        }
     };
 
     const filteredFlags = flags.filter(flag => {
@@ -179,6 +134,7 @@ const FeatureFlags: React.FC = () => {
             case 'analytics': return 'orange';
             case 'overlay': return 'pink';
             case 'core': return 'gray';
+            case 'experimental': return 'red';
             default: return 'gray';
         }
     };
@@ -187,8 +143,16 @@ const FeatureFlags: React.FC = () => {
         total: flags.length,
         enabled: flags.filter(f => f.enabled).length,
         disabled: flags.filter(f => !f.enabled).length,
-        gradual: flags.filter(f => f.rollout_percentage > 0 && f.rollout_percentage < 100).length
+        gradual: flags.filter(f => f.rolloutPercentage > 0 && f.rolloutPercentage < 100).length
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -330,22 +294,18 @@ const FeatureFlags: React.FC = () => {
                                     <div className="flex items-center gap-3 mb-2">
                                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">{flag.name}</h3>
                                         <Badge variant="secondary" className="text-xs">{flag.category}</Badge>
-                                        {flag.rollout_percentage < 100 && flag.rollout_percentage > 0 && (
+                                        {flag.rolloutPercentage < 100 && flag.rolloutPercentage > 0 && (
                                             <Badge variant="warning" className="text-xs">
-                                                {flag.rollout_percentage}% Rollout
+                                                {flag.rolloutPercentage}% Rollout
                                             </Badge>
+                                        )}
+                                        {flag.planRestriction && (
+                                            <Badge variant="info" className="text-xs">{flag.planRestriction}+</Badge>
                                         )}
                                     </div>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{flag.description}</p>
                                     <div className="flex items-center gap-4 text-xs text-gray-500">
                                         <span>Key: <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{flag.key}</code></span>
-                                        {flag.plan_restrictions.length > 0 && (
-                                            <span>
-                                                Plans: {flag.plan_restrictions.map((plan, idx) => (
-                                                    <Badge key={idx} variant="secondary" className="ml-1 text-xs">{plan}</Badge>
-                                                ))}
-                                            </span>
-                                        )}
                                         <span>Updated: {new Date(flag.updated).toLocaleDateString()}</span>
                                     </div>
 
@@ -353,14 +313,14 @@ const FeatureFlags: React.FC = () => {
                                     {flag.enabled && (
                                         <div className="mt-4">
                                             <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                                                Rollout Percentage: {flag.rollout_percentage}%
+                                                Rollout Percentage: {flag.rolloutPercentage}%
                                             </label>
                                             <input
                                                 type="range"
                                                 min="0"
                                                 max="100"
                                                 step="5"
-                                                value={flag.rollout_percentage}
+                                                value={flag.rolloutPercentage}
                                                 onChange={(e) => handleUpdateRollout(flag.id, parseInt(e.target.value))}
                                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                                             />
@@ -385,7 +345,7 @@ const FeatureFlags: React.FC = () => {
                                             }`}
                                     />
                                 </button>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" onClick={() => setEditingFlag(flag)}>
                                     <Icon name="PencilIcon" className="w-4 h-4" />
                                 </Button>
                             </div>
@@ -399,6 +359,150 @@ const FeatureFlags: React.FC = () => {
                     <Icon name="FlagIcon" className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No feature flags found matching your criteria</p>
                 </Card>
+            )}
+
+            {/* Create Flag Modal */}
+            {isCreateModalOpen && (
+                <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create Feature Flag">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                            <input
+                                type="text"
+                                value={newFlag.name}
+                                onChange={(e) => setNewFlag({ ...newFlag, name: e.target.value })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                                placeholder="e.g., AI Features"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Key</label>
+                            <input
+                                type="text"
+                                value={newFlag.key}
+                                onChange={(e) => setNewFlag({ ...newFlag, key: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 font-mono"
+                                placeholder="e.g., ai_features"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                            <textarea
+                                value={newFlag.description}
+                                onChange={(e) => setNewFlag({ ...newFlag, description: e.target.value })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                                rows={3}
+                                placeholder="Describe what this flag controls..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                            <select
+                                value={newFlag.category}
+                                onChange={(e) => setNewFlag({ ...newFlag, category: e.target.value as FeatureFlag['category'] })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                            >
+                                <option value="core">Core</option>
+                                <option value="ai">AI</option>
+                                <option value="payment">Payment</option>
+                                <option value="communication">Communication</option>
+                                <option value="analytics">Analytics</option>
+                                <option value="overlay">Overlay</option>
+                                <option value="experimental">Experimental</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plan Restriction</label>
+                            <select
+                                value={newFlag.planRestriction || ''}
+                                onChange={(e) => setNewFlag({ ...newFlag, planRestriction: e.target.value as FeatureFlag['planRestriction'] || null })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                            >
+                                <option value="">No Restriction</option>
+                                <option value="free">Free+</option>
+                                <option value="basic">Basic+</option>
+                                <option value="premium">Premium+</option>
+                                <option value="enterprise">Enterprise Only</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Rollout Percentage: {newFlag.rolloutPercentage}%
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={newFlag.rolloutPercentage}
+                                onChange={(e) => setNewFlag({ ...newFlag, rolloutPercentage: parseInt(e.target.value) })}
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="enabledCheck"
+                                checked={newFlag.enabled}
+                                onChange={(e) => setNewFlag({ ...newFlag, enabled: e.target.checked })}
+                            />
+                            <label htmlFor="enabledCheck" className="text-sm text-gray-700 dark:text-gray-300">
+                                Enable immediately after creation
+                            </label>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button variant="secondary" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
+                            <Button variant="primary" onClick={handleCreateFlag}>Create Flag</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Edit Flag Modal */}
+            {editingFlag && (
+                <Modal isOpen={!!editingFlag} onClose={() => setEditingFlag(null)} title="Edit Feature Flag">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                            <input
+                                type="text"
+                                value={editingFlag.name}
+                                onChange={(e) => setEditingFlag({ ...editingFlag, name: e.target.value })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                            <textarea
+                                value={editingFlag.description}
+                                onChange={(e) => setEditingFlag({ ...editingFlag, description: e.target.value })}
+                                className="w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                                rows={3}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Rollout Percentage: {editingFlag.rolloutPercentage}%
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={editingFlag.rolloutPercentage}
+                                onChange={(e) => setEditingFlag({ ...editingFlag, rolloutPercentage: parseInt(e.target.value) })}
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="flex justify-between pt-4">
+                            <Button variant="danger" onClick={() => handleDeleteFlag(editingFlag.id)}>Delete</Button>
+                            <div className="flex gap-2">
+                                <Button variant="secondary" onClick={() => setEditingFlag(null)}>Cancel</Button>
+                                <Button variant="primary" onClick={handleEditFlag}>Save Changes</Button>
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
             )}
         </div>
     );

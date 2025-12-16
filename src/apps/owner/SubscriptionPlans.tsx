@@ -3,9 +3,29 @@ import { ownerService, SubscriptionPlan } from '../../services/ownerService';
 import { Button, Card, Icon } from '../../components/shared/ui/CommonUI';
 import { LoadingScreen } from '../../components/shared/LoadingScreen';
 
+interface PlanFormData {
+    name: string;
+    price_monthly: number;
+    price_yearly: number;
+    features: string[];
+    is_active: boolean;
+    max_users?: number;
+    max_storage_gb?: number;
+}
+
 export const SubscriptionPlans: React.FC = () => {
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+    const [formData, setFormData] = useState<PlanFormData>({
+        name: '',
+        price_monthly: 0,
+        price_yearly: 0,
+        features: [''],
+        is_active: true
+    });
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         loadPlans();
@@ -22,13 +42,99 @@ export const SubscriptionPlans: React.FC = () => {
         }
     };
 
+    const resetForm = () => {
+        setFormData({
+            name: '',
+            price_monthly: 0,
+            price_yearly: 0,
+            features: [''],
+            is_active: true
+        });
+        setEditingPlan(null);
+    };
+
+    const handleCreate = () => {
+        resetForm();
+        setShowModal(true);
+    };
+
+    const handleEdit = (plan: SubscriptionPlan) => {
+        setEditingPlan(plan);
+        setFormData({
+            name: plan.name,
+            price_monthly: plan.price_monthly,
+            price_yearly: plan.price_yearly,
+            features: plan.features || [''],
+            is_active: plan.is_active,
+            max_users: plan.max_users,
+            max_storage_gb: plan.max_storage_gb
+        });
+        setShowModal(true);
+    };
+
+    const handleDelete = async (plan: SubscriptionPlan) => {
+        if (!confirm(`Are you sure you want to delete the "${plan.name}" plan? This action cannot be undone.`)) return;
+        try {
+            await ownerService.deleteSubscriptionPlan(plan.id);
+            setPlans(plans.filter(p => p.id !== plan.id));
+        } catch (error) {
+            console.error('Failed to delete plan:', error);
+            alert('Failed to delete plan');
+        }
+    };
+
+    const handleSave = async () => {
+        if (!formData.name) {
+            alert('Please enter a plan name');
+            return;
+        }
+        
+        setSaving(true);
+        try {
+            const cleanedFeatures = formData.features.filter(f => f.trim() !== '');
+            const payload = {
+                ...formData,
+                features: cleanedFeatures
+            };
+            
+            if (editingPlan) {
+                const updated = await ownerService.updateSubscriptionPlan(editingPlan.id, payload);
+                setPlans(plans.map(p => p.id === editingPlan.id ? updated : p));
+            } else {
+                const created = await ownerService.createSubscriptionPlan(payload);
+                setPlans([...plans, created]);
+            }
+            setShowModal(false);
+            resetForm();
+        } catch (error) {
+            console.error('Failed to save plan:', error);
+            alert('Failed to save plan');
+        }
+        setSaving(false);
+    };
+
+    const addFeature = () => {
+        setFormData({ ...formData, features: [...formData.features, ''] });
+    };
+
+    const updateFeature = (index: number, value: string) => {
+        const newFeatures = [...formData.features];
+        newFeatures[index] = value;
+        setFormData({ ...formData, features: newFeatures });
+    };
+
+    const removeFeature = (index: number) => {
+        const newFeatures = formData.features.filter((_, i) => i !== index);
+        setFormData({ ...formData, features: newFeatures.length ? newFeatures : [''] });
+    };
+
     if (loading) return <LoadingScreen />;
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Subscription Plans</h2>
-                <Button variant="primary" leftIcon={<Icon name="Plus" className="w-4 h-4" />} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">
+                <Button variant="primary" onClick={handleCreate} leftIcon={<Icon name="Plus" className="w-4 h-4" />} className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md">
                     Create Plan
                 </Button>
             </div>
@@ -62,12 +168,127 @@ export const SubscriptionPlans: React.FC = () => {
                         </div>
 
                         <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex gap-2">
-                            <Button variant="outline" size="sm" className="w-full">Edit</Button>
-                            <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50">Delete</Button>
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEdit(plan)}>Edit</Button>
+                            <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(plan)}>Delete</Button>
                         </div>
                     </Card>
                 ))}
             </div>
+
+            {/* Create/Edit Plan Modal */}
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                            {editingPlan ? 'Edit Plan' : 'Create New Plan'}
+                        </h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plan Name *</label>
+                                <input
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                    placeholder="e.g., Professional"
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Monthly Price ($)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.price_monthly}
+                                        onChange={(e) => setFormData({ ...formData, price_monthly: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Yearly Price ($)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.price_yearly}
+                                        onChange={(e) => setFormData({ ...formData, price_yearly: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Users</label>
+                                    <input
+                                        type="number"
+                                        value={formData.max_users || ''}
+                                        onChange={(e) => setFormData({ ...formData, max_users: parseInt(e.target.value) || undefined })}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                        placeholder="Unlimited"
+                                        min="0"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Storage (GB)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.max_storage_gb || ''}
+                                        onChange={(e) => setFormData({ ...formData, max_storage_gb: parseInt(e.target.value) || undefined })}
+                                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                        placeholder="Unlimited"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Features</label>
+                                <div className="space-y-2">
+                                    {formData.features.map((feature, idx) => (
+                                        <div key={idx} className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={feature}
+                                                onChange={(e) => updateFeature(idx, e.target.value)}
+                                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                                                placeholder="e.g., Unlimited projects"
+                                            />
+                                            <Button variant="ghost" size="sm" onClick={() => removeFeature(idx)} className="text-red-500">
+                                                <Icon name="XMarkIcon" className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button variant="outline" size="sm" onClick={addFeature} className="mt-2">
+                                    <Icon name="PlusIcon" className="w-4 h-4 mr-1" /> Add Feature
+                                </Button>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="is_active"
+                                    checked={formData.is_active}
+                                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                                    className="rounded border-gray-300"
+                                />
+                                <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300">Active (visible to customers)</label>
+                            </div>
+                            
+                            <div className="flex gap-3 pt-4">
+                                <Button variant="secondary" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1">Cancel</Button>
+                                <Button variant="primary" onClick={handleSave} className="flex-1" disabled={saving}>
+                                    {saving ? 'Saving...' : (editingPlan ? 'Save Changes' : 'Create Plan')}
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 };

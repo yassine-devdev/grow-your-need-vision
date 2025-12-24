@@ -22,7 +22,7 @@ export interface FeatureFlag {
 }
 
 // Comprehensive mock feature flags
-let MOCK_FLAGS: FeatureFlag[] = [
+const MOCK_FLAGS: FeatureFlag[] = [
     {
         id: 'flag-1',
         name: 'AI Concierge',

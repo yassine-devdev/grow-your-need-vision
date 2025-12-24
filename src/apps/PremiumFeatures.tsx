@@ -188,7 +188,7 @@ const PremiumFeaturesPage: React.FC<PremiumFeaturesPageProps> = ({ activeTab = '
                                         </ul>
 
                                         <Button
-                                            variant={isCurrentPlan ? 'secondary' : plan.popular ? 'premium' : 'primary'}
+                                            variant={isCurrentPlan ? 'secondary' : plan.popular ? 'primary' : 'primary'}
                                             className="w-full"
                                             disabled={isCurrentPlan || hasAccess}
                                         >
@@ -245,7 +245,7 @@ const PremiumFeaturesPage: React.FC<PremiumFeaturesPageProps> = ({ activeTab = '
                                             )}
                                         </div>
                                         <Badge 
-                                            variant={hasAccess ? 'success' : 'premium'}
+                                            variant={hasAccess ? 'success' : 'primary'}
                                             className="text-xs"
                                         >
                                             {feature.requiredPlan.toUpperCase()}

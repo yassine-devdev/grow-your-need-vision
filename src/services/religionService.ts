@@ -138,7 +138,7 @@ export const religionService = {
 
         const timeToMinutes = (timeStr: string) => {
             const [time, modifier] = timeStr.split(' ');
-            let [hours, minutes] = time.split(':').map(Number);
+            const [hours, minutes] = time.split(':').map(Number);
             // Handle 12h format if API returns it (Aladhan usually returns 24h but check)
             // Aladhan returns 24h usually.
             return hours * 60 + minutes;
@@ -723,7 +723,7 @@ export const religionService = {
 
     // Inheritance Calculator (Simplified Logic)
     calculateInheritance: (assets: number, relatives: { spouse: 'Husband' | 'Wife' | 'None', sons: number, daughters: number, father: boolean, mother: boolean }) => {
-        let shares: { relation: string, share: number, amount: number, note: string }[] = [];
+        const shares: { relation: string, share: number, amount: number, note: string }[] = [];
         let remaining = 1; // 100%
 
         // 1. Spouse

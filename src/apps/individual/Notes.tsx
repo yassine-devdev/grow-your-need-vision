@@ -119,7 +119,7 @@ const Notes: React.FC<Props> = ({ activeTab, activeSubNav }) => {
     const query = searchQuery.toLowerCase();
     return note.title.toLowerCase().includes(query) || 
            note.content.toLowerCase().includes(query) ||
-           note.tags.some(t => t.toLowerCase().includes(query));
+           note.tags?.some(t => t.toLowerCase().includes(query));
   });
 
   const startEdit = (note: Note) => {
@@ -127,7 +127,7 @@ const Notes: React.FC<Props> = ({ activeTab, activeSubNav }) => {
       title: note.title,
       content: note.content,
       category: note.category,
-      tags: note.tags.join(', '),
+      tags: note.tags?.join(', ') || '',
       color: note.color,
     });
     setIsEditing(true);
@@ -247,7 +247,7 @@ const Notes: React.FC<Props> = ({ activeTab, activeSubNav }) => {
                       )}>
                         {note.content}
                       </p>
-                      {note.tags.length > 0 && (
+                      {note.tags && note.tags.length > 0 && (
                         <div className="flex gap-1 mt-2 flex-wrap">
                           {note.tags.slice(0, 3).map(tag => (
                             <span key={tag} className="px-2 py-0.5 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
@@ -501,7 +501,7 @@ const Notes: React.FC<Props> = ({ activeTab, activeSubNav }) => {
                         {selectedNote.content || <span className="text-gray-400 italic">No content</span>}
                       </div>
                       
-                      {selectedNote.tags.length > 0 && (
+                      {selectedNote.tags && selectedNote.tags.length > 0 && (
                         <div className="flex gap-2 flex-wrap mb-4">
                           {selectedNote.tags.map(tag => (
                             <span key={tag} className={cn(

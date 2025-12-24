@@ -97,7 +97,9 @@ const SecuritySettings: React.FC = () => {
 
     const handleToggleMFA = async (staffId: string) => {
         try {
-            const updated = await securitySettingsService.toggleStaffMFA(staffId);
+            const member = staff.find(s => s.id === staffId);
+            if (!member) return;
+            const updated = await securitySettingsService.toggleStaffMFA(staffId, !member.mfaEnabled);
             if (updated) {
                 setStaff(staff.map(s => s.id === staffId ? updated : s));
             }
@@ -108,7 +110,10 @@ const SecuritySettings: React.FC = () => {
 
     const handleToggleStaffStatus = async (staffId: string) => {
         try {
-            const updated = await securitySettingsService.toggleStaffStatus(staffId);
+            const member = staff.find(s => s.id === staffId);
+            if (!member) return;
+            const newStatus = member.status === 'active' ? 'inactive' : 'active';
+            const updated = await securitySettingsService.toggleStaffStatus(staffId, newStatus as StaffMember['status']);
             if (updated) {
                 setStaff(staff.map(s => s.id === staffId ? updated : s));
             }
@@ -120,7 +125,7 @@ const SecuritySettings: React.FC = () => {
     const handleAddIP = async () => {
         if (newIP && !ipWhitelist.some(ip => ip.ip === newIP)) {
             try {
-                const newEntry = await securitySettingsService.addIPToWhitelist(newIP, newIPDescription || 'Added manually');
+                const newEntry = await securitySettingsService.addIPToWhitelist(newIP, newIPDescription || 'Added manually', 'owner');
                 setIpWhitelist([...ipWhitelist, newEntry]);
                 setNewIP('');
                 setNewIPDescription('');
@@ -142,9 +147,9 @@ const SecuritySettings: React.FC = () => {
     const handleToggleMFAPolicy = async () => {
         if (!settings) return;
         try {
-            const newValue = !settings.mfa_required;
-            await auditLog.settingsChange('mfa_required', settings.mfa_required, newValue);
-            const updated = await securitySettingsService.updateSecuritySettings({ mfa_required: newValue });
+            const newValue = !settings.mfaRequired;
+            await auditLog.settingsChange('mfaRequired', settings.mfaRequired, newValue);
+            const updated = await securitySettingsService.updateSecuritySettings({ mfaRequired: newValue });
             setSettings(updated);
         } catch (error) {
             console.error('Failed to toggle MFA policy:', error);
@@ -154,8 +159,8 @@ const SecuritySettings: React.FC = () => {
     const handleUpdateSessionTimeout = async (minutes: number) => {
         if (!settings) return;
         try {
-            await auditLog.settingsChange('session_timeout', settings.session_timeout, minutes);
-            const updated = await securitySettingsService.updateSecuritySettings({ session_timeout: minutes });
+            await auditLog.settingsChange('sessionTimeout', settings.sessionTimeout, minutes);
+            const updated = await securitySettingsService.updateSecuritySettings({ sessionTimeout: minutes });
             setSettings(updated);
         } catch (error) {
             console.error('Failed to update session timeout:', error);
@@ -168,8 +173,8 @@ const SecuritySettings: React.FC = () => {
             const newStaff = await securitySettingsService.createStaff({
                 name: staffForm.name,
                 email: staffForm.email,
-                role: staffForm.role
-            });
+                role: staffForm.role.toLowerCase().replace(' ', '_')
+            } as any);
             setStaff([...staff, newStaff]);
             setStaffForm({ name: '', email: '', role: 'Admin' });
             setShowAddStaffModal(false);
@@ -229,11 +234,11 @@ const SecuritySettings: React.FC = () => {
                         </div>
                         <button
                             onClick={handleToggleMFAPolicy}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings?.mfa_required ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${settings?.mfaRequired ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
                                 }`}
                         >
                             <span
-                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings?.mfa_required ? 'translate-x-7' : 'translate-x-1'
+                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings?.mfaRequired ? 'translate-x-7' : 'translate-x-1'
                                     }`}
                             />
                         </button>
@@ -251,14 +256,14 @@ const SecuritySettings: React.FC = () => {
                                 min="15"
                                 max="480"
                                 step="15"
-                                value={settings?.session_timeout || 60}
+                                value={settings?.sessionTimeout || 60}
                                 onChange={(e) => handleUpdateSessionTimeout(parseInt(e.target.value))}
                                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                             />
                             <div className="w-32 text-right">
-                                <span className="font-bold text-gray-900 dark:text-white">{settings?.session_timeout || 60} min</span>
+                                <span className="font-bold text-gray-900 dark:text-white">{settings?.sessionTimeout || 60} min</span>
                                 <p className="text-xs text-gray-500">
-                                    {(settings?.session_timeout || 60) < 60 ? `${settings?.session_timeout || 60} minutes` : `${((settings?.session_timeout || 60) / 60).toFixed(1)} hours`}
+                                    {(settings?.sessionTimeout || 60) < 60 ? `${settings?.sessionTimeout || 60} minutes` : `${((settings?.sessionTimeout || 60) / 60).toFixed(1)} hours`}
                                 </p>
                             </div>
                         </div>
@@ -348,8 +353,8 @@ const SecuritySettings: React.FC = () => {
                                         {member.email}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <Badge variant={member.role === 'Super Admin' ? 'primary' : 'secondary'}>
-                                            {member.role}
+                                        <Badge variant={member.role === 'super_admin' ? 'primary' : 'secondary'}>
+                                            {member.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                         </Badge>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -360,17 +365,17 @@ const SecuritySettings: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <button
                                             onClick={() => handleToggleMFA(member.id)}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${member.mfa_enabled ? 'bg-green-600' : 'bg-gray-200'
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${member.mfaEnabled ? 'bg-green-600' : 'bg-gray-200'
                                                 }`}
                                         >
                                             <span
-                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${member.mfa_enabled ? 'translate-x-6' : 'translate-x-1'
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${member.mfaEnabled ? 'translate-x-6' : 'translate-x-1'
                                                     }`}
                                             />
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {member.last_login}
+                                        {member.lastLogin}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                         <Button
@@ -535,12 +540,12 @@ const SecuritySettings: React.FC = () => {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
                                 <select
                                     value={editingStaff.role}
-                                    onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as 'Super Admin' | 'Admin' | 'Support' })}
+                                    onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as StaffMember['role'] })}
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
                                 >
-                                    <option value="Support">Support</option>
-                                    <option value="Admin">Admin</option>
-                                    <option value="Super Admin">Super Admin</option>
+                                    <option value="support">Support</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="super_admin">Super Admin</option>
                                 </select>
                             </div>
                             <div className="flex gap-3 pt-4">

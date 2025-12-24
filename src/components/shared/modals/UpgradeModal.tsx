@@ -132,7 +132,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
                 <div className="text-center pb-6 border-b border-gray-200 dark:border-gray-700">
                     {feature && (
                         <div className="mb-4">
-                            <Badge variant="premium" className="text-sm">
+                            <Badge variant="primary" className="text-sm">
                                 {feature.name}
                             </Badge>
                         </div>
@@ -198,7 +198,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
                             >
                                 {plan.popular && (
                                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                                        <Badge variant="premium" className="text-xs font-bold shadow-lg">
+                                        <Badge variant="primary" className="text-xs font-bold shadow-lg">
                                             MOST POPULAR
                                         </Badge>
                                     </div>
@@ -269,7 +269,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
                                         {/* Action Button */}
                                         <Button
-                                            variant={isSelected && canUpgrade ? 'premium' : isCurrentPlan ? 'secondary' : 'outline'}
+                                            variant={isSelected && canUpgrade ? 'primary' : isCurrentPlan ? 'secondary' : 'outline'}
                                             className="w-full mt-4"
                                             disabled={isCurrentPlan || !canUpgrade}
                                             onClick={(e: React.MouseEvent) => {

@@ -72,14 +72,14 @@ export const ROICalculator: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await marketingService.getROIData();
+      const data: any = await marketingService.getROIData();
       // Add startDate to campaigns for Calendar icon display
-      const campaignsWithDates = (data.campaigns || []).map((c, idx) => ({
+      const campaignsWithDates = (Array.isArray(data) ? data : data.campaigns || []).map((c: any, idx: number) => ({
         ...c,
         startDate: new Date(Date.now() - (idx + 1) * 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
       setCampaigns(campaignsWithDates);
-      setForecastScenarios(data.forecasts || []);
+      setForecastScenarios(Array.isArray(data) ? [] : data.forecasts || []);
     } catch (error) {
       console.error('Error fetching ROI data:', error);
     } finally {
@@ -103,7 +103,7 @@ export const ROICalculator: React.FC = () => {
       Impressions: c.impressions,
       Clicks: c.clicks,
     }));
-    marketingExportService.exportROIToExcel(exportData, 'ROI Report', `roi_report_${selectedTimeframe}`);
+    marketingExportService.exportROIToExcel(exportData);
   };
 
   const calculateMetrics = (): ROIMetrics => {

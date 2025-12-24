@@ -214,7 +214,7 @@ const ReligionApp: React.FC<ReligionAppProps> = ({ activeTab, activeSubNav, onNa
         
         const timeToMinutes = (timeStr: string) => {
             const [time] = timeStr.split(' ');
-            let [hours, minutes] = time.split(':').map(Number);
+            const [hours, minutes] = time.split(':').map(Number);
             return hours * 60 + minutes;
         };
 

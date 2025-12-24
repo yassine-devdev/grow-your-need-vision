@@ -121,7 +121,7 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
         }
     };
 
-    const calculateForecast = (dealsData: Deal[]) => {
+    const calculateForecast = (dealsData: Deal[]): ForecastData[] => {
         const today = new Date();
         const currentYear = today.getFullYear();
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']; // Q1-Q2
@@ -129,7 +129,10 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
         const data = months.map((month, index) => ({
             month,
             projected: 0,
-            actual: 0
+            actual: 0,
+            predicted: 0,
+            closed: 0,
+            pipeline: 0
         }));
 
         dealsData.forEach(deal => {
@@ -145,6 +148,7 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
                 // Actual: Only if Closed Won / Subscribed
                 if (['Closed Won', 'Subscribed'].includes(deal.stage)) {
                     data[monthIndex].actual += deal.value;
+                    data[monthIndex].closed += deal.value;
                 }
             }
         });
@@ -231,7 +235,7 @@ const PlatformCRM: React.FC<PlatformCRMProps> = ({ activeTab, activeSubNav }) =>
             return;
         }
 
-        const headers = ['Month', 'Predicted Revenue', 'Closed Revenue', 'Pipeline'];
+        const headers = ['Month', 'Predicted', 'Closed', 'Pipeline'];
         const data = forecast.map(f => [
             f.month,
             `$${f.predicted.toLocaleString()}`,

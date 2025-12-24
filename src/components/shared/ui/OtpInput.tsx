@@ -38,7 +38,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({ value, valueLength, onChange
 
   const inputOnChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
     const target = e.target;
-    let targetValue = target.value.trim();
+    const targetValue = target.value.trim();
     const isTargetValueDigit = /^\d+$/.test(targetValue);
 
     if (!isTargetValueDigit && targetValue !== '') {

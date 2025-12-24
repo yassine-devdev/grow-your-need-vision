@@ -42,7 +42,6 @@ const CATEGORIES: { value: Habit['category']; label: string; color: string }[] =
 const FREQUENCIES: { value: Habit['frequency']; label: string }[] = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
-  { value: 'custom', label: 'Custom Days' },
 ];
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -102,8 +101,7 @@ const Habits: React.FC<Props> = ({ activeTab, activeSubNav }) => {
     const existingLog = habitLogs.find(l => l.habit_id === habitId && l.date === today);
     const habit = habits.find(h => h.id === habitId);
     
-    const newCount = existingLog?.completed ? 0 : (habit?.target_count || 1);
-    const log = await individualService.logHabit(user.id, habitId, newCount);
+    const log = await individualService.logHabit(habitId, user.id);
     
     if (log) {
       setHabitLogs(prev => {
@@ -505,25 +503,6 @@ const Habits: React.FC<Props> = ({ activeTab, activeSubNav }) => {
                         </button>
                       ))}
                     </div>
-                    
-                    {habitForm.frequency === 'custom' && (
-                      <div className="mt-3 flex gap-2">
-                        {WEEKDAYS.map((day, idx) => (
-                          <button
-                            key={day}
-                            onClick={() => toggleCustomDay(idx)}
-                            className={cn(
-                              "w-10 h-10 rounded-lg text-sm font-medium transition-all",
-                              habitForm.custom_days.includes(idx)
-                                ? "bg-indigo-600 text-white"
-                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                            )}
-                          >
-                            {day.charAt(0)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   {/* Color */}

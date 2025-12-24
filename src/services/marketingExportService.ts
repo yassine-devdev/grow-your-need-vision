@@ -579,6 +579,103 @@ class MarketingExportService {
 
         XLSX.writeFile(wb, this.getFilename('marketing_report', 'xlsx', options));
     }
+
+    /**
+     * Export automation rules to CSV
+     */
+    exportAutomationRulesToCSV(rules: any[]) {
+        const csvData = rules.map(rule => ({
+            'Name': rule.name,
+            'Status': rule.status,
+            'Trigger': rule.trigger,
+            'Triggered': rule.performance?.triggered || 0,
+            'Completed': rule.performance?.completed || 0,
+            'Conversion Rate': rule.performance?.conversion_rate || 0
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(csvData);
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `automation_rules_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Export automation rules to PDF
+     */
+    exportAutomationRulesToPDF(rules: any[]) {
+        const doc = new jsPDF();
+        doc.text('Automation Rules Report', 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+
+        const tableData = rules.map(rule => [
+            rule.name,
+            rule.status,
+            rule.trigger,
+            String(rule.performance?.triggered || 0),
+            String(rule.performance?.completed || 0),
+            `${(rule.performance?.conversion_rate || 0).toFixed(1)}%`
+        ]);
+
+        autoTable(doc, {
+            startY: 30,
+            head: [['Name', 'Status', 'Trigger', 'Triggered', 'Completed', 'Conv. Rate']],
+            body: tableData,
+            theme: 'grid',
+            styles: { fontSize: 8 }
+        });
+
+        doc.save(`automation_rules_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
+
+    exportROIToExcel(roiData: any[]): void {
+        const ws = XLSX.utils.json_to_sheet(roiData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'ROI Data');
+        XLSX.writeFile(wb, `roi_data_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    exportAutomationAnalyticsToCSV(data: any): void {
+        const rows = [
+            ['Metric', 'Value'],
+            ['Total Rules', data.totalRules],
+            ['Active Rules', data.activeRules],
+            ['Avg Triggers', data.avgTriggers],
+            ['Avg Success Rate', data.avgSuccessRate + '%']
+        ];
+        const csv = rows.map(row => row.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `automation_analytics_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    }
+
+    exportAutomationAnalyticsToPDF(data: any): void {
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text('Automation Analytics Report', 14, 20);
+        
+        autoTable(doc, {
+            startY: 30,
+            head: [['Metric', 'Value']],
+            body: [
+                ['Total Rules', data.totalRules],
+                ['Active Rules', data.activeRules],
+                ['Avg Triggers', data.avgTriggers],
+                ['Avg Success Rate', data.avgSuccessRate + '%']
+            ],
+            styles: { fontSize: 8 }
+        });
+
+        doc.save(`automation_analytics_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
 }
 
 export const marketingExportService = new MarketingExportService();

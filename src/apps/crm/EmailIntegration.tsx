@@ -14,10 +14,9 @@ import { crmAnalyticsService } from '../../services/crmAnalyticsService';
 interface EmailAnalytics {
     openRate: number;
     clickRate: number;
+    bounceRate: number;
     totalSent: number;
-    totalOpened: number;
-    totalClicked: number;
-    byDate: { date: string; sent: number; opened: number; clicked: number }[];
+    byMonth: { month: string; sent: number; opened: number; clicked: number }[];
 }
 
 const EmailIntegration: React.FC = () => {
@@ -62,12 +61,7 @@ const EmailIntegration: React.FC = () => {
     const handleSaveDraft = async () => {
         if (!contact || !subject) return;
         try {
-            const draft = await crmEmailService.saveDraft({
-                contactId: contact.id,
-                subject,
-                body,
-                id: draftId || undefined
-            });
+            const draft = await crmEmailService.saveDraft(contact.id, subject, body);
             setDraftId(draft.id);
             alert('Draft saved successfully');
         } catch (err) {
@@ -395,17 +389,17 @@ const EmailIntegration: React.FC = () => {
                                     <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
                                         <div className="text-2xl font-bold text-blue-600">{analytics.openRate.toFixed(1)}%</div>
                                         <div className="text-sm text-gray-500">Open Rate</div>
-                                        <div className="text-xs text-gray-400 mt-1">{analytics.totalOpened} / {analytics.totalSent} emails</div>
+                                        <div className="text-xs text-gray-400 mt-1">{analytics.totalSent} emails sent</div>
                                     </div>
                                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
                                         <div className="text-2xl font-bold text-green-600">{analytics.clickRate.toFixed(1)}%</div>
                                         <div className="text-sm text-gray-500">Click Rate</div>
-                                        <div className="text-xs text-gray-400 mt-1">{analytics.totalClicked} clicked links</div>
+                                        <div className="text-xs text-gray-400 mt-1">Email engagement</div>
                                     </div>
                                     <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
                                         <div className="text-2xl font-bold text-purple-600">{analytics.totalSent}</div>
                                         <div className="text-sm text-gray-500">Total Sent</div>
-                                        <div className="text-xs text-gray-400 mt-1">Last 30 days</div>
+                                        <div className="text-xs text-gray-400 mt-1">Last 12 months</div>
                                     </div>
                                 </div>
                                 
@@ -413,26 +407,26 @@ const EmailIntegration: React.FC = () => {
                                 <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                     <h4 className="font-semibold mb-4">Engagement Over Time</h4>
                                     <div className="h-48 flex items-end justify-between gap-2">
-                                        {analytics.byDate.slice(-14).map((day, i) => {
-                                            const maxSent = Math.max(...analytics.byDate.map(d => d.sent), 1);
-                                            const sentHeight = (day.sent / maxSent) * 100;
-                                            const openedHeight = (day.opened / maxSent) * 100;
+                                        {analytics.byMonth.map((month: { month: string; sent: number; opened: number; clicked: number }, i: number) => {
+                                            const maxSent = Math.max(...analytics.byMonth.map((m: { sent: number }) => m.sent), 1);
+                                            const sentHeight = (month.sent / maxSent) * 100;
+                                            const openedHeight = (month.opened / maxSent) * 100;
                                             return (
                                                 <div key={i} className="flex-1 flex flex-col items-center">
                                                     <div className="w-full flex flex-col gap-1 h-40 justify-end">
                                                         <div 
                                                             className="w-full bg-blue-400 rounded-t transition-all"
                                                             style={{ height: `${sentHeight}%` }}
-                                                            title={`${day.sent} sent`}
+                                                            title={`${month.sent} sent`}
                                                         />
                                                         <div 
                                                             className="w-full bg-green-400 rounded-t transition-all"
                                                             style={{ height: `${openedHeight}%` }}
-                                                            title={`${day.opened} opened`}
+                                                            title={`${month.opened} opened`}
                                                         />
                                                     </div>
                                                     <div className="text-xs text-gray-400 mt-1">
-                                                        {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        {month.month}
                                                     </div>
                                                 </div>
                                             );

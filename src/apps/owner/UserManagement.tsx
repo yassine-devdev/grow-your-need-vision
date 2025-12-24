@@ -234,7 +234,7 @@ const UserManagement: React.FC = () => {
                                                                 label: 'Delete User',
                                                                 icon: 'Trash',
                                                                 onClick: () => handleDeleteUser(user.id),
-                                                                variant: 'danger'
+                                                                danger: true
                                                             }
                                                         ]}
                                                     />

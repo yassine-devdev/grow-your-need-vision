@@ -73,7 +73,7 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
       });
       // Add computed trend to channel performance based on ROI
       const avgROI = data.totals.avgROI;
-      setChannelPerformance(data.channelPerformance.map(cp => ({
+      setChannelPerformance(data.channelPerformance.map((cp: any) => ({
         ...cp,
         trend: Math.round((cp.roi - avgROI) / Math.max(avgROI, 1) * 100 * 10) / 10,
       })));
@@ -112,7 +112,7 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
       CVR: `${c.cvr.toFixed(2)}%`,
       CPA: c.cpa.toFixed(2),
     }));
-    marketingExportService.exportROIToExcel(exportData, 'Campaign Analytics', 'campaign_analytics');
+    marketingExportService.exportROIToExcel(exportData);
   };
 
   const formatCurrency = (value: number) => 

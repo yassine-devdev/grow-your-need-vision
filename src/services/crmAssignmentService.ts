@@ -36,7 +36,7 @@ const MOCK_TEAM_MEMBERS: TeamMember[] = [
     { id: 'user-5', name: 'Edward Chen', email: 'edward@growyourneed.com', role: 'Sales Rep' }
 ];
 
-let MOCK_ASSIGNMENTS: DealAssignment[] = [
+const MOCK_ASSIGNMENTS: DealAssignment[] = [
     {
         id: 'assign-1',
         deal_id: 'deal-1',

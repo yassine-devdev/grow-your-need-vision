@@ -126,7 +126,7 @@ export const PremiumBanner: React.FC<PremiumBannerProps> = ({
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                             {displayTitle}
                         </h3>
-                        <Badge variant="premium" className="text-xs font-bold">
+                        <Badge variant="primary" className="text-xs font-bold">
                             {displayPlan.toUpperCase()}
                         </Badge>
                     </div>
@@ -135,7 +135,7 @@ export const PremiumBanner: React.FC<PremiumBannerProps> = ({
                     </p>
                     <div className="flex items-center gap-3 flex-wrap">
                         <Button 
-                            variant="premium" 
+                            variant="primary" 
                             size="sm"
                             onClick={handleUpgradeClick}
                             aria-label={`Upgrade to ${displayPlan} plan to access ${displayTitle}`}
@@ -326,7 +326,7 @@ export const PremiumFeatureList: React.FC<PremiumFeatureListProps> = ({ category
                                     {name}
                                 </h5>
                                 {!hasAccess && (
-                                    <Badge variant="premium" className="text-xs">
+                                    <Badge variant="primary" className="text-xs">
                                         {requiredPlan}
                                     </Badge>
                                 )}
@@ -349,7 +349,7 @@ export const PremiumFeatureList: React.FC<PremiumFeatureListProps> = ({ category
                             <p className="text-sm text-purple-900 dark:text-purple-100 mb-2">
                                 Unlock premium features with an upgraded plan
                             </p>
-                            <Button variant="premium" size="sm">
+                            <Button variant="primary" size="sm">
                                 View Plans
                             </Button>
                         </div>

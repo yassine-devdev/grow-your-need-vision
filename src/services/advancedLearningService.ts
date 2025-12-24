@@ -283,7 +283,7 @@ export const learningAnalyticsService = {
   async recordSession(userId: string, duration: number): Promise<void> {
     if (isMockEnv()) return;
 
-    let analytics = await this.getAnalytics(userId);
+    const analytics = await this.getAnalytics(userId);
 
     if (!analytics) {
       await pb.collection("learning_analytics").create({

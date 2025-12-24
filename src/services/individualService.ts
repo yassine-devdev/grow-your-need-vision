@@ -50,6 +50,94 @@ export interface LearningProgress extends RecordModel {
     last_activity: string;
 }
 
+export interface Achievement extends RecordModel {
+    user: string;
+    title: string;
+    description: string;
+    category: string;
+    xp: number;
+    icon?: string;
+    unlocked_date: string;
+}
+
+export interface Project extends RecordModel {
+    user: string;
+    title: string;
+    description: string;
+    status: 'active' | 'completed' | 'paused';
+    progress: number;
+    start_date: string;
+    due_date?: string;
+    completed_date?: string;
+}
+
+export interface ExtendedGoal extends IndividualGoal {
+    progress: number;
+    category?: string;
+    priority?: 'high' | 'medium' | 'low';
+}
+
+export interface Skill extends RecordModel {
+    user: string;
+    name: string;
+    category: string;
+    level: number; // 1-10
+    xp: number;
+    target_level?: number;
+}
+
+export interface CalendarEvent extends RecordModel {
+    user: string;
+    title: string;
+    description?: string;
+    start_date: string;
+    end_date?: string;
+    event_type: 'task' | 'meeting' | 'reminder' | 'deadline';
+    is_completed?: boolean;
+    color?: string;
+}
+
+export interface Habit extends RecordModel {
+    user: string;
+    name: string;
+    description?: string;
+    frequency: 'daily' | 'weekly';
+    target_count: number;
+    icon?: string;
+    color?: string;
+}
+
+export interface HabitLog extends RecordModel {
+    habit: string; // habit ID
+    user: string;
+    date: string;
+    completed: boolean;
+    note?: string;
+}
+
+export interface Note extends RecordModel {
+    user: string;
+    title: string;
+    content: string;
+    category?: string;
+    tags?: string[];
+    is_pinned?: boolean;
+}
+
+export interface UserProfile extends RecordModel {
+    user: string;
+    bio?: string;
+    location?: string;
+    website?: string;
+    avatar_url?: string;
+    social_links?: {
+        twitter?: string;
+        github?: string;
+        linkedin?: string;
+        instagram?: string;
+    };
+}
+
 export interface MarketplaceOrder extends RecordModel {
     user: string;
     order_number: string;
@@ -198,6 +286,42 @@ const MOCK_RECOMMENDATIONS: Recommendation[] = [
     { id: 'rec-3', item_type: 'service', title: 'Resume Review Service', description: 'Professional resume feedback', price: 49.99, category: 'Career', score: 92, collectionId: '', collectionName: '', created: '', updated: '' },
     { id: 'rec-4', user: 'user-1', item_type: 'course', title: 'Advanced Python Projects', description: 'Build real-world applications', price: 79.99, category: 'Technology', score: 98, collectionId: '', collectionName: '', created: '', updated: '' },
     { id: 'rec-5', item_type: 'product', title: 'Noise-Canceling Earbuds', description: 'Focus better with premium audio', image_url: 'https://example.com/earbuds.jpg', price: 199.99, category: 'Electronics', score: 85, collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_ACHIEVEMENTS: Achievement[] = [
+    { id: 'ach-1', user: 'user-1', title: 'First Steps', description: 'Completed your first course', category: 'learning', xp: 100, icon: 'trophy', unlocked_date: '2024-01-01', collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'ach-2', user: 'user-1', title: 'Wellness Warrior', description: 'Logged wellness data for 7 days straight', category: 'wellness', xp: 150, icon: 'heart', unlocked_date: '2024-01-10', collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'ach-3', user: 'user-1', title: 'Goal Getter', description: 'Completed 10 goals', category: 'productivity', xp: 200, icon: 'target', unlocked_date: '2024-01-15', collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_PROJECTS: Project[] = [
+    { id: 'proj-1', user: 'user-1', title: 'Personal Website', description: 'Build portfolio website', status: 'active', progress: 60, start_date: '2024-01-01', due_date: '2024-03-01', collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'proj-2', user: 'user-1', title: 'Learn Spanish', description: 'Become conversational', status: 'active', progress: 40, start_date: '2024-01-15', collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_SKILLS: Skill[] = [
+    { id: 'skill-1', user: 'user-1', name: 'Python', category: 'Programming', level: 7, xp: 3500, target_level: 10, collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'skill-2', user: 'user-1', name: 'Public Speaking', category: 'Communication', level: 5, xp: 1200, target_level: 8, collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
+    { id: 'evt-1', user: 'user-1', title: 'Team Meeting', description: 'Weekly sync', start_date: new Date(Date.now() + 86400000).toISOString(), event_type: 'meeting', is_completed: false, color: '#3b82f6', collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'evt-2', user: 'user-1', title: 'Project Deadline', start_date: new Date(Date.now() + 604800000).toISOString(), event_type: 'deadline', is_completed: false, color: '#ef4444', collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_HABITS: Habit[] = [
+    { id: 'habit-1', user: 'user-1', name: 'Morning Exercise', description: '30 minutes workout', frequency: 'daily', target_count: 1, icon: 'dumbbell', color: '#10b981', collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'habit-2', user: 'user-1', name: 'Read for 1 hour', frequency: 'daily', target_count: 1, icon: 'book', color: '#8b5cf6', collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_HABIT_LOGS: HabitLog[] = [
+    { id: 'log-1', habit: 'habit-1', user: 'user-1', date: new Date().toISOString().split('T')[0], completed: true, collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'log-2', habit: 'habit-2', user: 'user-1', date: new Date().toISOString().split('T')[0], completed: false, collectionId: '', collectionName: '', created: '', updated: '' }
+];
+
+const MOCK_NOTES: Note[] = [
+    { id: 'note-1', user: 'user-1', title: 'Project Ideas', content: 'List of potential projects to build', category: 'ideas', tags: ['projects', 'ideas'], is_pinned: true, collectionId: '', collectionName: '', created: '', updated: '' },
+    { id: 'note-2', user: 'user-1', title: 'Meeting Notes', content: 'Notes from weekly team meeting', category: 'work', tags: ['meetings'], is_pinned: false, collectionId: '', collectionName: '', created: '', updated: '' }
 ];
 
 /**
@@ -938,6 +1062,509 @@ class IndividualUserService {
             };
         } catch (error) {
             console.error('Failed to get user statistics:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get user achievements
+     */
+    async getAchievements(userId: string, category?: string): Promise<Achievement[]> {
+        if (isMockEnv()) {
+            let achievements = MOCK_ACHIEVEMENTS.filter(a => a.user === userId);
+            if (category) {
+                achievements = achievements.filter(a => a.category === category);
+            }
+            return achievements;
+        }
+
+        try {
+            const filter = category 
+                ? `user = "${userId}" && category = "${category}"`
+                : `user = "${userId}"`;
+            return await pb.collection('achievements').getFullList<Achievement>({
+                filter,
+                sort: '-unlocked_date',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get achievements:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get total XP for user
+     */
+    async getTotalXP(userId: string): Promise<number> {
+        if (isMockEnv()) {
+            const achievements = MOCK_ACHIEVEMENTS.filter(a => a.user === userId);
+            const learning = MOCK_LEARNING_PROGRESS.filter(lp => lp.user === userId);
+            return achievements.reduce((sum, a) => sum + a.xp, 0) + 
+                   learning.reduce((sum, lp) => sum + lp.xp, 0);
+        }
+
+        try {
+            const [achievements, learning] = await Promise.all([
+                pb.collection('achievements').getFullList<Achievement>({
+                    filter: `user = "${userId}"`,
+                    requestKey: null
+                }),
+                pb.collection('learning_progress').getFullList<LearningProgress>({
+                    filter: `user = "${userId}"`,
+                    requestKey: null
+                })
+            ]);
+            return achievements.reduce((sum, a) => sum + a.xp, 0) + 
+                   learning.reduce((sum, lp) => sum + lp.xp, 0);
+        } catch (error) {
+            console.error('Failed to get total XP:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Get user projects
+     */
+    async getProjects(userId: string): Promise<Project[]> {
+        if (isMockEnv()) {
+            return MOCK_PROJECTS.filter(p => p.user === userId);
+        }
+
+        try {
+            return await pb.collection('projects').getFullList<Project>({
+                filter: `user = "${userId}"`,
+                sort: '-start_date',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get projects:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get extended goals with progress
+     */
+    async getExtendedGoals(userId: string): Promise<ExtendedGoal[]> {
+        if (isMockEnv()) {
+            return MOCK_GOALS.filter(g => g.user === userId).map(g => ({
+                ...g,
+                progress: g.is_completed ? 100 : Math.floor(Math.random() * 70),
+                category: 'personal',
+                priority: 'medium' as const
+            }));
+        }
+
+        try {
+            const goals = await pb.collection('individual_goals').getFullList<IndividualGoal>({
+                filter: `user = "${userId}"`,
+                sort: '-created',
+                requestKey: null
+            });
+            return goals.map(g => ({
+                ...g,
+                progress: g.is_completed ? 100 : 50,
+                category: 'personal',
+                priority: 'medium' as const
+            }));
+        } catch (error) {
+            console.error('Failed to get extended goals:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get user skills
+     */
+    async getSkills(userId: string): Promise<Skill[]> {
+        if (isMockEnv()) {
+            return MOCK_SKILLS.filter(s => s.user === userId);
+        }
+
+        try {
+            return await pb.collection('skills').getFullList<Skill>({
+                filter: `user = "${userId}"`,
+                sort: '-level',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get skills:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get calendar events
+     */
+    async getCalendarEvents(userId: string, startDate?: string, endDate?: string): Promise<CalendarEvent[]> {
+        if (isMockEnv()) {
+            let events = MOCK_CALENDAR_EVENTS.filter(e => e.user === userId);
+            if (startDate && endDate) {
+                events = events.filter(e => e.start_date >= startDate && e.start_date <= endDate);
+            }
+            return events;
+        }
+
+        try {
+            let filter = `user = "${userId}"`;
+            if (startDate && endDate) {
+                filter += ` && start_date >= "${startDate}" && start_date <= "${endDate}"`;
+            }
+            return await pb.collection('calendar_events').getFullList<CalendarEvent>({
+                filter,
+                sort: 'start_date',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get calendar events:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Create calendar event
+     */
+    async createCalendarEvent(userId: string, data: Partial<CalendarEvent>): Promise<CalendarEvent> {
+        if (isMockEnv()) {
+            const newEvent: CalendarEvent = {
+                id: `evt-${Date.now()}`,
+                user: userId,
+                title: data.title || 'New Event',
+                description: data.description,
+                start_date: data.start_date || new Date().toISOString(),
+                end_date: data.end_date,
+                event_type: data.event_type || 'task',
+                is_completed: false,
+                color: data.color || '#3b82f6',
+                collectionId: '', collectionName: '', created: new Date().toISOString(), updated: ''
+            };
+            MOCK_CALENDAR_EVENTS.push(newEvent);
+            return newEvent;
+        }
+
+        return await pb.collection('calendar_events').create<CalendarEvent>({
+            user: userId,
+            ...data
+        });
+    }
+
+    /**
+     * Update calendar event
+     */
+    async updateCalendarEvent(eventId: string, data: Partial<CalendarEvent>): Promise<CalendarEvent> {
+        if (isMockEnv()) {
+            const event = MOCK_CALENDAR_EVENTS.find(e => e.id === eventId);
+            if (event) {
+                Object.assign(event, data);
+                return event;
+            }
+            throw new Error('Event not found');
+        }
+
+        return await pb.collection('calendar_events').update<CalendarEvent>(eventId, data);
+    }
+
+    /**
+     * Delete calendar event
+     */
+    async deleteCalendarEvent(eventId: string): Promise<boolean> {
+        if (isMockEnv()) {
+            const index = MOCK_CALENDAR_EVENTS.findIndex(e => e.id === eventId);
+            if (index !== -1) {
+                MOCK_CALENDAR_EVENTS.splice(index, 1);
+            }
+            return true;
+        }
+
+        try {
+            await pb.collection('calendar_events').delete(eventId);
+            return true;
+        } catch (error) {
+            console.error('Failed to delete calendar event:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get user habits
+     */
+    async getHabits(userId: string): Promise<Habit[]> {
+        if (isMockEnv()) {
+            return MOCK_HABITS.filter(h => h.user === userId);
+        }
+
+        try {
+            return await pb.collection('habits').getFullList<Habit>({
+                filter: `user = "${userId}"`,
+                sort: '-created',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get habits:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get habit logs
+     */
+    async getHabitLogs(userId: string, habitId?: string, days?: number): Promise<HabitLog[]> {
+        if (isMockEnv()) {
+            let logs = MOCK_HABIT_LOGS.filter(l => l.user === userId);
+            if (habitId) {
+                logs = logs.filter(l => l.habit === habitId);
+            }
+            if (days) {
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+                const cutoffStr = cutoffDate.toISOString().split('T')[0];
+                logs = logs.filter(l => l.date >= cutoffStr);
+            }
+            return logs;
+        }
+
+        try {
+            let filter = habitId 
+                ? `user = "${userId}" && habit = "${habitId}"`
+                : `user = "${userId}"`;
+            if (days) {
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+                const cutoffStr = cutoffDate.toISOString().split('T')[0];
+                filter += ` && date >= "${cutoffStr}"`;
+            }
+            return await pb.collection('habit_logs').getFullList<HabitLog>({
+                filter,
+                sort: '-date',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get habit logs:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Log habit completion
+     */
+    async logHabit(habitId: string, userId: string): Promise<HabitLog> {
+        if (isMockEnv()) {
+            const newLog: HabitLog = {
+                id: `log-${Date.now()}`,
+                habit: habitId,
+                user: userId,
+                date: new Date().toISOString().split('T')[0],
+                completed: true,
+                collectionId: '', collectionName: '', created: new Date().toISOString(), updated: ''
+            };
+            MOCK_HABIT_LOGS.push(newLog);
+            return newLog;
+        }
+
+        return await pb.collection('habit_logs').create<HabitLog>({
+            habit: habitId,
+            user: userId,
+            date: new Date().toISOString().split('T')[0],
+            completed: true
+        });
+    }
+
+    /**
+     * Create habit
+     */
+    async createHabit(userId: string, data: Partial<Habit>): Promise<Habit> {
+        if (isMockEnv()) {
+            const newHabit: Habit = {
+                id: `habit-${Date.now()}`,
+                user: userId,
+                name: data.name || 'New Habit',
+                description: data.description,
+                frequency: data.frequency || 'daily',
+                target_count: data.target_count || 1,
+                icon: data.icon,
+                color: data.color || '#3b82f6',
+                collectionId: '', collectionName: '', created: new Date().toISOString(), updated: ''
+            };
+            MOCK_HABITS.push(newHabit);
+            return newHabit;
+        }
+
+        return await pb.collection('habits').create<Habit>({
+            user: userId,
+            ...data
+        });
+    }
+
+    /**
+     * Delete habit
+     */
+    async deleteHabit(habitId: string): Promise<boolean> {
+        if (isMockEnv()) {
+            const index = MOCK_HABITS.findIndex(h => h.id === habitId);
+            if (index !== -1) {
+                MOCK_HABITS.splice(index, 1);
+            }
+            return true;
+        }
+
+        try {
+            await pb.collection('habits').delete(habitId);
+            return true;
+        } catch (error) {
+            console.error('Failed to delete habit:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get user notes
+     */
+    async getNotes(userId: string, category?: string): Promise<Note[]> {
+        if (isMockEnv()) {
+            let notes = MOCK_NOTES.filter(n => n.user === userId);
+            if (category) {
+                notes = notes.filter(n => n.category === category);
+            }
+            return notes;
+        }
+
+        try {
+            let filter = `user = "${userId}"`;
+            if (category) {
+                filter += ` && category = "${category}"`;
+            }
+            return await pb.collection('notes').getFullList<Note>({
+                filter,
+                sort: '-created',
+                requestKey: null
+            });
+        } catch (error) {
+            console.error('Failed to get notes:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Create note
+     */
+    async createNote(userId: string, data: Partial<Note>): Promise<Note> {
+        if (isMockEnv()) {
+            const newNote: Note = {
+                id: `note-${Date.now()}`,
+                user: userId,
+                title: data.title || 'Untitled Note',
+                content: data.content || '',
+                category: data.category,
+                tags: data.tags || [],
+                is_pinned: data.is_pinned || false,
+                collectionId: '', collectionName: '', created: new Date().toISOString(), updated: ''
+            };
+            MOCK_NOTES.push(newNote);
+            return newNote;
+        }
+
+        return await pb.collection('notes').create<Note>({
+            user: userId,
+            ...data
+        });
+    }
+
+    /**
+     * Update note
+     */
+    async updateNote(noteId: string, data: Partial<Note>): Promise<Note> {
+        if (isMockEnv()) {
+            const note = MOCK_NOTES.find(n => n.id === noteId);
+            if (note) {
+                Object.assign(note, data);
+                return note;
+            }
+            throw new Error('Note not found');
+        }
+
+        return await pb.collection('notes').update<Note>(noteId, data);
+    }
+
+    /**
+     * Delete note
+     */
+    async deleteNote(noteId: string): Promise<boolean> {
+        if (isMockEnv()) {
+            const index = MOCK_NOTES.findIndex(n => n.id === noteId);
+            if (index !== -1) {
+                MOCK_NOTES.splice(index, 1);
+            }
+            return true;
+        }
+
+        try {
+            await pb.collection('notes').delete(noteId);
+            return true;
+        } catch (error) {
+            console.error('Failed to delete note:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get user profile
+     */
+    async getUserProfile(userId: string): Promise<UserProfile | null> {
+        if (isMockEnv()) {
+            return {
+                id: 'profile-1',
+                user: userId,
+                bio: 'Passionate learner and developer',
+                location: 'San Francisco, CA',
+                website: 'https://example.com',
+                avatar_url: '',
+                social_links: {
+                    twitter: 'example',
+                    github: 'example',
+                    linkedin: 'example'
+                },
+                collectionId: '', collectionName: '', created: '', updated: ''
+            };
+        }
+
+        try {
+            const profiles = await pb.collection('user_profiles').getFullList<UserProfile>({
+                filter: `user = "${userId}"`,
+                requestKey: null
+            });
+            return profiles.length > 0 ? profiles[0] : null;
+        } catch (error) {
+            console.error('Failed to get user profile:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Update user profile
+     */
+    async updateUserProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile | null> {
+        if (isMockEnv()) {
+            return {
+                id: 'profile-1',
+                user: userId,
+                ...data,
+                collectionId: '', collectionName: '', created: '', updated: new Date().toISOString()
+            } as UserProfile;
+        }
+
+        try {
+            const existing = await this.getUserProfile(userId);
+            if (existing) {
+                return await pb.collection('user_profiles').update<UserProfile>(existing.id, data);
+            } else {
+                return await pb.collection('user_profiles').create<UserProfile>({
+                    user: userId,
+                    ...data
+                });
+            }
+        } catch (error) {
+            console.error('Failed to update user profile:', error);
             return null;
         }
     }

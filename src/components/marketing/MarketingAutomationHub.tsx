@@ -58,7 +58,7 @@ export const MarketingAutomationHub: React.FC = () => {
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Active' ? 'Paused' : 'Active';
     try {
-      await marketingService.toggleAutomationRule(id, newStatus);
+      await marketingService.toggleAutomationRule(id);
       setAutomations(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
     } catch (error) {
       console.error('Error toggling status:', error);
@@ -124,7 +124,7 @@ export const MarketingAutomationHub: React.FC = () => {
         (automations.reduce((sum, a) => sum + a.stats.triggered, 0) || 1)) * 100
     ),
     avgCompletionTime: '4.2h',
-    emailsSent: automations.reduce((sum, a) => sum + (a.actions.filter(act => act.type === 'email').length * a.stats.triggered), 0),
+    emailsSent: automations.reduce((sum, a) => sum + (a.actions.filter((act: { type: string }) => act.type === 'email').length * a.stats.triggered), 0),
   };
 
   const getStatusColor = (status: string) => {
@@ -329,7 +329,7 @@ export const MarketingAutomationHub: React.FC = () => {
                                 <span className="capitalize">{automation.triggerType}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                {automation.actions.slice(0, 5).map((action, i) => {
+                                {automation.actions.slice(0, 5).map((action: { type: string }, i: number) => {
                                   const ActionIcon = getActionIcon(action.type);
                                   return (
                                     <React.Fragment key={`${automation.id}-action-${i}`}>

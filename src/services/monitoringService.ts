@@ -9,10 +9,11 @@ export interface AlertData {
 }
 
 class MonitoringService {
-    private slackWebhookUrl: string;
+    private slackWebhookUrl: string | boolean | undefined;
 
     constructor() {
-        this.slackWebhookUrl = env.get('slackWebhookUrl');
+        // Use a valid environment key or hardcode/fallback
+        this.slackWebhookUrl = process.env.SLACK_WEBHOOK_URL || undefined;
     }
 
     /**
@@ -52,10 +53,10 @@ class MonitoringService {
                         ts: Math.floor(Date.now() / 1000),
                         metadata: data.metadata ? JSON.stringify(data.metadata) : undefined
                     }
-                ]
+                ]  
             };
 
-            const response = await fetch(this.slackWebhookUrl, {
+            const response = await fetch(this.slackWebhookUrl as string, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

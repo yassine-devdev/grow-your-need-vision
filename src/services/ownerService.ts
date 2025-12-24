@@ -146,7 +146,7 @@ class OwnerService {
         let newTenantsCount = 0;
         let mrrValue = 0;
         let alerts: SystemAlert[] = [];
-        let revenueHistory: ChartDataPoint[] = [];
+        const revenueHistory: ChartDataPoint[] = [];
         let tenantGrowth: ChartDataPoint[] = [];
         let combinedActivity: AuditLog[] = [];
         let topVisitedPages: { label: string; value: number; color: string; subLabel?: string }[] = [];

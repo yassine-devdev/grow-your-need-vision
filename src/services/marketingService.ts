@@ -100,6 +100,20 @@ export interface ContentVariation {
     weight: number;
 }
 
+export interface AutomationRule extends RecordModel {
+    name: string;
+    description: string;
+    status: 'Active' | 'Paused' | 'Draft';
+    trigger: string;
+    conditions: Record<string, unknown>;
+    actions: Array<{ type: string; config: Record<string, unknown> }>;
+    performance: {
+        triggered: number;
+        completed: number;
+        conversion_rate: number;
+    };
+}
+
 export interface Journey extends RecordModel {
     name: string;
     description: string;
@@ -874,4 +888,200 @@ export const marketingService = {
         }
         return await pb.send('/api/ai/generate-email', { method: 'POST', body: JSON.stringify(params) });
     },
+
+    // ========================================================================
+    // AUTOMATION RULES
+    // ========================================================================
+    async getAutomationRules(): Promise<AutomationRule[]> {
+        if (isMockEnv()) {
+            return [
+                {
+                    id: '1',
+                    name: 'Welcome Series',
+                    description: 'Automated email sequence for new users',
+                    status: 'Active',
+                    trigger: 'user_signup',
+                    conditions: {},
+                    actions: [{ type: 'send_email', config: { template: 'welcome' } }],
+                    performance: { triggered: 150, completed: 140, conversion_rate: 15.2 },
+                    collectionId: '', collectionName: '', created: '', updated: ''
+                }
+            ];
+        }
+        return await pb.collection('automation_rules').getFullList<AutomationRule>();
+    },
+
+    async createAutomationRule(data: Partial<AutomationRule>): Promise<AutomationRule> {
+        if (isMockEnv()) {
+            return {
+                id: Date.now().toString(),
+                name: data.name || 'New Rule',
+                description: data.description || '',
+                status: 'Draft',
+                trigger: data.trigger || '',
+                conditions: data.conditions || {},
+                actions: data.actions || [],
+                performance: { triggered: 0, completed: 0, conversion_rate: 0 },
+                collectionId: '', collectionName: '', created: '', updated: ''
+            };
+        }
+        return await pb.collection('automation_rules').create<AutomationRule>(data);
+    },
+
+    async updateAutomationRule(id: string, data: Partial<AutomationRule>): Promise<AutomationRule> {
+        if (isMockEnv()) {
+            return { id, ...data } as AutomationRule;
+        }
+        return await pb.collection('automation_rules').update<AutomationRule>(id, data);
+    },
+
+    async deleteAutomationRule(id: string): Promise<void> {
+        if (isMockEnv()) {
+            return;
+        }
+        await pb.collection('automation_rules').delete(id);
+    },
+
+    async toggleAutomationRule(id: string): Promise<AutomationRule> {
+        if (isMockEnv()) {
+            return {
+                id,
+                name: 'Rule',
+                description: '',
+                status: 'Active',
+                trigger: '',
+                conditions: {},
+                actions: [],
+                performance: { triggered: 0, completed: 0, conversion_rate: 0 },
+                collectionId: '', collectionName: '', created: '', updated: ''
+            };
+        }
+        const rule = await pb.collection('automation_rules').getOne<AutomationRule>(id);
+        return await pb.collection('automation_rules').update<AutomationRule>(id, {
+            status: rule.status === 'Active' ? 'Paused' : 'Active'
+        });
+    },
+
+    // Additional missing methods
+    async getROIData(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { campaign: 'Summer Sale', invested: 5000, revenue: 15000, roi: 200, conversions: 150 },
+                { campaign: 'Winter Promo', invested: 3000, revenue: 9000, roi: 200, conversions: 90 }
+            ];
+        }
+        return await pb.collection('marketing_roi').getFullList({ requestKey: null });
+    },
+
+    async addROICampaign(data: any): Promise<any> {
+        if (isMockEnv()) {
+            return { id: Date.now().toString(), ...data };
+        }
+        return await pb.collection('marketing_roi').create(data);
+    },
+
+    async getCampaignAnalytics(): Promise<any> {
+        if (isMockEnv()) {
+            return {
+                totalCampaigns: 12,
+                activeCampaigns: 5,
+                avgOpenRate: 25.5,
+                avgClickRate: 8.3,
+                totalRevenue: 45000
+            };
+        }
+        return await pb.collection('campaign_analytics').getFirstListItem('', { requestKey: null });
+    },
+
+    async getLeads(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { id: '1', name: 'John Doe', email: 'john@example.com', score: 85, status: 'hot' },
+                { id: '2', name: 'Jane Smith', email: 'jane@example.com', score: 60, status: 'warm' }
+            ];
+        }
+        return await pb.collection('leads').getFullList({ requestKey: null });
+    },
+
+    async updateLead(id: string, data: any): Promise<any> {
+        if (isMockEnv()) {
+            return { id, ...data };
+        }
+        return await pb.collection('leads').update(id, data);
+    },
+
+    async getScoringRules(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { id: '1', name: 'Email Opened', points: 10, active: true },
+                { id: '2', name: 'Link Clicked', points: 25, active: true }
+            ];
+        }
+        return await pb.collection('scoring_rules').getFullList({ requestKey: null });
+    },
+
+    async updateScoringRule(id: string, data: any): Promise<any> {
+        if (isMockEnv()) {
+            return { id, ...data };
+        }
+        return await pb.collection('scoring_rules').update(id, data);
+    },
+
+    async getChannelStats(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { channel: 'Email', campaigns: 15, opens: 2500, clicks: 450, conversions: 85 },
+                { channel: 'Social', campaigns: 8, opens: 1200, clicks: 280, conversions: 45 }
+            ];
+        }
+        return await pb.collection('channel_stats').getFullList({ requestKey: null });
+    },
+
+    async getMultiChannelCampaigns(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { id: '1', name: 'Q4 Campaign', channels: ['email', 'social'], status: 'active' }
+            ];
+        }
+        return await pb.collection('multi_channel_campaigns').getFullList({ requestKey: null });
+    },
+
+    async getChannelRecommendations(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { channel: 'Email', recommendation: 'Increase frequency', priority: 'high' },
+                { channel: 'Social', recommendation: 'Test video content', priority: 'medium' }
+            ];
+        }
+        return await pb.collection('channel_recommendations').getFullList({ requestKey: null });
+    },
+
+    async getAutomationAnalytics(): Promise<any> {
+        if (isMockEnv()) {
+            return {
+                totalRules: 8,
+                activeRules: 6,
+                avgTriggers: 150,
+                avgSuccessRate: 92.5
+            };
+        }
+        return await pb.collection('automation_analytics').getFirstListItem('', { requestKey: null });
+    },
+
+    async getContentHistory(): Promise<any[]> {
+        if (isMockEnv()) {
+            return [
+                { id: '1', content: 'Sample content', type: 'email', created: new Date().toISOString() }
+            ];
+        }
+        return await pb.collection('content_history').getFullList({ requestKey: null });
+    },
+
+    async generateContent(prompt: string, context: any): Promise<string> {
+        if (isMockEnv()) {
+            return `Generated content based on: ${prompt}`;
+        }
+        // This would call AI service
+        return `Generated content for: ${prompt}`;
+    }
 };

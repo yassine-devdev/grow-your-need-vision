@@ -10,7 +10,7 @@ export const useSortableData = <T extends Record<string, unknown>>(items: T[], c
   const [sortConfig, setSortConfig] = useState<Config | null>(config);
 
   const sortedItems = useMemo(() => {
-    let sortableItems = [...items];
+    const sortableItems = [...items];
     if (sortConfig !== null) {
       sortableItems.sort((a: T, b: T) => {
         const aValue = a[sortConfig.key];

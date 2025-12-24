@@ -32,6 +32,9 @@ export interface ForecastData {
     month: string;
     projected: number;
     actual: number;
+    predicted: number;
+    closed: number;
+    pipeline: number;
 }
 
 export const crmService = {
@@ -68,9 +71,9 @@ export const crmService = {
 
     async getForecast() {
         const fallback: ForecastData[] = [
-            { month: 'Jan', projected: 120000, actual: 115000 },
-            { month: 'Feb', projected: 125000, actual: 0 },
-            { month: 'Mar', projected: 130000, actual: 0 },
+            { month: 'Jan', projected: 120000, actual: 115000, predicted: 120000, closed: 115000, pipeline: 150000 },
+            { month: 'Feb', projected: 125000, actual: 0, predicted: 125000, closed: 0, pipeline: 160000 },
+            { month: 'Mar', projected: 130000, actual: 0, predicted: 130000, closed: 0, pipeline: 170000 },
         ];
 
         if (isMockEnv()) return fallback;

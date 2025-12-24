@@ -125,7 +125,7 @@ const MOCK_INTEGRATIONS: IntegrationConfig[] = [
     }
 ];
 
-let mockIntegrations = [...MOCK_INTEGRATIONS];
+const mockIntegrations = [...MOCK_INTEGRATIONS];
 
 export const integrationConfigService = {
     /**

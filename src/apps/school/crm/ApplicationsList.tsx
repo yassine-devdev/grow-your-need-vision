@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useToast } from '../hooks/useToast';
+import { useToast } from '../../../hooks/useToast';
 import { useDataQuery } from '../../../hooks/useDataQuery';
 import { DataTable, Column } from '../../../components/shared/DataTable';
 import { DataToolbar } from '../../../components/shared/DataToolbar';
@@ -207,9 +207,8 @@ export const ApplicationsList: React.FC = () => {
                 />
 
                 <DataTable<Inquiry>
-                    data={query.items}
+                    query={query}
                     columns={columns}
-                    loading={query.loading}
                     emptyMessage="No applications found matching your criteria."
                 />
             </div>

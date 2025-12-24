@@ -25,6 +25,7 @@ export interface CreateWebhookData {
     events: string[];
     status?: 'active' | 'paused' | 'failed';
     secret_key?: string;
+    secret?: string;
     headers?: Record<string, string>;
     retry_count?: number;
     timeout_ms?: number;

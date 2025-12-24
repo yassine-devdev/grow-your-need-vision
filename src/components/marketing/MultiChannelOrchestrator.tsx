@@ -103,7 +103,7 @@ export const MultiChannelOrchestrator: React.FC = () => {
       ]);
       
       // Transform channel data to match interface
-      const transformedChannels: Channel[] = channelData.map((ch, idx) => ({
+      const transformedChannels: Channel[] = channelData.map((ch: any, idx: number) => ({
         id: `channel-${idx}`,
         name: ch.channel.charAt(0).toUpperCase() + ch.channel.slice(1),
         type: ch.channel as Channel['type'],

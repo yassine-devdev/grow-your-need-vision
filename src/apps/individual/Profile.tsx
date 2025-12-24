@@ -432,7 +432,7 @@ const Profile: React.FC<Props> = ({ activeTab, activeSubNav }) => {
           <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Interests</h3>
             <div className="flex flex-wrap gap-2">
-              {profile.interests.map(interest => (
+              {profile.interests.map((interest: string) => (
                 <span
                   key={interest}
                   className="px-4 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium"

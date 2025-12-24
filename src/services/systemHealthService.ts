@@ -437,8 +437,25 @@ class SystemHealthService {
             timestamp: new Date().toISOString()
         }, status === 'down' ? 'critical' : 'warning');
 
-        // TODO: Integrate with notification system
-        console.error(`[INCIDENT] ${serviceName}: ${status} - ${message}`);
+        // Integrate with monitoring and notification system
+        console.error(`[INCIDENT] ${serviceName}: ${status.toUpperCase()} - ${message}`);
+        
+        try {
+            // Send alert via monitoring service
+            const { monitoringService } = await import('./monitoringService');
+            await monitoringService.sendAlert({
+                title: `Service ${status === 'down' ? 'Down' : 'Degraded'}: ${serviceName}`,
+                message: `${serviceName} is currently ${status}. ${message}`,
+                severity: status === 'down' ? 'critical' : 'warning',
+                service: serviceName,
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    status
+                }
+            });
+        } catch (error) {
+            console.error('[SystemHealth] Failed to send incident alert:', error);
+        }
     }
 
     /**

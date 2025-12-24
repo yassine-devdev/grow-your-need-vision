@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useToast } from '../hooks/useToast';
+import { useToast } from '../../hooks/useToast';
 import { motion } from 'framer-motion';
 import {
   Users, TrendingUp, TrendingDown, Search, Filter, ChevronDown,

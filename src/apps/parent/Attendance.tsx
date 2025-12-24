@@ -51,7 +51,7 @@ export const ParentAttendance: React.FC = () => {
         try {
             // Calculate date range
             const now = new Date();
-            let startDate = new Date();
+            const startDate = new Date();
 
             if (dateRange === 'week') {
                 startDate.setDate(now.getDate() - 7);

@@ -57,7 +57,7 @@ export interface SecurityAuditEntry {
 }
 
 // Mock staff members
-let MOCK_STAFF: StaffMember[] = [
+const MOCK_STAFF: StaffMember[] = [
     {
         id: 'staff-1',
         name: 'John Administrator',
@@ -119,7 +119,7 @@ let MOCK_STAFF: StaffMember[] = [
     }
 ];
 
-let MOCK_IP_WHITELIST: IPWhitelistEntry[] = [
+const MOCK_IP_WHITELIST: IPWhitelistEntry[] = [
     {
         id: 'ip-1',
         ip: '192.168.1.0/24',

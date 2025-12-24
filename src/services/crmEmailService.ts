@@ -86,7 +86,7 @@ const MOCK_TEMPLATES: EmailTemplate[] = [
     }
 ];
 
-let MOCK_EMAILS: Email[] = [
+const MOCK_EMAILS: Email[] = [
     {
         id: 'email-1',
         contact_id: 'contact-1',
@@ -112,7 +112,7 @@ let MOCK_EMAILS: Email[] = [
     }
 ];
 
-let MOCK_DRAFTS: EmailDraft[] = [];
+const MOCK_DRAFTS: EmailDraft[] = [];
 
 class CRMEmailService {
     private emailCollection = 'crm_emails';

@@ -106,29 +106,32 @@ export const AIContentStudio: React.FC = () => {
     setLoading(true);
     
     try {
-      const result = await marketingService.generateContent({
-        type: activeTemplate?.type || 'general',
-        topic: prompt.topic,
-        audience: prompt.audience,
-        tone: prompt.tone,
-        platform: prompt.platform,
-        keywords: prompt.keywords,
-        length: prompt.length,
-        cta: prompt.cta,
-      });
+      const result = await marketingService.generateContent(
+        JSON.stringify({
+          type: activeTemplate?.type || 'general',
+          topic: prompt.topic,
+          audience: prompt.audience,
+          tone: prompt.tone,
+          platform: prompt.platform,
+          keywords: prompt.keywords,
+          length: prompt.length,
+          cta: prompt.cta,
+        }),
+        prompt
+      );
       
       const newContent: GeneratedContent = {
         id: Date.now().toString(),
         type: activeTemplate?.name || 'General',
-        content: result.content,
-        variations: result.variations || [],
-        metadata: result.metadata || {
+        content: typeof result === 'string' ? result : result,
+        variations: [],
+        metadata: {
           tone: prompt.tone,
-          wordCount: result.content.split(' ').length,
-          readingTime: `${Math.ceil(result.content.split(' ').length / 200)} min`,
+          wordCount: (typeof result === 'string' ? result : '').split(' ').length,
+          readingTime: `${Math.ceil((typeof result === 'string' ? result : '').split(' ').length / 200)} min`,
           sentiment: 'positive',
         },
-        score: result.score || 85,
+        score: 85,
         timestamp: new Date(),
       };
       

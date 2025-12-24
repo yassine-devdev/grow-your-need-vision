@@ -117,7 +117,7 @@ export const LeadScoringEngine: React.FC = () => {
       'Demographic Score': l.demographics.total,
       'Behavior Score': l.behavior.total,
     }));
-    marketingExportService.exportROIToExcel(exportData, 'Lead Scores', 'lead_scores');
+    marketingExportService.exportROIToExcel(exportData);
   };
 
   const handleToggleRule = async (ruleId: string, currentActive: boolean) => {

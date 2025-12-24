@@ -319,7 +319,7 @@ class AIPlaygroundService {
                 let response: string;
                 let tokensInput: number;
                 let tokensOutput: number;
-                let finishReason: ModelResponse['finish_reason'] = 'stop';
+                const finishReason: ModelResponse['finish_reason'] = 'stop';
 
                 if (aiServiceUrl && !isMockEnv()) {
                     try {

@@ -6,11 +6,11 @@
 const PocketBase = require('pocketbase/cjs');
 
 async function seedPhase2Data() {
-    const pb = new PocketBase('http://127.0.0.1:8090');
+    const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
     try {
         // Admin authentication
-        await pb.admins.authWithPassword(process.env.PB_ADMIN_EMAIL || 'admin@example.com', process.env.PB_ADMIN_PASSWORD || 'admin123456');
+        await pb.admins.authWithPassword(process.env.PB_ADMIN_EMAIL || 'admin@example.com', process.env.PB_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD);
 
         console.log('🌱 Seeding Phase 2 collections...\n');
 

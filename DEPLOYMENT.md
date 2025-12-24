@@ -83,7 +83,7 @@
 
 1. **Build Application**
    ```bash
-   npm run build
+   pnpm run build
    ```
 
 2. **Deploy to Staging Server**

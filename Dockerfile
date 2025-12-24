@@ -1,25 +1,23 @@
-FROM node:20-alpine as build
+# Build stage
+FROM node:20-slim AS build
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install pnpm or use npm? package.json uses pnpm in scripts
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Install dependencies
-RUN pnpm install
-
-# Copy source code
 COPY . .
-
-# Build the application
 RUN pnpm build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:stable-alpine
+
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]

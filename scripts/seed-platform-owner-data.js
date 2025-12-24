@@ -5,7 +5,7 @@
 
 const PocketBase = require('pocketbase/cjs');
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 // Webhook seed data
 const WEBHOOKS = [
@@ -135,7 +135,7 @@ const AUDIT_LOGS = [
     {
         action: 'user.login',
         user_id: 'owner-1',
-        user_email: 'owner@growyourneed.com',
+        user_email: process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL,
         severity: 'info',
         metadata: JSON.stringify({ ip: '192.168.1.1', userAgent: 'Mozilla/5.0' }),
         timestamp: new Date().toISOString()
@@ -143,7 +143,7 @@ const AUDIT_LOGS = [
     {
         action: 'tenant.create',
         user_id: 'owner-1',
-        user_email: 'owner@growyourneed.com',
+        user_email: process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL,
         severity: 'info',
         metadata: JSON.stringify({ tenantName: 'Demo School', plan: 'premium' }),
         timestamp: new Date(Date.now() - 60000).toISOString()
@@ -151,7 +151,7 @@ const AUDIT_LOGS = [
     {
         action: 'broadcast.send',
         user_id: 'owner-1',
-        user_email: 'owner@growyourneed.com',
+        user_email: process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL,
         severity: 'critical',
         metadata: JSON.stringify({ subject: 'Platform Update', recipients: 1250 }),
         timestamp: new Date(Date.now() - 3600000).toISOString()
@@ -159,7 +159,7 @@ const AUDIT_LOGS = [
     {
         action: 'webhook.create',
         user_id: 'owner-1',
-        user_email: 'owner@growyourneed.com',
+        user_email: process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL,
         severity: 'info',
         metadata: JSON.stringify({ webhookName: 'Slack Notifications', url: 'https://hooks.slack.com/...' }),
         timestamp: new Date(Date.now() - 7200000).toISOString()
@@ -237,7 +237,7 @@ async function seedData() {
         // Authenticate as admin
         console.log('Authenticating...');
         await pb.collection('_superusers').authWithPassword(
-            'owner@growyourneed.com',
+            process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL,
             process.env.PB_ADMIN_PASSWORD || '1234567890'
         );
         console.log('Authenticated successfully');

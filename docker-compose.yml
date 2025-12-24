@@ -16,7 +16,7 @@ services:
           cpus: "0.5"
           memory: 512M
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U medusa -d medusa-store"]
+      test: [ "CMD-SHELL", "pg_isready -U medusa -d medusa-store" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,7 +64,7 @@ services:
           cpus: "0.5"
           memory: 512M
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -83,7 +83,7 @@ services:
           cpus: "1"
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -111,7 +111,7 @@ services:
           cpus: "1"
           memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hyperswitch -d hyperswitch"]
+      test: [ "CMD-SHELL", "pg_isready -U hyperswitch -d hyperswitch" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -160,7 +160,7 @@ services:
           cpus: "0.5"
           memory: 512M
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -179,7 +179,7 @@ services:
           cpus: "1"
           memory: 2G
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8123/ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -210,7 +210,7 @@ services:
     environment:
       BASE_URL: http://localhost:8000
       CLICKHOUSE_DATABASE_URL: http://plausible-db:8123/plausible_events_db
-      SECRET_KEY_BASE: a_very_long_random_secret_string_at_least_64_bytes_long_for_security
+      SECRET_KEY_BASE: ${PLAUSIBLE_SECRET_KEY_BASE}
     networks:
       - grow-network
 
@@ -284,7 +284,7 @@ services:
           cpus: "1"
           memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U penpot -d penpot"]
+      test: [ "CMD-SHELL", "pg_isready -U penpot -d penpot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -307,7 +307,7 @@ services:
           cpus: "0.5"
           memory: 512M
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -356,8 +356,7 @@ services:
           cpus: "1"
           memory: 1G
     healthcheck:
-      test:
-        ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -369,6 +368,40 @@ services:
     command: --encryptionEnv=PB_ENCRYPTION_KEY
     environment:
       - PB_ENCRYPTION_KEY=${PB_ENCRYPTION_KEY}
+    networks:
+      - grow-network
+
+  # ---------------------------------------------------------------------------
+  # 🚀 FRONTEND & BACKEND SERVER
+  # ---------------------------------------------------------------------------
+  server:
+    build: ./server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - POCKETBASE_URL=http://pocketbase:8090
+      - NODE_ENV=production
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    networks:
+      - grow-network
+
+  frontend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_POCKETBASE_URL=http://localhost:8090 # Access via browser
+      - VITE_AI_SERVICE_URL=http://localhost:8000
+      - VITE_PAYMENT_SERVER_URL=http://localhost:3001
+    depends_on:
+      - server
+      - ai-service
     networks:
       - grow-network
 

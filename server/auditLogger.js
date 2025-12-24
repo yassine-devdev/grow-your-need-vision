@@ -33,19 +33,19 @@ const CRITICAL_ACTIONS = [
  */
 function getClientIp(req) {
     if (!req) return null;
-    
+
     // Check various headers for real IP (behind proxies/load balancers)
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) {
         return forwarded.split(',')[0].trim();
     }
-    
+
     const realIp = req.headers['x-real-ip'];
     if (realIp) return realIp;
-    
+
     const cfConnectingIp = req.headers['cf-connecting-ip']; // Cloudflare
     if (cfConnectingIp) return cfConnectingIp;
-    
+
     return req.ip || req.connection?.remoteAddress || null;
 }
 
@@ -62,7 +62,7 @@ function getUserAgent(req) {
  */
 async function getGeolocation(ip) {
     if (!ip) return null;
-    
+
     // Skip for local/private IPs
     if (ip === '127.0.0.1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
         return {
@@ -76,25 +76,24 @@ async function getGeolocation(ip) {
             isp: 'Local Network'
         };
     }
-    
+
     try {
-        // Using ip-api.com (free, no key required, 45 req/min limit)
-        // For production with high traffic, consider upgrading to paid tier or using ipapi.co
+        const baseUrl = process.env.GEOLOCATION_API_URL || 'http://ip-api.com/json/';
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-        
-        const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp`, {
+
+        const response = await fetch(`${baseUrl}${ip}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp`, {
             signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.status === 'success') {
             return {
                 country: data.country,
@@ -107,7 +106,7 @@ async function getGeolocation(ip) {
                 isp: data.isp
             };
         }
-        
+
         console.warn('[auditLogger] Geolocation lookup failed:', data.message || 'Unknown error');
         return null;
     } catch (error) {
@@ -142,9 +141,7 @@ async function postPocketBase(collection, body) {
  * Send alert for critical audit events
  */
 async function sendAlert(entry) {
-    // TODO: Integrate with alerting service (e.g., PagerDuty, Slack, Email)
-    
-    console.error(JSON.stringify({
+    const alertPayload = {
         level: 'alert',
         type: 'critical_audit_event',
         action: entry.action,
@@ -156,36 +153,49 @@ async function sendAlert(entry) {
         timestamp: entry.timestamp,
         ip: entry.ip_address,
         userAgent: entry.user_agent
-    }));
-    
-    // Example integrations (commented out):
-    
-    // Slack webhook:
-    // if (process.env.SLACK_WEBHOOK_URL) {
-    //     await fetch(process.env.SLACK_WEBHOOK_URL, {
-    //         method: 'POST',
-    //         headers: { 'Content-Type': 'application/json' },
-    //         body: JSON.stringify({
-    //             text: `🚨 Critical Audit Event: ${entry.action}`,
-    //             attachments: [{
-    //                 color: 'danger',
-    //                 fields: [
-    //                     { title: 'Action', value: entry.action, short: true },
-    //                     { title: 'Severity', value: entry.severity, short: true },
-    //                     { title: 'User', value: entry.user_id || 'system', short: true },
-    //                     { title: 'Tenant', value: entry.tenant_id, short: true },
-    //                     { title: 'IP', value: entry.ip_address || 'unknown', short: true },
-    //                     { title: 'Time', value: entry.timestamp, short: true }
-    //                 ]
-    //             }]
-    //         })
-    //     });
-    // }
-    
-    // Email alert:
-    // if (process.env.ALERT_EMAIL) {
-    //     // Send email using nodemailer or similar
-    // }
+    };
+
+    // Always log to console error in structured format
+    console.error(JSON.stringify(alertPayload));
+
+    // Slack integration
+    if (process.env.SLACK_WEBHOOK_URL) {
+        try {
+            await fetch(process.env.SLACK_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: `🚨 *Critical Audit Event*: ${entry.action}`,
+                    attachments: [{
+                        color: 'danger',
+                        fields: [
+                            { title: 'Action', value: entry.action, short: true },
+                            { title: 'Severity', value: entry.severity, short: true },
+                            { title: 'User', value: entry.user_id || 'system', short: true },
+                            { title: 'Tenant', value: entry.tenant_id || 'N/A', short: true },
+                            { title: 'IP', value: entry.ip_address || 'unknown', short: true },
+                            { title: 'Time', value: entry.timestamp, short: true }
+                        ]
+                    }]
+                })
+            });
+        } catch (err) {
+            console.warn('[auditLogger] Failed to send Slack alert:', err.message);
+        }
+    }
+
+    // Generic Webhook integration for other monitoring tools
+    if (process.env.ALERT_WEBHOOK_URL) {
+        try {
+            await fetch(process.env.ALERT_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(alertPayload)
+            });
+        } catch (err) {
+            console.warn('[auditLogger] Failed to send generic webhook alert:', err.message);
+        }
+    }
 }
 
 /**
@@ -217,11 +227,11 @@ export async function logAudit({
 }) {
     // Validate severity level
     const validSeverity = ['low', 'medium', 'high', 'critical'].includes(severity) ? severity : 'low';
-    
+
     // Extract IP and user agent from request if available
     const ip = ipAddress || getClientIp(req);
     const ua = userAgent || getUserAgent(req);
-    
+
     // Get geolocation (ENABLED by default, can disable with DISABLE_GEOLOCATION=true)
     let geolocation = null;
     if (ip && process.env.DISABLE_GEOLOCATION !== 'true') {
@@ -231,7 +241,7 @@ export async function logAudit({
             console.warn('[auditLogger] Geolocation lookup failed:', error.message);
         }
     }
-    
+
     const entry = {
         idempotency_key: uuid(),
         action,
@@ -261,7 +271,7 @@ export async function logAudit({
     try {
         // Attempt to send to PocketBase
         const sent = await postPocketBase('audit_logs', entry);
-        
+
         if (!sent) {
             // Buffer audit log if PocketBase is not configured
             auditBuffer.push(entry);
@@ -270,15 +280,15 @@ export async function logAudit({
             }
             console.warn('[auditLogger] PocketBase not configured; audit buffered locally');
         }
-        
+
         // Send alert for critical events
         if (validSeverity === 'critical' || CRITICAL_ACTIONS.includes(action)) {
             await sendAlert(entry);
         }
-        
+
     } catch (err) {
         console.error('[auditLogger] Failed to send audit:', err.message);
-        
+
         // Buffer failed audit logs
         auditBuffer.push(entry);
         if (auditBuffer.length > MAX_BUFFER_SIZE) {
@@ -306,13 +316,13 @@ export function clearAuditBuffer() {
  */
 export async function flushAuditBuffer() {
     if (auditBuffer.length === 0) return { flushed: 0, failed: 0 };
-    
+
     let flushed = 0;
     let failed = 0;
-    
+
     const logsToFlush = [...auditBuffer];
     auditBuffer.length = 0;
-    
+
     for (const entry of logsToFlush) {
         try {
             await postPocketBase('audit_logs', entry);
@@ -323,7 +333,7 @@ export async function flushAuditBuffer() {
             failed++;
         }
     }
-    
+
     return { flushed, failed };
 }
 
@@ -331,13 +341,22 @@ export async function flushAuditBuffer() {
  * Middleware to automatically add request context to audit logs
  */
 export function auditMiddleware(req, res, next) {
+    const impersonatedUserId = req.header('x-impersonate-user') || req.header('x-impersonate-user-id');
+
     // Attach audit logger to request object with pre-filled context
     req.auditLog = (options) => {
+        const metadata = {
+            ...options.metadata,
+            impersonated_by: impersonatedUserId ? (req.user?.id || 'admin') : null,
+            impersonated_user_id: impersonatedUserId || null
+        };
+
         return logAudit({
             ...options,
             req,
             userId: req.user?.id || req.header('x-user-id') || options.userId,
-            tenantId: req.tenantId || req.header('x-tenant-id') || options.tenantId
+            tenantId: req.tenantId || req.header('x-tenant-id') || options.tenantId,
+            metadata
         });
     };
     next();
@@ -352,11 +371,11 @@ export function getAuditStats() {
         bySeverity: { low: 0, medium: 0, high: 0, critical: 0 },
         byAction: {}
     };
-    
+
     auditBuffer.forEach(entry => {
         stats.bySeverity[entry.severity]++;
         stats.byAction[entry.action] = (stats.byAction[entry.action] || 0) + 1;
     });
-    
+
     return stats;
 }

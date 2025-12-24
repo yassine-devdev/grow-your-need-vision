@@ -1,4 +1,6 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import Stripe from 'stripe';
@@ -56,6 +58,56 @@ if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
 }
 
 const app = express();
+
+// Security headers middleware
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Note: Remove unsafe-eval in production if possible
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://api.stripe.com"],
+            frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+            fontSrc: ["'self'", "data:"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            workerSrc: ["'self'", "blob:"]
+        }
+    },
+    crossOriginEmbedderPolicy: false, // Needed for some external resources
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// HSTS - Force HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+    app.use(helmet.hsts({
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true
+    }));
+}
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
+    standardHeaders: 'draft-7', // set `RateLimit` and `RateLimit-Policy` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+    message: { message: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+
+// Apply the rate limiting middleware to all requests
+app.use('/api/', limiter);
+
+// More sensitive limiter for payment/subscription creation
+const paymentLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    limit: 10, // Limit each IP to 10 payment intents per hour
+    message: { message: 'Too many payment attempts, please try again later' }
+});
+app.use('/api/payments/create', paymentLimiter);
+
 const port = process.env.PORT || 3000;
 const serviceApiKey = process.env.SERVICE_API_KEY;
 const requireApiKey = (req, res, next) => {
@@ -1215,7 +1267,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
             case 'payment_intent.succeeded':
                 const paymentIntent = event.data.object;
                 console.log('PaymentIntent was successful!', paymentIntent.id);
-                
+
                 // Update database status
                 if (PB_URL && PB_TOKEN) {
                     try {
@@ -1229,7 +1281,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                         throw dbError; // Trigger retry
                     }
                 }
-                
+
                 // Log to audit system
                 await logAudit({
                     action: 'webhook.payment_intent.succeeded',
@@ -1248,7 +1300,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
             case 'invoice.payment_succeeded':
                 const invoice = event.data.object;
                 console.log('Invoice payment succeeded!', invoice.id);
-                
+
                 // Update invoice status
                 if (PB_URL && PB_TOKEN) {
                     try {
@@ -1262,7 +1314,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                         throw dbError; // Trigger retry
                     }
                 }
-                
+
                 // Log to audit system
                 await logAudit({
                     action: 'webhook.invoice.payment_succeeded',
@@ -1284,7 +1336,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
             case 'customer.subscription.deleted':
                 const subscription = event.data.object;
                 console.log('Subscription status update:', subscription.id, subscription.status);
-                
+
                 // Update subscription status
                 if (PB_URL && PB_TOKEN) {
                     try {
@@ -1295,18 +1347,18 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                             cancel_at_period_end: subscription.cancel_at_period_end,
                             updated: new Date().toISOString()
                         };
-                        
+
                         if (subscription.canceled_at) {
                             subscriptionData.canceled_at = new Date(subscription.canceled_at * 1000).toISOString();
                         }
-                        
+
                         await pbUpdate('subscriptions', subscription.id, subscriptionData);
                     } catch (dbError) {
                         console.error('Failed to update subscription in database:', dbError);
                         throw dbError; // Trigger retry
                     }
                 }
-                
+
                 // Log to audit system
                 await logAudit({
                     action: `webhook.subscription.${event.type.split('.').pop()}`,
@@ -1326,7 +1378,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
             case 'payment_intent.payment_failed':
                 const failedPayment = event.data.object;
                 console.error('Payment failed:', failedPayment.id, failedPayment.last_payment_error?.message);
-                
+
                 // Log failed payment
                 await logAudit({
                     action: 'webhook.payment_intent.failed',
@@ -1345,7 +1397,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
             case 'charge.dispute.created':
                 const dispute = event.data.object;
                 console.error('Dispute created:', dispute.id);
-                
+
                 // Log dispute with high severity
                 await logAudit({
                     action: 'webhook.dispute.created',
@@ -1376,20 +1428,20 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                     severity: 'low'
                 });
         }
-        
+
         return { success: true };
     } catch (error) {
         console.error(`Error processing webhook event (attempt ${retryCount + 1}):`, error);
-        
+
         // Retry logic for transient failures
         if (retryCount < WEBHOOK_RETRY_CONFIG.maxRetries) {
             const delay = WEBHOOK_RETRY_CONFIG.retryDelay * Math.pow(WEBHOOK_RETRY_CONFIG.backoffMultiplier, retryCount);
             console.log(`Retrying webhook processing in ${delay}ms...`);
-            
+
             await new Promise(resolve => setTimeout(resolve, delay));
             return processWebhookWithRetry(event, retryCount + 1);
         }
-        
+
         // Log failed webhook after all retries
         await logAudit({
             action: 'webhook.processing_failed',
@@ -1403,7 +1455,7 @@ async function processWebhookWithRetry(event, retryCount = 0) {
             },
             severity: 'critical'
         });
-        
+
         throw error;
     }
 }
@@ -1457,7 +1509,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     // Handle the event with retry logic
     try {
         await processWebhookWithRetry(event);
-        
+
         // Log successful webhook processing
         console.log(JSON.stringify({
             level: 'info',
@@ -1466,15 +1518,25 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             eventType: event.type,
             timestamp: new Date().toISOString()
         }));
-        
+
         res.status(200).send('Webhook processed successfully');
     } catch (error) {
         console.error('Error processing webhook event after retries:', error);
-        
+
         // Return 500 to tell Stripe to retry later
         res.status(500).send('Error processing event');
         return;
     }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development'
+    });
 });
 
 if (process.env.SENTRY_DSN) {

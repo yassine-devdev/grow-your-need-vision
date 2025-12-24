@@ -74,6 +74,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       reportCompressedSize: false,
       rollupOptions: {
+        external: [/@meronex\/icons/],
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom', 'react-router-dom'],
@@ -81,7 +82,6 @@ export default defineConfig(({ mode }) => {
             pocketbase: ['pocketbase'],
             remotion: ['remotion', '@remotion/player'],
             markdown: ['react-markdown', 'rehype-highlight', 'remark-gfm', 'highlight.js'],
-            aws: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
             polotno: ['polotno'],
           },
         },

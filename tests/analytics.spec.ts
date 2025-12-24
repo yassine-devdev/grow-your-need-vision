@@ -53,7 +53,8 @@ test.describe('Advanced Analytics Dashboard', () => {
     // Navigate to Admin Dashboard first
     await page.goto('/admin');
     console.log('Body text at /admin:', await page.locator('body').innerText());
-    await expect(page.getByText('OWNER CONTROL')).toBeVisible();
+    // Wait for dashboard to load
+    await expect(page.locator('[data-testid="owner-dashboard"]')).toBeVisible({ timeout: 15000 });
 
     // Click on Analytics tab
     await page.getByRole('button', { name: 'Analytics' }).click();

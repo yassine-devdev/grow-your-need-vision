@@ -11,13 +11,13 @@ const PocketBase = require('pocketbase/cjs');
 const fs = require('fs');
 const path = require('path');
 
-const pb = new PocketBase(process.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.VITE_POCKETBASE_URL || process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 async function authenticate() {
     try {
         await pb.admins.authWithPassword(
             process.env.POCKETBASE_ADMIN_EMAIL || 'admin@example.com',
-            process.env.POCKETBASE_ADMIN_PASSWORD || 'admin123456'
+            process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD
         );
         console.log('✅ Authenticated as admin\n');
     } catch (err) {

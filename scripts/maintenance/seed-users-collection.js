@@ -1,12 +1,12 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 const USERS = [
     {
-        email: 'owner@growyourneed.com',
-        password: 'Darnag123456789@',
-        passwordConfirm: 'Darnag123456789@',
+        email: process.env.POCKETBASE_ADMIN_EMAIL,
+        password: process.env.POCKETBASE_ADMIN_PASSWORD,
+        passwordConfirm: process.env.POCKETBASE_ADMIN_PASSWORD,
         name: 'Platform Owner',
         role: 'Owner'
     }
@@ -16,8 +16,15 @@ async function seedUsers() {
     console.log('🚀 Seeding Users Collection...');
 
     try {
+        if (!process.env.POCKETBASE_ADMIN_EMAIL || !process.env.POCKETBASE_ADMIN_PASSWORD) {
+            throw new Error('Missing POCKETBASE_ADMIN_EMAIL or POCKETBASE_ADMIN_PASSWORD env vars');
+        }
+
         // Authenticate as Admin to create users
-        await pb.collection('_superusers').authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await pb.collection('_superusers').authWithPassword(
+            process.env.POCKETBASE_ADMIN_EMAIL,
+            process.env.POCKETBASE_ADMIN_PASSWORD
+        );
 
         for (const user of USERS) {
             try {
@@ -42,8 +49,8 @@ async function seedUsers() {
                     // Update role just in case
                     const userId = existing.items[0].id;
                     if (existing.items[0].role !== user.role) {
-                         await pb.collection('users').update(userId, { role: user.role });
-                         console.log(`   🔄 Updated role for '${user.email}' to '${user.role}'`);
+                        await pb.collection('users').update(userId, { role: user.role });
+                        console.log(`   🔄 Updated role for '${user.email}' to '${user.role}'`);
                     }
                 }
             } catch (e) {

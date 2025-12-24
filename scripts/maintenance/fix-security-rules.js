@@ -1,13 +1,13 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 async function fixSecurityRules() {
     console.log('🔒 Securing PocketBase API Rules...');
 
     try {
         // Authenticate as admin
-        await pb.admins.authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await pb.admins.authWithPassword(process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL, process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD);
         console.log('✅ Admin authenticated');
 
         // 1. Fix Dangerous Public Collections

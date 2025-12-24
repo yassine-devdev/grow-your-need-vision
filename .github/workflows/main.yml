@@ -38,10 +38,18 @@ jobs:
     - name: Install Playwright Browsers
       run: pnpm exec playwright install --with-deps
 
+    - name: Setup Live Test Environment
+      run: node scripts/setup-test-env.js
+      env:
+        POCKETBASE_ADMIN_EMAIL: ${{ secrets.POCKETBASE_ADMIN_EMAIL }}
+        POCKETBASE_ADMIN_PASSWORD: ${{ secrets.POCKETBASE_ADMIN_PASSWORD }}
+
     - name: E2E Tests
       run: pnpm test:e2e
       env:
         CI: true
+        VITE_E2E_MOCK: false
+        VITE_POCKETBASE_URL: http://localhost:8091
 
     - name: Upload Test Results
       if: always()

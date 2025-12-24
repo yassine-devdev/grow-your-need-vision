@@ -25,7 +25,8 @@ test.describe('Theme Switcher Functionality', () => {
     
     // Wait for the dashboard content to load
     await expect(page.locator('.animate-spin')).not.toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Platform Overview')).toBeVisible({ timeout: 15000 });
+    // Dashboard loaded - checking for admin dashboard content
+    await expect(page.locator('[data-testid="owner-dashboard"]')).toBeVisible({ timeout: 15000 });
     
     // Set viewport to ensure elements are visible
     await page.setViewportSize({ width: 1280, height: 720 });

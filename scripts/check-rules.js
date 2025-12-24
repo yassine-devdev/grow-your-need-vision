@@ -1,9 +1,9 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
-const ADMIN_EMAIL = 'owner@growyourneed.com';
-const ADMIN_PASS = 'Darnag123456789@';
+const ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
+const ADMIN_PASS = process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
 
 async function main() {
     try {

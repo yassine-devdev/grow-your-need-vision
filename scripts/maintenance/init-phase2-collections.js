@@ -131,7 +131,7 @@ const collections = [
 ];
 
 async function createCollections() {
-    const pb = new PocketBase('http://127.0.0.1:8090');
+    const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
     // Note: Collection creation usually requires admin auth, but may work without it in dev mode
     console.log('🚀 Creating Phase 2 collections...\n');

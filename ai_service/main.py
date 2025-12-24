@@ -1,9 +1,16 @@
 import os
 import time
+import logging
+import json
+from pythonjsonlogger import jsonlogger
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import openai
@@ -13,6 +20,14 @@ from pocketbase_client import PocketBaseClient
 from client_manager import ClientManager
 from model_router import ModelRouter
 
+# Configure JSON logging
+log_handler = logging.StreamHandler()
+formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+log_handler.setFormatter(formatter)
+logger = logging.getLogger("ai_service")
+logger.addHandler(log_handler)
+logger.setLevel(logging.INFO)
+
 # Load environment variables
 # Explicitly look for .env in the parent directory if not found in current
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,17 +36,17 @@ dotenv_path = os.path.join(parent_dir, ".env")
 
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path=dotenv_path)
-    print(f"Loaded .env from: {dotenv_path}")
+    logger.info(f"Loaded .env from: {dotenv_path}")
 else:
     load_dotenv() # Fallback to default behavior
-    print("Loaded .env from default location (or not found)")
+    logger.info("Loaded .env from default location (or not found)")
 
 # Initialize Knowledge Base & PocketBase
 # In production, we fail if KB cannot be initialized.
 try:
     kb = KnowledgeBase()
 except Exception as e:
-    print(f"CRITICAL: KnowledgeBase initialization failed: {e}")
+    logger.critical(f"KnowledgeBase initialization failed: {e}")
     raise RuntimeError(f"KnowledgeBase initialization failed: {e}")
 
 pb = PocketBaseClient()
@@ -46,21 +61,25 @@ async def lifespan(app: FastAPI):
     # Ingest docs on startup in background
     docs_path: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
     if os.path.exists(docs_path):
-        print(f"Background ingestion started for: {docs_path}")
+        logger.info(f"Background ingestion started for: {docs_path}")
         try:
             count: int = kb.ingest_docs(docs_path)
-            print(f"Startup ingestion complete: {count} chunks.")
+            logger.info(f"Startup ingestion complete: {count} chunks.")
         except Exception as e:
-            print(f"Error during startup ingestion: {e}")
+            logger.error(f"Error during startup ingestion: {e}")
     yield
-    print("Shutting down AI Service...")
+    logger.info("Shutting down AI Service...")
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Concierge AI Service", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific frontend origin
+    allow_origins=[os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")],  # Restrict to frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -145,8 +164,18 @@ async def get_stats() -> Dict[str, str]:
         "provider": AI_PROVIDER
     }
 
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "provider": AI_PROVIDER,
+        "kb_status": "ready" if kb else "error"
+    }
+
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> Dict[str, Any]:
+@limiter.limit("5/minute")
+async def chat(request: ChatRequest, fast_request: Request) -> Dict[str, Any]:
     stats.request_count += 1
     try:
         # 1. Check for specific system commands first
@@ -173,7 +202,7 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
             if results:
                 retrieved_context = "\n\nRelevant Documentation:\n" + "\n---\n".join(results)
         except Exception as e:
-            print(f"Vector search failed: {e}")
+            logger.warning(f"Vector search failed: {e}")
 
         # REAL-TIME DATA: Fetch System Pulse
         system_pulse: str = await pb.get_recent_activity()
@@ -193,7 +222,7 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
                         formatted_logs.append(f"- Date: {log.get('date')}, Steps: {log.get('steps')}, Calories: {log.get('calories')}, Sleep: {log.get('sleep_minutes')}m, Mood: {log.get('mood')}")
                     db_results += f"\n\n[USER WELLNESS LOGS (Last 7 Days)]\n" + "\n".join(formatted_logs)
             except Exception as e:
-                print(f"Error fetching wellness logs: {e}")
+                logger.error(f"Error fetching wellness logs: {e}", extra={"userId": request.userId})
 
         if "search user" in user_query or "find user" in user_query:
             # Extract name (very naive)
@@ -230,7 +259,7 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
         selected_provider = route_decision["provider"]
         selected_model = route_decision["model"]
         
-        print(f"Routing Decision: {route_decision}")
+        logger.info(f"Routing Decision: {route_decision}", extra={"userId": request.userId, "context": request.context})
 
         # 2. Handle Gemini Provider
         if selected_provider == "gemini":
@@ -287,11 +316,11 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
 
     except Exception as e:
         stats.error_count += 1
-        print(f"Error in chat endpoint: {e}")
+        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 async def ingest_all_knowledge():
-    print("Starting knowledge refresh...")
+    logger.info("Starting knowledge refresh...")
     # 1. Ingest local docs
     docs_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
     if os.path.exists(docs_path):
@@ -311,10 +340,10 @@ async def ingest_all_knowledge():
                 downloaded_count += 1
     
     if downloaded_count > 0:
-        print(f"Downloaded {downloaded_count} documents from PocketBase.")
+        logger.info(f"Downloaded {downloaded_count} documents from PocketBase.")
         kb.ingest_docs(temp_dir)
     
-    print("Knowledge refresh complete.")
+    logger.info("Knowledge refresh complete.")
 
 @app.post("/refresh-knowledge")
 async def refresh_knowledge(background_tasks: BackgroundTasks):

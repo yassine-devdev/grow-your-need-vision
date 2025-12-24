@@ -1,9 +1,9 @@
 const PocketBase = require('pocketbase/cjs');
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 async function main() {
     try {
-        await pb.admins.authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await pb.admins.authWithPassword(process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL, process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD);
         
         const collections = ['user_progress', 'user_achievements', 'gamification_achievements'];
         

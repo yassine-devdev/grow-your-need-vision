@@ -1,10 +1,10 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 // Authenticate as admin (you might need to change these credentials if they are different)
-const ADMIN_EMAIL = 'owner@growyourneed.com';
-const ADMIN_PASS = 'Darnag123456789@';
+const ADMIN_EMAIL = process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
+const ADMIN_PASS = process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
 
 const AI_COLLECTIONS = [
     {

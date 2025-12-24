@@ -3,12 +3,12 @@ const fs = require('fs');
 
 // Initialize PocketBase
 // We need to know the URL. Usually localhost:8090
-const client = new pb.default('http://127.0.0.1:8090');
+const client = new pb.default(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 async function checkCollections() {
     try {
         // Authenticate as admin to get full access
-        await client.admins.authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await client.admins.authWithPassword(process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL, process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD);
         console.log("Authenticated as admin.");
 
         const collections = await client.collections.getFullList();

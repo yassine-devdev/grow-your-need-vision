@@ -1,9 +1,9 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || 'owner@growyourneed.com';
-const ADMIN_PASS = process.env.PB_ADMIN_PASS || 'Darnag123456789@';
+const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
+const ADMIN_PASS = process.env.PB_ADMIN_PASS || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
 
 async function main() {
     try {
@@ -13,7 +13,7 @@ async function main() {
         // 1. Create Users
         console.log('Seeding Users...');
         const users = [
-            { username: 'owner1', email: 'owner@growyourneed.com', emailVisibility: true, password: 'Darnag12345678@', passwordConfirm: 'Darnag12345678@', name: 'Owner', role: 'Owner' },
+            { username: 'owner1', email: process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL, emailVisibility: true, password: 'Darnag12345678@', passwordConfirm: 'Darnag12345678@', name: 'Owner', role: 'Owner' },
             { username: 'admin1', email: 'admin@school.com', emailVisibility: true, password: '12345678', passwordConfirm: '12345678', name: 'School Admin', role: 'Admin' },
             { username: 'parent1', email: 'parent@school.com', emailVisibility: true, password: '123456788', passwordConfirm: '123456788', name: 'Parent User', role: 'Parent' },
             { username: 'student1', email: 'student@school.com', emailVisibility: true, password: '12345678', passwordConfirm: '12345678', name: 'John Doe', role: 'Student' },

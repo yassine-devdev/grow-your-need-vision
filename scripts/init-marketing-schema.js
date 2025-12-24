@@ -7,9 +7,9 @@
 
 import PocketBase from 'pocketbase';
 
-const PB_URL = process.env.POCKETBASE_URL || 'http://127.0.0.1:8090';
-const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || 'owner@growyourneed.com';
-const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || 'Darnag123456789@';
+const PB_URL = process.env.POCKETBASE_URL || 'http://localhost:8090';
+const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
 
 const pb = new PocketBase(PB_URL);
 

@@ -16,7 +16,8 @@ test.describe('Owner Dashboard & Tenant Management', () => {
     // Wait for the dashboard content to load
     // This is critical: wait for the loading spinner to disappear or main content to appear
     await expect(page.locator('.animate-spin')).not.toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Platform Overview')).toBeVisible({ timeout: 15000 });
+    // Dashboard loaded - checking for admin dashboard content
+    await expect(page.locator('[data-testid="owner-dashboard"]')).toBeVisible({ timeout: 15000 });
     
     // Ensure sidebar is expanded or visible if needed, though usually it's fine.
     // Set viewport to ensure elements are visible

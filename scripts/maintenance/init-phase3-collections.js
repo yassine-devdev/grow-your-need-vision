@@ -164,7 +164,7 @@ const collections = [
 ];
 
 async function createCollections() {
-    const pb = new PocketBase('http://127.0.0.1:8090');
+    const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
     console.log('🚀 Creating Phase 3 AI & CRM collections...\n');
     console.log('⚠️  Note: You may need to create these manually in PocketBase Admin UI\n');

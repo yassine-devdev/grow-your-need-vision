@@ -1,13 +1,13 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://localhost:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 async function updateSchoolSchemaGrades() {
     console.log('🚀 Updating School Schema for Grades...');
 
     // Authenticate as admin
     try {
-        await pb.admins.authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await pb.admins.authWithPassword(process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL, process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD);
         console.log('✅ Admin authenticated');
     } catch (err) {
         console.error('❌ Admin authentication failed:', err.message);

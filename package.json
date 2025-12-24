@@ -20,7 +20,8 @@
     "db:setup-files": "node scripts/maintenance/create-file-uploads-collection.js",
     "db:seed-materials": "node scripts/maintenance/seed-course-materials.js",
     "db:seed-all": "node scripts/maintenance/seed-all-data.js",
-    "db:backup": "node scripts/maintenance/create-backup.js"
+    "db:backup": "node scripts/maintenance/create-backup.js",
+    "prod:check": "node scripts/prod-check.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.943.0",
@@ -54,12 +55,14 @@
     "react-router-dom": "^7.6.2",
     "react-simple-code-editor": "^0.14.1",
     "react-to-print": "^3.2.0",
+    "react-window": "^2.2.3",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "remotion": "^4.0.278",
     "tailwind-merge": "^3.4.0",
     "web-vitals": "^5.1.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",
@@ -72,6 +75,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/react-window": "^2.0.0",
     "@typescript-eslint/eslint-plugin": "^8.48.1",
     "@typescript-eslint/parser": "^8.48.1",
     "@vitejs/plugin-react": "^5.0.0",
@@ -89,5 +93,13 @@
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.15"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "^19.1.0",
+      "react-dom": "^19.2.0",
+      "@types/react": "^19.2.7",
+      "@types/react-dom": "^19.2.3"
+    }
   }
 }

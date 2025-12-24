@@ -1,14 +1,14 @@
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase(process.env.POCKETBASE_URL || 'http://localhost:8090');
 
 async function seedCRMData() {
     try {
-        await pb.admins.authWithPassword('owner@growyourneed.com', 'Darnag123456789@');
+        await pb.admins.authWithPassword(process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL, process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD);
         console.log('Authenticated as admin');
 
         // Get admin user ID
-        const admin = await pb.collection('users').getFirstListItem('email="owner@growyourneed.com"').catch(() => null);
+        const admin = await pb.collection('users').getFirstListItem('email=process.env.POCKETBASE_ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL').catch(() => null);
         const userId = admin ? admin.id : (await pb.collection('users').getList(1, 1)).items[0]?.id;
 
         if (!userId) {

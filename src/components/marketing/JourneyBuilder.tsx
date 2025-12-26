@@ -169,9 +169,9 @@ export const JourneyBuilder: React.FC = () => {
         return (
             <div className="flex flex-col items-center max-w-lg mx-auto space-y-4 py-8">
                 {/* Trigger */}
-                <div className="w-72 p-4 bg-blue-100 dark:bg-blue-900 border-2 border-blue-500 rounded-xl shadow-lg flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center">
-                        <Icon name="BoltIcon" className="w-6 h-6" />
+                <div className="w-72 p-2 bg-blue-100 dark:bg-blue-900 border-2 border-blue-500 rounded-xl shadow-lg flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                        <Icon name="BoltIcon" className="w-4 h-4" />
                     </div>
                     <div>
                         <div className="font-bold text-blue-900 dark:text-white">Trigger: {journey.trigger.type}</div>
@@ -184,9 +184,9 @@ export const JourneyBuilder: React.FC = () => {
                 {journey.steps.map((step, index) => (
                     <React.Fragment key={step.id}>
                         <div className="h-6 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
-                        <div className="w-72 p-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-md flex items-center gap-3 hover:shadow-lg transition-shadow cursor-pointer">
-                            <div className={`w-10 h-10 rounded-full ${STEP_COLORS[step.type]} flex items-center justify-center`}>
-                                <Icon name={STEP_ICONS[step.type] as any} className="w-6 h-6" />
+                        <div className="w-72 p-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-md flex items-center gap-2 hover:shadow-lg transition-shadow cursor-pointer">
+                            <div className={`w-6 h-6 rounded-full ${STEP_COLORS[step.type]} flex items-center justify-center`}>
+                                <Icon name={STEP_ICONS[step.type] as any} className="w-4 h-4" />
                             </div>
                             <div className="flex-1">
                                 <div className="font-bold text-gray-900 dark:text-white">{step.type}</div>
@@ -222,16 +222,16 @@ export const JourneyBuilder: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Journey Builder</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Journey Builder</h2>
                 <Button variant="primary" icon="PlusIcon" onClick={() => setShowCreateModal(true)}>New Journey</Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
                 {/* Journey List */}
-                <Card className="p-4">
-                    <h3 className="font-bold text-lg mb-4">Journeys</h3>
+                <Card className="p-2">
+                    <h3 className="font-bold text-sm mb-2">Journeys</h3>
                     {loading ? (
                         <div className="space-y-3">
                             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}

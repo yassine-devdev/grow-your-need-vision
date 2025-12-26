@@ -194,12 +194,12 @@ export const CampaignsDashboard: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-2 animate-fadeIn">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Campaigns</h2>
-                    <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-gray-900 dark:text-white">Campaigns</h2>
+                    <p className="text-gray-500 text-[9px] mt-0.5 flex items-center gap-1">
                         Manage and monitor your marketing campaigns
                         {isSubscribed && (
                             <span className="flex items-center gap-1 text-green-500 text-xs">
@@ -235,57 +235,57 @@ export const CampaignsDashboard: React.FC = () => {
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="p-4 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-800/30 rounded-lg flex items-center justify-center">
-                            <Icon name="MegaphoneIcon" className="w-5 h-5 text-blue-600" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <Card className="p-2 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800/30 rounded-lg flex items-center justify-center">
+                            <Icon name="MegaphoneIcon" className="w-3 h-3 text-blue-600" />
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
-                            <div className="text-xs text-gray-500 uppercase font-medium">Total Campaigns</div>
+                            <div className="text-base font-bold text-gray-900 dark:text-white">{stats.total}</div>
+                            <div className="text-[8px] text-gray-500 uppercase font-medium">Total Campaigns</div>
                         </div>
                     </div>
                 </Card>
-                <Card className="p-4 bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-100 dark:bg-green-800/30 rounded-lg flex items-center justify-center">
-                            <Icon name="PlayIcon" className="w-5 h-5 text-green-600" />
+                <Card className="p-2 bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-green-100 dark:bg-green-800/30 rounded-lg flex items-center justify-center">
+                            <Icon name="PlayIcon" className="w-3 h-3 text-green-600" />
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.active}</div>
-                            <div className="text-xs text-gray-500 uppercase font-medium">Active</div>
+                            <div className="text-base font-bold text-gray-900 dark:text-white">{stats.active}</div>
+                            <div className="text-[8px] text-gray-500 uppercase font-medium">Active</div>
                         </div>
                     </div>
                 </Card>
-                <Card className="p-4 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-800/30 rounded-lg flex items-center justify-center">
-                            <Icon name="CurrencyDollarIcon" className="w-5 h-5 text-purple-600" />
+                <Card className="p-2 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-purple-100 dark:bg-purple-800/30 rounded-lg flex items-center justify-center">
+                            <Icon name="CurrencyDollarIcon" className="w-3 h-3 text-purple-600" />
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                            <div className="text-base font-bold text-gray-900 dark:text-white">
                                 ${stats.totalSpent.toLocaleString()}
                             </div>
-                            <div className="text-xs text-gray-500 uppercase font-medium">Total Spent</div>
+                            <div className="text-[8px] text-gray-500 uppercase font-medium">Total Spent</div>
                         </div>
                     </div>
                 </Card>
-                <Card className="p-4 bg-gradient-to-br from-orange-50 to-white dark:from-orange-900/20 dark:to-gray-800">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-100 dark:bg-orange-800/30 rounded-lg flex items-center justify-center">
-                            <Icon name="ChartBarIcon" className="w-5 h-5 text-orange-600" />
+                <Card className="p-2 bg-gradient-to-br from-orange-50 to-white dark:from-orange-900/20 dark:to-gray-800">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-orange-100 dark:bg-orange-800/30 rounded-lg flex items-center justify-center">
+                            <Icon name="ChartBarIcon" className="w-3 h-3 text-orange-600" />
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.avgPerformance}%</div>
-                            <div className="text-xs text-gray-500 uppercase font-medium">Avg Performance</div>
+                            <div className="text-base font-bold text-gray-900 dark:text-white">{stats.avgPerformance}%</div>
+                            <div className="text-[8px] text-gray-500 uppercase font-medium">Avg Performance</div>
                         </div>
                     </div>
                 </Card>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                     type="text"
                     placeholder="Search campaigns..."
@@ -322,24 +322,24 @@ export const CampaignsDashboard: React.FC = () => {
                     </Button>
                 </Card>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-2">
                     {filteredCampaigns.map(campaign => (
                         <Card 
                             key={campaign.id} 
-                            className="p-6 hover:shadow-lg transition-shadow"
+                            className="p-3 hover:shadow-lg transition-shadow"
                         >
-                            <div className="flex flex-col lg:flex-row justify-between gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            <div className="flex flex-col lg:flex-row justify-between gap-2">
+                                <div className="flex items-start gap-2">
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                                         campaign.status === 'Active' 
                                             ? 'bg-green-100 text-green-600 dark:bg-green-800/30' 
                                             : 'bg-gray-100 text-gray-600 dark:bg-gray-800'
                                     }`}>
-                                        <Icon name={getTypeIcon(campaign.type)} className="w-6 h-6" />
+                                        <Icon name={getTypeIcon(campaign.type)} className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">{campaign.name}</h3>
-                                        <div className="flex items-center gap-2 mt-1">
+                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm">{campaign.name}</h3>
+                                        <div className="flex items-center gap-1 mt-0.5">
                                             <Badge variant={getStatusBadge(campaign.status)}>{campaign.status}</Badge>
                                             <span className="text-sm text-gray-500">{campaign.type}</span>
                                             {campaign.start_date && (
@@ -352,15 +352,15 @@ export const CampaignsDashboard: React.FC = () => {
                                 </div>
 
                                 {/* Metrics */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <div className="text-center">
-                                        <div className="text-lg font-bold text-gray-900 dark:text-white">
+                                        <div className="text-sm font-bold text-gray-900 dark:text-white">
                                             ${campaign.spent.toLocaleString()}
                                         </div>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-[8px] text-gray-500">
                                             of ${campaign.budget.toLocaleString()}
                                         </div>
-                                        <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
+                                        <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full mt-0.5">
                                             <div 
                                                 className="h-full bg-blue-500 rounded-full"
                                                 style={{ width: `${Math.min((campaign.spent / campaign.budget) * 100, 100)}%` }}
@@ -368,26 +368,26 @@ export const CampaignsDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-lg font-bold text-gray-900 dark:text-white">
+                                        <div className="text-sm font-bold text-gray-900 dark:text-white">
                                             {campaign.impressions.toLocaleString()}
                                         </div>
-                                        <div className="text-xs text-gray-500">Impressions</div>
+                                        <div className="text-[8px] text-gray-500">Impressions</div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-lg font-bold text-gray-900 dark:text-white">
+                                        <div className="text-sm font-bold text-gray-900 dark:text-white">
                                             {campaign.clicks.toLocaleString()}
                                         </div>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-[8px] text-gray-500">
                                             Clicks ({campaign.impressions > 0 
                                                 ? ((campaign.clicks / campaign.impressions) * 100).toFixed(1) 
                                                 : 0}%)
                                         </div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-lg font-bold text-gray-900 dark:text-white">
+                                        <div className="text-sm font-bold text-gray-900 dark:text-white">
                                             {campaign.conversions.toLocaleString()}
                                         </div>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-[8px] text-gray-500">
                                             Conv ({campaign.clicks > 0 
                                                 ? ((campaign.conversions / campaign.clicks) * 100).toFixed(1) 
                                                 : 0}%)

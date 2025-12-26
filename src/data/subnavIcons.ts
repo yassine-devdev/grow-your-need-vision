@@ -141,6 +141,17 @@ export const SUBNAV_ICONS: Record<string, string> = {
     'Attribution': 'PresentationChartLineIcon',
     'Experiments': 'BeakerIcon',
     
+    // Business Intelligence
+    'Trial Management': 'ClockIcon',
+    'Subscription Lifecycle': 'ArrowPathIcon',
+    'Automated Tasks': 'Cog6Tooth',
+    'Churn Prediction': 'ChartBarIcon',
+    'Revenue Analysis': 'CurrencyDollarIcon',
+    'Customer Health': 'HeartIcon',
+    'Report Builder': 'DocumentTextIcon',
+    'Export Center': 'ArrowDownTrayIcon',
+    'Scheduled Reports': 'CalendarIcon',
+    
     // Misc
     'Tasks': 'CheckCircleIcon',
     'To Do': 'CheckCircleIcon',

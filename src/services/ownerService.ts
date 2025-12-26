@@ -533,6 +533,294 @@ class OwnerService {
         const res = await pb.collection('finance_expenses').getList(1, 10, { sort: '-amount' });
         return res.items;
     }
+
+    // --- System Monitoring & Health ---
+
+    async getSystemHealth(): Promise<RecordModel[]> {
+        if (isMockEnv()) {
+            return [
+                {
+                    id: 'mock-1',
+                    collectionId: 'system_health',
+                    collectionName: 'system_health',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    service_name: 'API Server',
+                    status: 'operational',
+                    uptime_percentage: 99.98,
+                    latency_ms: 45,
+                    last_check: new Date().toISOString(),
+                    error_count: 0,
+                    metadata: { version: '1.0.0', host: 'localhost:8090' }
+                },
+                {
+                    id: 'mock-2',
+                    collectionId: 'system_health',
+                    collectionName: 'system_health',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    service_name: 'Database',
+                    status: 'operational',
+                    uptime_percentage: 99.99,
+                    latency_ms: 12,
+                    last_check: new Date().toISOString(),
+                    error_count: 0,
+                    metadata: { type: 'PocketBase', size: '2.4GB' }
+                }
+            ];
+        }
+
+        try {
+            const result = await pb.collection('system_health').getFullList({
+                sort: '-last_check',
+                requestKey: null
+            });
+            return result;
+        } catch (error) {
+            console.error('Error fetching system health:', error);
+            return [];
+        }
+    }
+
+    async getServiceStatus(serviceName: string): Promise<RecordModel | null> {
+        if (isMockEnv()) {
+            return {
+                id: 'mock-service',
+                collectionId: 'system_health',
+                collectionName: 'system_health',
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                service_name: serviceName,
+                status: 'operational',
+                uptime_percentage: 99.9,
+                latency_ms: 50,
+                last_check: new Date().toISOString(),
+                error_count: 0,
+                metadata: {}
+            };
+        }
+
+        try {
+            const result = await pb.collection('system_health').getFirstListItem(
+                `service_name = "${serviceName}"`,
+                { requestKey: null }
+            );
+            return result;
+        } catch (error) {
+            console.error(`Error fetching status for ${serviceName}:`, error);
+            return null;
+        }
+    }
+
+    async updateServiceHealth(serviceName: string, status: string, latency: number, metadata?: JsonValue): Promise<void> {
+        if (isMockEnv()) {
+            console.log(`[MOCK] Update service health: ${serviceName} - ${status}`);
+            return;
+        }
+
+        try {
+            const existingRecord = await this.getServiceStatus(serviceName);
+            const uptimePercentage = status === 'operational' ? 99.9 : status === 'degraded' ? 95.0 : 50.0;
+
+            const data = {
+                service_name: serviceName,
+                status,
+                uptime_percentage: uptimePercentage,
+                latency_ms: latency,
+                last_check: new Date().toISOString(),
+                error_count: status === 'operational' ? 0 : 1,
+                metadata: metadata || {}
+            };
+
+            if (existingRecord) {
+                await pb.collection('system_health').update(existingRecord.id, data);
+            } else {
+                await pb.collection('system_health').create(data);
+            }
+        } catch (error) {
+            console.error(`Error updating service health for ${serviceName}:`, error);
+        }
+    }
+
+    async getMonitoringEvents(filters?: { severity?: string; serviceName?: string; resolved?: boolean }): Promise<RecordModel[]> {
+        if (isMockEnv()) {
+            return [
+                {
+                    id: 'mock-event-1',
+                    collectionId: 'monitoring_events',
+                    collectionName: 'monitoring_events',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    service_name: 'API Server',
+                    event_type: 'warning',
+                    severity: 'medium',
+                    message: 'High API response time detected',
+                    details: { avg_response_time: 250 },
+                    resolved: false
+                }
+            ];
+        }
+
+        try {
+            let filter = '';
+            const conditions: string[] = [];
+
+            if (filters?.severity) conditions.push(`severity = "${filters.severity}"`);
+            if (filters?.serviceName) conditions.push(`service_name = "${filters.serviceName}"`);
+            if (filters?.resolved !== undefined) conditions.push(`resolved = ${filters.resolved}`);
+
+            filter = conditions.join(' && ');
+
+            const result = await pb.collection('monitoring_events').getList(1, 50, {
+                filter,
+                sort: '-created',
+                requestKey: null
+            });
+            return result.items;
+        } catch (error) {
+            console.error('Error fetching monitoring events:', error);
+            return [];
+        }
+    }
+
+    async createMonitoringEvent(serviceName: string, eventType: string, severity: string, message: string, details?: JsonValue): Promise<void> {
+        if (isMockEnv()) {
+            console.log(`[MOCK] Create monitoring event: ${serviceName} - ${message}`);
+            return;
+        }
+
+        try {
+            await pb.collection('monitoring_events').create({
+                service_name: serviceName,
+                event_type: eventType,
+                severity,
+                message,
+                details: details || {},
+                resolved: false
+            });
+        } catch (error) {
+            console.error('Error creating monitoring event:', error);
+        }
+    }
+
+    async getSystemUptime(): Promise<number> {
+        if (isMockEnv()) {
+            return 99.9;
+        }
+
+        try {
+            const services = await this.getSystemHealth();
+            if (services.length === 0) return 99.9;
+
+            const totalUptime = services.reduce((sum, service) => {
+                return sum + (service.uptime_percentage || 0);
+            }, 0);
+
+            return Number((totalUptime / services.length).toFixed(2));
+        } catch (error) {
+            console.error('Error calculating system uptime:', error);
+            return 99.9;
+        }
+    }
+
+    async getWebhookLogs(filters?: { webhookName?: string; status?: string }): Promise<RecordModel[]> {
+        if (isMockEnv()) {
+            return [
+                {
+                    id: 'mock-webhook-1',
+                    collectionId: 'webhook_logs',
+                    collectionName: 'webhook_logs',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    webhook_name: 'stripe_payment',
+                    event_type: 'payment.succeeded',
+                    status: 'success',
+                    duration_ms: 120
+                }
+            ];
+        }
+
+        try {
+            let filter = '';
+            const conditions: string[] = [];
+
+            if (filters?.webhookName) conditions.push(`webhook_name = "${filters.webhookName}"`);
+            if (filters?.status) conditions.push(`status = "${filters.status}"`);
+
+            filter = conditions.join(' && ');
+
+            const result = await pb.collection('webhook_logs').getList(1, 50, {
+                filter,
+                sort: '-created',
+                requestKey: null
+            });
+            return result.items;
+        } catch (error) {
+            console.error('Error fetching webhook logs:', error);
+            return [];
+        }
+    }
+
+    async getAPIUsageMetrics(filters?: { endpoint?: string; tenantId?: string }): Promise<RecordModel[]> {
+        if (isMockEnv()) {
+            return [
+                {
+                    id: 'mock-api-1',
+                    collectionId: 'api_usage',
+                    collectionName: 'api_usage',
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString(),
+                    endpoint: '/api/collections/users',
+                    method: 'GET',
+                    status_code: 200,
+                    duration_ms: 45
+                }
+            ];
+        }
+
+        try {
+            let filter = '';
+            const conditions: string[] = [];
+
+            if (filters?.endpoint) conditions.push(`endpoint = "${filters.endpoint}"`);
+            if (filters?.tenantId) conditions.push(`tenant_id = "${filters.tenantId}"`);
+
+            filter = conditions.join(' && ');
+
+            const result = await pb.collection('api_usage').getList(1, 100, {
+                filter,
+                sort: '-created',
+                requestKey: null
+            });
+            return result.items;
+        } catch (error) {
+            console.error('Error fetching API usage metrics:', error);
+            return [];
+        }
+    }
+
+    async getEmailDeliveryStats(): Promise<{ sent: number; delivered: number; failed: number; opened: number }> {
+        if (isMockEnv()) {
+            return { sent: 1523, delivered: 1498, failed: 25, opened: 892 };
+        }
+
+        try {
+            const logs = await pb.collection('email_logs').getFullList({ requestKey: null });
+
+            const stats = logs.reduce((acc, log) => {
+                if (log.status === 'sent' || log.status === 'delivered') acc.sent++;
+                if (log.status === 'delivered') acc.delivered++;
+                if (log.status === 'failed' || log.status === 'bounced') acc.failed++;
+                if (log.status === 'opened') acc.opened++;
+                return acc;
+            }, { sent: 0, delivered: 0, failed: 0, opened: 0 });
+
+            return stats;
+        } catch (error) {
+            console.error('Error fetching email delivery stats:', error);
+            return { sent: 0, delivered: 0, failed: 0, opened: 0 };
+        }
+    }
 }
 
 export const ownerService = new OwnerService();

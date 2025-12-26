@@ -170,8 +170,8 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
         switch (activeView) {
             case 'Activity':
                 return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn">
-                        <Card className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fadeIn">
+                        <Card className="p-3">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-gray-700 dark:text-gray-200">Daily Steps</h3>
                                 <Badge variant="success" className="text-xs">+12% vs yesterday</Badge>
@@ -380,7 +380,7 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
             case 'Break Timer':
                 return (
                     <div className="flex flex-col items-center justify-center h-[400px] animate-fadeIn">
-                        <div className="text-8xl font-black text-gray-800 dark:text-white mb-8 font-mono">05:00</div>
+                        <div className="text-4xl font-black text-gray-800 dark:text-white mb-4 font-mono">05:00</div>
                         <div className="flex gap-4">
                             <Button variant="primary" size="lg" icon="PlayIcon">Start Break</Button>
                             <Button variant="secondary" size="lg" icon="ArrowPathIcon">Reset</Button>
@@ -410,10 +410,10 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
             case 'Community':
                 return (
                     <div className="flex flex-col items-center justify-center h-[400px] animate-fadeIn text-center">
-                        <div className="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 mb-6">
-                            <Icon name="UserGroupIcon" className="w-10 h-10" />
+                        <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-400 mb-3">
+                            <Icon name="UsersIcon" className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Wellness Community</h3>
+                        <h3 className="text-base font-bold text-gray-800 dark:text-white mb-1">Wellness Community</h3>
                         <p className="text-gray-500 dark:text-gray-400 max-w-md">Connect with colleagues, share tips, and join wellness challenges.</p>
                         <Button variant="primary" className="mt-6">Join Discussion</Button>
                     </div>
@@ -499,7 +499,7 @@ const Wellness: React.FC<WellnessProps> = ({ activeTab, activeSubNav }) => {
     }
 
     return (
-        <div className="h-full flex flex-col gap-6 overflow-y-auto no-scrollbar p-2 text-gray-800 dark:text-white">
+        <div className="h-full flex flex-col gap-2 overflow-y-auto no-scrollbar p-1 text-gray-800 dark:text-white">
             {/* Hero Section */}
             <div className="h-64 rounded-3xl bg-gradient-to-br from-[#ff9a9e] via-[#fecfef] to-[#a18cd1] dark:from-pink-900 dark:via-purple-900 dark:to-indigo-900 p-8 text-white shadow-xl relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>

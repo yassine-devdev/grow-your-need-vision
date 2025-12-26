@@ -176,22 +176,22 @@ export const PredictiveScoring: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             {/* Header Banner */}
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-3 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <div>
-                    <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
-                        <Icon name="ChartBarIcon" className="w-8 h-8 text-yellow-400" />
+                    <h2 className="text-base font-black mb-1 flex items-center gap-2">
+                        <Icon name="ChartBarIcon" className="w-4 h-4 text-yellow-400" />
                         Predictive Lead Scoring
                     </h2>
-                    <p className="text-gray-300 max-w-xl">
+                    <p className="text-gray-300 text-[9px] max-w-xl">
                         AI-powered lead scoring analyzes engagement, demographics, and behavior to predict conversion probability.
                     </p>
                 </div>
                 <div className="text-right">
-                    <div className="text-4xl font-black text-yellow-400">{avgScore}</div>
-                    <div className="text-sm text-gray-400 uppercase font-bold">Avg. Score</div>
-                    <div className="text-xs text-gray-500 mt-1">{totalItems.toLocaleString()} leads scored</div>
+                    <div className="text-xl font-black text-yellow-400">{avgScore}</div>
+                    <div className="text-[8px] text-gray-400 uppercase font-bold">Avg. Score</div>
+                    <div className="text-[7px] text-gray-500 mt-0.5">{totalItems.toLocaleString()} leads scored</div>
                 </div>
             </div>
 
@@ -206,11 +206,11 @@ export const PredictiveScoring: React.FC = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
                 {/* Lead Scores List */}
                 <Card className="lg:col-span-2 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-                        <h3 className="font-bold text-lg text-gray-800 dark:text-white">Lead Scores</h3>
+                    <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+                        <h3 className="font-bold text-sm text-gray-800 dark:text-white">Lead Scores</h3>
                         <Button variant="secondary" size="sm" icon="ArrowPathIcon" onClick={loadLeadScores}>
                             Refresh
                         </Button>
@@ -220,30 +220,30 @@ export const PredictiveScoring: React.FC = () => {
                         {leadScores.map((lead) => (
                             <div 
                                 key={lead.id} 
-                                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+                                className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
                                 onClick={() => setSelectedLead(lead)}
                             >
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
                                     {/* Score Circle */}
-                                    <div className="relative w-16 h-16 flex-shrink-0">
-                                        <svg className="w-16 h-16 transform -rotate-90">
+                                    <div className="relative w-10 h-10 flex-shrink-0">
+                                        <svg className="w-10 h-10 transform -rotate-90">
                                             <circle
-                                                cx="32"
-                                                cy="32"
-                                                r="28"
+                                                cx="20"
+                                                cy="20"
+                                                r="16"
                                                 stroke="currentColor"
-                                                strokeWidth="4"
+                                                strokeWidth="3"
                                                 fill="none"
                                                 className="text-gray-200 dark:text-gray-700"
                                             />
                                             <circle
-                                                cx="32"
-                                                cy="32"
-                                                r="28"
+                                                cx="20"
+                                                cy="20"
+                                                r="16"
                                                 stroke="currentColor"
-                                                strokeWidth="4"
+                                                strokeWidth="3"
                                                 fill="none"
-                                                strokeDasharray={`${(lead.score / 100) * 176} 176`}
+                                                strokeDasharray={`${(lead.score / 100) * 100} 100`}
                                                 className={getScoreColor(lead.score)}
                                             />
                                         </svg>

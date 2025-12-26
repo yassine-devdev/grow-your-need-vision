@@ -11,7 +11,16 @@ import { AutomationRuleEditor } from './AutomationRuleEditor';
 import { Card, Button, Modal, Badge, Icon } from '../shared/ui/CommonUI';
 import { marketingExportService } from '../../services/marketingExportService';
 
-const TEMPLATES = [
+interface AutomationTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: React.ElementType;
+  color: string;
+}
+
+const TEMPLATES: AutomationTemplate[] = [
   { id: '1', name: 'Welcome Email', description: 'Trigger sequence when user signs up', category: 'Retention', icon: Mail, color: 'bg-blue-500' },
   { id: '2', name: 'Abandoned Cart', description: 'Recover lost sales after 1 hour', category: 'E-commerce', icon: Zap, color: 'bg-yellow-500' },
   { id: '3', name: 'Lead Nurturing', description: 'Guide leads through your sales funnel', category: 'Sales', icon: Users, color: 'bg-purple-500' },
@@ -75,7 +84,7 @@ export const MarketingAutomationHub: React.FC = () => {
     }
   };
 
-  const handleCreateFromTemplate = async (template: any) => {
+  const handleCreateFromTemplate = async (template: AutomationTemplate) => {
     try {
       const newAutomation = await marketingService.createAutomationRule({
         name: template.name,
@@ -90,11 +99,11 @@ export const MarketingAutomationHub: React.FC = () => {
     }
   };
 
-  const handleSaveRule = async (ruleData: any) => {
+  const handleSaveRule = async (ruleData: Partial<AutomationRule>) => {
     try {
       if (editingRule) {
         await marketingService.updateAutomationRule(editingRule.id, ruleData);
-        setAutomations(prev => prev.map(a => a.id === editingRule.id ? { ...a, ...ruleData } : a));
+        setAutomations(prev => prev.map(a => a.id === editingRule.id ? { ...a, ...ruleData } as AutomationRule : a));
       } else {
         const created = await marketingService.createAutomationRule(ruleData);
         setAutomations(prev => [created as AutomationRule, ...prev]);
@@ -102,7 +111,7 @@ export const MarketingAutomationHub: React.FC = () => {
       setEditingRule(null);
       setShowCreateModal(false);
     } catch (error) {
-      console.error('Error saving automation rule:', error);
+      console.error('Error saving automation:', error);
     }
   };
 
@@ -117,14 +126,14 @@ export const MarketingAutomationHub: React.FC = () => {
 
   const overallStats = {
     totalAutomations: automations.length,
-    activeAutomations: automations.filter(a => a.status === 'Active').length,
-    totalTriggered: automations.reduce((sum, a) => sum + a.stats.triggered, 0),
+    activeAutomations: automations.filter((a: AutomationRule) => a.status === 'Active').length,
+    totalTriggered: automations.reduce((sum: number, a: AutomationRule) => sum + a.stats.triggered, 0),
     successRate: Math.round(
-      (automations.reduce((sum, a) => sum + a.stats.completed, 0) /
-        (automations.reduce((sum, a) => sum + a.stats.triggered, 0) || 1)) * 100
+      (automations.reduce((sum: number, a: AutomationRule) => sum + a.stats.completed, 0) /
+        (automations.reduce((sum: number, a: AutomationRule) => sum + a.stats.triggered, 0) || 1)) * 100
     ),
     avgCompletionTime: '4.2h',
-    emailsSent: automations.reduce((sum, a) => sum + (a.actions.filter((act: { type: string }) => act.type === 'email').length * a.stats.triggered), 0),
+    emailsSent: automations.reduce((sum: number, a: AutomationRule) => sum + (a.actions.filter((act: { type: string }) => act.type === 'email').length * a.stats.triggered), 0),
   };
 
   const getStatusColor = (status: string) => {
@@ -459,7 +468,14 @@ export const MarketingAutomationHub: React.FC = () => {
             setEditingRule(null);
           }}
           onSave={handleSaveRule}
-          initialRule={editingRule}
+          initialRule={editingRule ? {
+            name: editingRule.name,
+            description: editingRule.description,
+            triggerType: editingRule.trigger,
+            triggerConfig: editingRule.conditions,
+            actions: editingRule.actions,
+            status: editingRule.status
+          } : undefined}
         />
       )}
 

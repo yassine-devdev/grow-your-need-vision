@@ -10,13 +10,18 @@ import {
     useExportContacts
 } from '../../hooks/useCRMContacts';
 import { CRMContact } from '../../services/crmContactsService';
+import { useAuth } from '../../context/AuthContext';
 
 const ContactsManager: React.FC = () => {
+    const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingContact, setEditingContact] = useState<CRMContact | null>(null);
     const [formData, setFormData] = useState<Partial<CRMContact>>({});
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [errorMessage, setErrorMessage] = useState<string>('');
+    const [successMessage, setSuccessMessage] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const filters = statusFilter !== 'all' ? { status: statusFilter as any } : undefined;
@@ -39,35 +44,109 @@ const ContactsManager: React.FC = () => {
         );
     });
 
+    // Form validation
+    const validateForm = (): boolean => {
+        const errors: Record<string, string> = {};
+
+        if (!formData.first_name?.trim()) {
+            errors.first_name = 'First name is required';
+        }
+
+        if (!formData.last_name?.trim()) {
+            errors.last_name = 'Last name is required';
+        }
+
+        if (!formData.email?.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = 'Invalid email format';
+        }
+
+        if (formData.phone && !/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/.test(formData.phone)) {
+            errors.phone = 'Invalid phone format';
+        }
+
+        if (!formData.status) {
+            errors.status = 'Status is required';
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    // Clear messages after timeout
+    const clearMessages = () => {
+        setTimeout(() => {
+            setErrorMessage('');
+            setSuccessMessage('');
+        }, 5000);
+    };
+
     const handleCreate = async () => {
+        if (!validateForm()) {
+            setErrorMessage('Please fix the form errors before submitting');
+            clearMessages();
+            return;
+        }
+
+        if (!user?.id) {
+            setErrorMessage('User not authenticated');
+            clearMessages();
+            return;
+        }
+
         try {
-            await createMutation.mutateAsync(formData);
+            const contactData: Partial<CRMContact> = {
+                ...formData,
+                created_by: user.id
+            };
+            await createMutation.mutateAsync(contactData);
+            setSuccessMessage('Contact created successfully');
             setShowCreateModal(false);
             setFormData({});
+            setFormErrors({});
+            clearMessages();
         } catch (error) {
-            alert('Failed to create contact');
+            const errorMsg = error instanceof Error ? error.message : 'Failed to create contact';
+            setErrorMessage(errorMsg);
+            clearMessages();
         }
     };
 
     const handleUpdate = async () => {
         if (!editingContact) return;
 
+        if (!validateForm()) {
+            setErrorMessage('Please fix the form errors before submitting');
+            clearMessages();
+            return;
+        }
+
         try {
             await updateMutation.mutateAsync({ id: editingContact.id, data: formData });
+            setSuccessMessage('Contact updated successfully');
             setEditingContact(null);
             setFormData({});
+            setFormErrors({});
+            clearMessages();
         } catch (error) {
-            alert('Failed to update contact');
+            const errorMsg = error instanceof Error ? error.message : 'Failed to update contact';
+            setErrorMessage(errorMsg);
+            clearMessages();
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this contact?')) return;
+        if (!window.confirm('Are you sure you want to delete this contact? This action cannot be undone.')) return;
 
         try {
             await deleteMutation.mutateAsync(id);
+            setSuccessMessage('Contact deleted successfully');
+            clearMessages();
         } catch (error) {
-            alert('Failed to delete contact');
+            const errorMsg = error instanceof Error ? error.message : 'Failed to delete contact';
+            setErrorMessage(errorMsg);
+            clearMessages();
         }
     };
 
@@ -75,16 +154,48 @@ const ContactsManager: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file) return;
 
+        if (!user?.id) {
+            setErrorMessage('User not authenticated');
+            clearMessages();
+            return;
+        }
+
+        if (!file.name.endsWith('.csv')) {
+            setErrorMessage('Please upload a CSV file');
+            clearMessages();
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = async (e) => {
             const csvData = e.target?.result as string;
+            if (!csvData) {
+                setErrorMessage('File is empty');
+                clearMessages();
+                return;
+            }
+
             try {
-                const result = await importMutation.mutateAsync({ csvData, createdBy: 'current-user' });
-                alert(`Imported ${result.success} contacts. ${result.failed} failed.`);
+                const result = await importMutation.mutateAsync({ csvData, createdBy: user.id });
+                if (result.success > 0) {
+                    setSuccessMessage(`Imported ${result.success} contacts successfully${result.failed > 0 ? `. ${result.failed} failed.` : ''}`);
+                } else {
+                    setErrorMessage(`Import failed: ${result.errors.join(', ')}`);
+                }
+                clearMessages();
                 if (fileInputRef.current) fileInputRef.current.value = '';
             } catch (error) {
-                alert('Failed to import contacts');
+                const errorMsg = error instanceof Error ? error.message : 'Failed to import contacts';
+                setErrorMessage(errorMsg);
+                clearMessages();
+                if (fileInputRef.current) fileInputRef.current.value = '';
             }
+        };
+        reader.onerror = () => {
+            setErrorMessage('Failed to read file');
+            clearMessages();
+            if (fileInputRef.current) fileInputRef.current.value = '';
         };
         reader.readAsText(file);
     };
@@ -92,14 +203,28 @@ const ContactsManager: React.FC = () => {
     const handleExport = async () => {
         try {
             const csv = await exportMutation.mutateAsync(filters);
-            const blob = new Blob([csv], { type: 'text/csv' });
+            if (!csv) {
+                setErrorMessage('No data to export');
+                clearMessages();
+                return;
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'contacts.csv';
+            const timestamp = new Date().toISOString().split('T')[0];
+            a.download = `contacts_${timestamp}.csv`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            setSuccessMessage('Contacts exported successfully');
+            clearMessages();
         } catch (error) {
-            alert('Failed to export contacts');
+            const errorMsg = error instanceof Error ? error.message : 'Failed to export contacts';
+            setErrorMessage(errorMsg);
+            clearMessages();
         }
     };
 
@@ -114,13 +239,32 @@ const ContactsManager: React.FC = () => {
     };
 
     const openCreateModal = () => {
-        setFormData({ status: 'lead' });
+        setFormData({ 
+            status: 'lead',
+            lifecycle_stage: 'lead',
+            lead_score: 0,
+            tags: []
+        });
+        setFormErrors({});
+        setErrorMessage('');
+        setSuccessMessage('');
         setShowCreateModal(true);
     };
 
     const openEditModal = (contact: CRMContact) => {
         setEditingContact(contact);
         setFormData(contact);
+        setFormErrors({});
+        setErrorMessage('');
+        setSuccessMessage('');
+    };
+
+    const closeModal = () => {
+        setShowCreateModal(false);
+        setEditingContact(null);
+        setFormData({});
+        setFormErrors({});
+        setErrorMessage('');
     };
 
     if (isLoading) {
@@ -132,14 +276,34 @@ const ContactsManager: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
+            {/* Success/Error Messages */}
+            {successMessage && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 flex items-center gap-2 animate-fadeIn">
+                    <Icon name="CheckCircleIcon" className="w-5 h-5 text-green-600" />
+                    <span className="text-sm text-green-700 dark:text-green-400">{successMessage}</span>
+                    <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-600 hover:text-green-800">
+                        <Icon name="XMarkIcon" className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+            {errorMessage && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-center gap-2 animate-fadeIn">
+                    <Icon name="ExclamationCircleIcon" className="w-5 h-5 text-red-600" />
+                    <span className="text-sm text-red-700 dark:text-red-400">{errorMessage}</span>
+                    <button onClick={() => setErrorMessage('')} className="ml-auto text-red-600 hover:text-red-800">
+                        <Icon name="XMarkIcon" className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Contacts</h2>
-                    <p className="text-sm text-gray-500 mt-1">Manage your CRM contacts</p>
+                    <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white">Contacts</h2>
+                    <p className="text-[8px] text-gray-500 mt-0.5">Manage your CRM contacts</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -152,8 +316,9 @@ const ContactsManager: React.FC = () => {
                         size="sm"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={importMutation.isPending}
+                        className="text-[10px] px-2 py-1"
                     >
-                        <Icon name="ArrowUpTrayIcon" className="w-4 h-4 mr-2" />
+                        <Icon name="ArrowUpTrayIcon" className="w-3 h-3 mr-1" />
                         Import
                     </Button>
                     <Button
@@ -161,60 +326,61 @@ const ContactsManager: React.FC = () => {
                         size="sm"
                         onClick={handleExport}
                         disabled={exportMutation.isPending}
+                        className="text-[10px] px-2 py-1"
                     >
-                        <Icon name="ArrowDownTrayIcon" className="w-4 h-4 mr-2" />
+                        <Icon name="ArrowDownTrayIcon" className="w-3 h-3 mr-1" />
                         Export
                     </Button>
-                    <Button variant="primary" size="sm" onClick={openCreateModal}>
-                        <Icon name="PlusIcon" className="w-4 h-4 mr-2" />
+                    <Button variant="primary" size="sm" onClick={openCreateModal} className="text-[10px] px-2 py-1">
+                        <Icon name="PlusIcon" className="w-3 h-3 mr-1" />
                         New Contact
                     </Button>
                 </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <Card className="p-4 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800">
-                    <p className="text-sm text-gray-600">Total</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.total || 0}</p>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                <Card className="p-2 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800">
+                    <p className="text-[8px] text-gray-600">Total</p>
+                    <p className="text-base font-bold text-gray-900 dark:text-white">{stats?.total || 0}</p>
                 </Card>
-                <Card className="p-4">
-                    <p className="text-sm text-gray-600">Leads</p>
-                    <p className="text-2xl font-bold text-yellow-600">{stats?.by_status.lead || 0}</p>
+                <Card className="p-2">
+                    <p className="text-[8px] text-gray-600">Leads</p>
+                    <p className="text-base font-bold text-yellow-600">{stats?.by_status.lead || 0}</p>
                 </Card>
-                <Card className="p-4">
-                    <p className="text-sm text-gray-600">Prospects</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats?.by_status.prospect || 0}</p>
+                <Card className="p-2">
+                    <p className="text-[8px] text-gray-600">Prospects</p>
+                    <p className="text-base font-bold text-blue-600">{stats?.by_status.prospect || 0}</p>
                 </Card>
-                <Card className="p-4">
-                    <p className="text-sm text-gray-600">Customers</p>
-                    <p className="text-2xl font-bold text-green-600">{stats?.by_status.customer || 0}</p>
+                <Card className="p-2">
+                    <p className="text-[8px] text-gray-600">Customers</p>
+                    <p className="text-base font-bold text-green-600">{stats?.by_status.customer || 0}</p>
                 </Card>
-                <Card className="p-4">
-                    <p className="text-sm text-gray-600">Recent (30d)</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats?.recent || 0}</p>
+                <Card className="p-2">
+                    <p className="text-[8px] text-gray-600">Recent (30d)</p>
+                    <p className="text-base font-bold text-purple-600">{stats?.recent || 0}</p>
                 </Card>
             </div>
 
             {/* Search and Filter */}
-            <Card className="p-4">
-                <div className="flex flex-col md:flex-row gap-4">
+            <Card className="p-2">
+                <div className="flex flex-col md:flex-row gap-2">
                     <div className="flex-1">
                         <div className="relative">
-                            <Icon name="MagnifyingGlassIcon" className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Icon name="MagnifyingGlassIcon" className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search contacts..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                className="w-full pl-7 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-[10px]"
                             />
                         </div>
                     </div>
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                        className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-[10px]"
                     >
                         <option value="all">All Status</option>
                         <option value="lead">Leads</option>
@@ -226,48 +392,48 @@ const ContactsManager: React.FC = () => {
             </Card>
 
             {/* Contacts List */}
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {filteredContacts?.map((contact) => (
-                    <Card key={contact.id} className="p-5 hover:shadow-lg transition-shadow">
+                    <Card key={contact.id} className="p-2.5 hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            <div className="flex items-center gap-2 flex-1">
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-[10px]">
                                     {contact.first_name?.[0]}{contact.last_name?.[0]}
                                 </div>
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <h3 className="font-bold text-gray-900 dark:text-white text-[10px]">
                                             {contact.first_name} {contact.last_name}
                                         </h3>
                                         <Badge variant={getStatusColor(contact.status)}>
                                             {contact.status}
                                         </Badge>
                                     </div>
-                                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                                        <span className="flex items-center gap-1">
-                                            <Icon name="EnvelopeIcon" className="w-4 h-4" />
+                                    <div className="flex items-center gap-2 text-[8px] text-gray-600">
+                                        <span className="flex items-center gap-0.5">
+                                            <Icon name="EnvelopeIcon" className="w-2.5 h-2.5" />
                                             {contact.email}
                                         </span>
                                         {contact.phone && (
-                                            <span className="flex items-center gap-1">
-                                                <Icon name="PhoneIcon" className="w-4 h-4" />
+                                            <span className="flex items-center gap-0.5">
+                                                <Icon name="PhoneIcon" className="w-2.5 h-2.5" />
                                                 {contact.phone}
                                             </span>
                                         )}
                                         {contact.company && (
-                                            <span className="flex items-center gap-1">
-                                                <Icon name="BuildingOfficeIcon" className="w-4 h-4" />
+                                            <span className="flex items-center gap-0.5">
+                                                <Icon name="BuildingOfficeIcon" className="w-2.5 h-2.5" />
                                                 {contact.company}
                                             </span>
                                         )}
                                     </div>
                                     {contact.title && (
-                                        <p className="text-sm text-gray-500 mt-1">{contact.title}</p>
+                                        <p className="text-[8px] text-gray-500 mt-0.5">{contact.title}</p>
                                     )}
                                     {contact.tags && contact.tags.length > 0 && (
-                                        <div className="flex gap-2 mt-2">
+                                        <div className="flex gap-1 mt-1">
                                             {contact.tags.map((tag, idx) => (
-                                                <span key={idx} className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
+                                                <span key={idx} className="text-[7px] px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
                                                     {tag}
                                                 </span>
                                             ))}
@@ -275,21 +441,23 @@ const ContactsManager: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => openEditModal(contact)}
+                                    className="p-1"
                                 >
-                                    <Icon name="PencilIcon" className="w-4 h-4" />
+                                    <Icon name="PencilIcon" className="w-3 h-3" />
                                 </Button>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleDelete(contact.id)}
                                     disabled={deleteMutation.isPending}
+                                    className="p-1"
                                 >
-                                    <Icon name="TrashIcon" className="w-4 h-4" />
+                                    <Icon name="TrashIcon" className="w-3 h-3" />
                                 </Button>
                             </div>
                         </div>
@@ -323,9 +491,21 @@ const ContactsManager: React.FC = () => {
                                 <input
                                     type="text"
                                     value={formData.first_name || ''}
-                                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, first_name: e.target.value });
+                                        if (formErrors.first_name) {
+                                            setFormErrors({ ...formErrors, first_name: '' });
+                                        }
+                                    }}
+                                    className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
+                                        formErrors.first_name 
+                                            ? 'border-red-500 dark:border-red-500' 
+                                            : 'border-gray-300 dark:border-gray-600'
+                                    }`}
                                 />
+                                {formErrors.first_name && (
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.first_name}</p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -334,9 +514,21 @@ const ContactsManager: React.FC = () => {
                                 <input
                                     type="text"
                                     value={formData.last_name || ''}
-                                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, last_name: e.target.value });
+                                        if (formErrors.last_name) {
+                                            setFormErrors({ ...formErrors, last_name: '' });
+                                        }
+                                    }}
+                                    className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
+                                        formErrors.last_name 
+                                            ? 'border-red-500 dark:border-red-500' 
+                                            : 'border-gray-300 dark:border-gray-600'
+                                    }`}
                                 />
+                                {formErrors.last_name && (
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.last_name}</p>
+                                )}
                             </div>
                         </div>
 
@@ -348,9 +540,22 @@ const ContactsManager: React.FC = () => {
                                 <input
                                     type="email"
                                     value={formData.email || ''}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, email: e.target.value });
+                                        if (formErrors.email) {
+                                            setFormErrors({ ...formErrors, email: '' });
+                                        }
+                                    }}
+                                    className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
+                                        formErrors.email 
+                                            ? 'border-red-500 dark:border-red-500' 
+                                            : 'border-gray-300 dark:border-gray-600'
+                                    }`}
+                                    placeholder="contact@example.com"
                                 />
+                                {formErrors.email && (
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.email}</p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -359,9 +564,22 @@ const ContactsManager: React.FC = () => {
                                 <input
                                     type="tel"
                                     value={formData.phone || ''}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, phone: e.target.value });
+                                        if (formErrors.phone) {
+                                            setFormErrors({ ...formErrors, phone: '' });
+                                        }
+                                    }}
+                                    className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
+                                        formErrors.phone 
+                                            ? 'border-red-500 dark:border-red-500' 
+                                            : 'border-gray-300 dark:border-gray-600'
+                                    }`}
+                                    placeholder="+1 234-567-8900"
                                 />
+                                {formErrors.phone && (
+                                    <p className="text-xs text-red-600 mt-1">{formErrors.phone}</p>
+                                )}
                             </div>
                         </div>
 
@@ -409,11 +627,7 @@ const ContactsManager: React.FC = () => {
                         <div className="flex gap-3">
                             <Button
                                 variant="outline"
-                                onClick={() => {
-                                    setShowCreateModal(false);
-                                    setEditingContact(null);
-                                    setFormData({});
-                                }}
+                                onClick={closeModal}
                                 className="flex-1"
                             >
                                 Cancel

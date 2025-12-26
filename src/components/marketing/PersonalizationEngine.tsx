@@ -194,9 +194,9 @@ export const PersonalizationEngine: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Personalization Engine</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Personalization Engine</h2>
                 <Button variant="primary" icon="PlusIcon" onClick={() => handleOpenModal()}>
                     Create Rule
                 </Button>
@@ -212,21 +212,21 @@ export const PersonalizationEngine: React.FC = () => {
                 </Card>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                <div className="lg:col-span-2 space-y-2">
                     {rules.length === 0 ? (
-                        <Card className="p-12 text-center">
-                            <Icon name="SparklesIcon" className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">No Rules Created</h3>
-                            <p className="text-sm text-gray-500 mb-4">Create your first personalization rule to start delivering targeted experiences.</p>
+                        <Card className="p-8 text-center">
+                            <Icon name="SparklesIcon" className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">No Rules Created</h3>
+                            <p className="text-[9px] text-gray-500 mb-2">Create your first personalization rule to start delivering targeted experiences.</p>
                             <Button variant="primary" onClick={() => handleOpenModal()}>Create First Rule</Button>
                         </Card>
                     ) : (
                         rules.map(rule => (
-                            <Card key={rule.id} className="p-6 hover:shadow-lg transition-shadow">
-                                <div className="flex gap-4 items-start">
-                                    <div className={`p-3 rounded-xl ${getTriggerColor(rule.trigger_type)}`}>
-                                        <Icon name={getTriggerIcon(rule.trigger_type)} className="w-6 h-6" />
+                            <Card key={rule.id} className="p-3 hover:shadow-lg transition-shadow">
+                                <div className="flex gap-2 items-start">
+                                    <div className={`p-2 rounded-xl ${getTriggerColor(rule.trigger_type)}`}>
+                                        <Icon name={getTriggerIcon(rule.trigger_type)} className="w-4 h-4" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start mb-2">

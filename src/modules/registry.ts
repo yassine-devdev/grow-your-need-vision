@@ -14,6 +14,7 @@ const Tools = React.lazy(() => import('../apps/Tools'));
 const PlatformSettings = React.lazy(() => import('../apps/PlatformSettings'));
 const OverlaySettings = React.lazy(() => import('../apps/OverlaySettings'));
 const UserManagement = React.lazy(() => import('../apps/owner/UserManagement'));
+const BusinessIntelligence = React.lazy(() => import('../apps/BusinessIntelligence'));
 
 export const MODULE_REGISTRY: ModuleDefinition[] = [
     {
@@ -145,6 +146,18 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
         subnav: {
             'Apps': ['Studio', 'Media', 'Messaging', 'Help', 'Hobbies', 'Religion', 'Sport', 'Events', 'Services', 'Gamification', 'Calendar', 'Marketplace'],
             'Content': ['Templates', 'Global Assets', 'Themes']
+        }
+    },
+    {
+        id: 'business_intelligence',
+        label: 'Business Intelligence',
+        icon: 'ChartBar',
+        component: BusinessIntelligence,
+        tabs: ['Operations', 'Analytics', 'Reports'],
+        subnav: {
+            'Operations': ['Trial Management', 'Subscription Lifecycle', 'Automated Tasks'],
+            'Analytics': ['Churn Prediction', 'Revenue Analysis', 'Customer Health'],
+            'Reports': ['Report Builder', 'Export Center', 'Scheduled Reports']
         }
     },
     {

@@ -9,6 +9,11 @@ import { cn } from '../../lib/utils';
 import { marketingService } from '../../services/marketingService';
 import { marketingExportService } from '../../services/marketingExportService';
 
+interface ROIData {
+  campaigns?: Campaign[];
+  forecasts?: ForecastScenario[];
+}
+
 interface Campaign {
   id: string;
   name: string;
@@ -68,18 +73,77 @@ export const ROICalculator: React.FC = () => {
     clicks: 0,
     startDate: '',
   });
+  const [savingCampaign, setSavingCampaign] = useState(false);
+
+  const handleAddCampaign = async () => {
+    if (!newCampaign.name || newCampaign.spend <= 0 || newCampaign.revenue <= 0) {
+      alert('Please fill in all required fields with valid values');
+      return;
+    }
+
+    setSavingCampaign(true);
+    try {
+      const ctr = newCampaign.impressions > 0 ? (newCampaign.clicks / newCampaign.impressions) * 100 : 0;
+      const conversionRate = newCampaign.clicks > 0 ? (newCampaign.conversions / newCampaign.clicks) * 100 : 0;
+      const cpa = newCampaign.conversions > 0 ? newCampaign.spend / newCampaign.conversions : 0;
+      const roas = newCampaign.spend > 0 ? newCampaign.revenue / newCampaign.spend : 0;
+
+      const campaign: Campaign = {
+        id: `calc-${Date.now()}`,
+        name: newCampaign.name,
+        channel: newCampaign.channel,
+        spend: newCampaign.spend,
+        revenue: newCampaign.revenue,
+        impressions: newCampaign.impressions,
+        clicks: newCampaign.clicks,
+        conversions: newCampaign.conversions,
+        cpa,
+        roas,
+        ctr,
+        conversionRate,
+        startDate: newCampaign.startDate || new Date().toISOString(),
+      };
+
+      setCampaigns(prev => [campaign, ...prev]);
+      
+      // Reset form
+      setNewCampaign({
+        name: '',
+        channel: 'Google Ads',
+        spend: 0,
+        revenue: 0,
+        conversions: 0,
+        impressions: 0,
+        clicks: 0,
+        startDate: '',
+      });
+    } catch (error) {
+      console.error('Failed to add campaign:', error);
+      alert('Failed to add campaign');
+    } finally {
+      setSavingCampaign(false);
+    }
+  };
+
+  const handleDeleteCampaign = (id: string) => {
+    if (window.confirm('Remove this campaign from the calculator?')) {
+      setCampaigns(prev => prev.filter(c => c.id !== id));
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data: any = await marketingService.getROIData();
+      const data = await marketingService.getROIData();
       // Add startDate to campaigns for Calendar icon display
-      const campaignsWithDates = (Array.isArray(data) ? data : data.campaigns || []).map((c: any, idx: number) => ({
+      const campaignsData = Array.isArray(data) ? data : (data as ROIData).campaigns || [];
+      const campaignsWithDates = campaignsData.map((c: Campaign, idx: number) => ({
         ...c,
         startDate: new Date(Date.now() - (idx + 1) * 7 * 24 * 60 * 60 * 1000).toISOString(),
       }));
       setCampaigns(campaignsWithDates);
-      setForecastScenarios(Array.isArray(data) ? [] : data.forecasts || []);
+      const forecastsData = Array.isArray(data) ? [] : (data as ROIData).forecasts || [];
+      setForecastScenarios(forecastsData);
     } catch (error) {
       console.error('Error fetching ROI data:', error);
     } finally {
@@ -152,34 +216,6 @@ export const ROICalculator: React.FC = () => {
     acc[camp.channel].conversions += camp.conversions;
     return acc;
   }, {} as Record<string, { spend: number; revenue: number; conversions: number }>);
-
-  const handleAddCampaign = async () => {
-    if (!newCampaign.name || newCampaign.spend <= 0) return;
-    
-    try {
-      const campaign: Campaign = {
-        id: Date.now().toString(),
-        name: newCampaign.name,
-        channel: newCampaign.channel,
-        spend: newCampaign.spend,
-        revenue: newCampaign.revenue,
-        impressions: newCampaign.impressions || Math.floor(newCampaign.clicks * 50), // Estimate if not provided
-        clicks: newCampaign.clicks || Math.floor(newCampaign.conversions * 10), // Estimate if not provided
-        conversions: newCampaign.conversions,
-        cpa: newCampaign.spend / (newCampaign.conversions || 1),
-        roas: newCampaign.revenue / newCampaign.spend,
-        ctr: newCampaign.impressions > 0 ? (newCampaign.clicks / newCampaign.impressions) * 100 : 2,
-        conversionRate: newCampaign.clicks > 0 ? (newCampaign.conversions / newCampaign.clicks) * 100 : 10,
-        startDate: newCampaign.startDate || new Date().toISOString(),
-      };
-      
-      await marketingService.addROICampaign(campaign);
-      setCampaigns([...campaigns, campaign]);
-      setNewCampaign({ name: '', channel: 'Google Ads', spend: 0, revenue: 0, conversions: 0, impressions: 0, clicks: 0, startDate: '' });
-    } catch (error) {
-      console.error('Error adding campaign:', error);
-    }
-  };
 
   const handleRemoveCampaign = (id: string) => {
     setCampaigns(campaigns.filter(c => c.id !== id));

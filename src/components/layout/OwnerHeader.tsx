@@ -142,9 +142,6 @@ const OwnerHeader: React.FC<HeaderProps> = ({ activeTab, onTabChange, tabs, role
                     <span className="text-[9px] font-extrabold text-blue-600 tracking-widest uppercase opacity-80">Grow Your</span>
                     <span className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-900 to-blue-600 filter drop-shadow-sm">NEED</span>
                 </div>
-                <div className="hidden md:flex ml-3 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-[10px] font-black uppercase tracking-[0.32em] text-gray-600">
-                    OWNER CONTROL
-                </div>
       </div>
 
             <div className="relative z-10 flex-1 flex justify-center px-1 md:px-8 min-w-0">

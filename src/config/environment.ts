@@ -34,6 +34,7 @@ interface EnvironmentConfig {
   // Stripe Payment Processing
   stripePublishableKey: string;
   serviceApiKey: string;
+  paymentServerUrl: string;
 
   // Feature Flags
   enablePayments: boolean;
@@ -82,6 +83,7 @@ class Environment {
       // Stripe Payment Processing
       stripePublishableKey: this.getEnvVar('VITE_STRIPE_PUBLISHABLE_KEY', ''),
       serviceApiKey: this.getEnvVar('VITE_SERVICE_API_KEY', ''),
+      paymentServerUrl: this.getEnvVar('VITE_PAYMENT_SERVER_URL', 'http://localhost:3001'),
 
       // Feature Flags (will be database-driven in production)
       enablePayments: this.getEnvVar('VITE_ENABLE_PAYMENTS', 'false') === 'true',

@@ -250,31 +250,31 @@ const EmailView: React.FC<{ activeSubNav: string }> = ({ activeSubNav }) => {
     const isEmpty = !loading && messages.length === 0;
 
     return (
-        <div className="h-full flex gap-6 overflow-hidden animate-fadeIn relative">
+        <div className="h-full flex gap-3 overflow-hidden animate-fadeIn relative">
 
             {/* Main Content - Split Pane Glass */}
-            <div className={`flex-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700 shadow-glass-edge flex flex-col overflow-hidden relative transition-all duration-300 ${selectedMessage ? 'hidden lg:flex' : 'flex'}`}>
+            <div className={`flex-1 bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-xl border border-white/50 dark:border-slate-700 shadow-glass-edge flex flex-col overflow-hidden relative transition-all duration-300 ${selectedMessage ? 'hidden lg:flex' : 'flex'}`}>
                 {/* Header */}
-                <div className="h-16 border-b border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center px-6 shrink-0 backdrop-blur-md z-10">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-xl font-black text-gyn-blue-dark dark:text-blue-400">Email</h2>
-                            <span className="text-gray-300 dark:text-slate-600 text-xl font-light">/</span>
-                            <h3 className="text-lg font-bold text-gray-600 dark:text-slate-300">{activeSubNav || 'Inbox'}</h3>
+                <div className="h-12 border-b border-gray-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center px-3 shrink-0 backdrop-blur-md z-10">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                            <h2 className="text-sm font-black text-gyn-blue-dark dark:text-blue-400">Email</h2>
+                            <span className="text-gray-300 dark:text-slate-600 text-sm font-light">/</span>
+                            <h3 className="text-xs font-bold text-gray-600 dark:text-slate-300">{activeSubNav || 'Inbox'}</h3>
                         </div>
 
                         <Button
                             variant="primary"
                             onClick={() => setIsComposeOpen(true)}
                             icon="PencilIcon"
-                            className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md"
+                            className="bg-[#002366] hover:bg-[#001a4d] text-white border-none shadow-md text-[10px] px-2 py-1"
                         >
                             Compose
                         </Button>
                     </div>
                     <div className="relative group">
-                        <input type="text" placeholder="Search messages..." className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-gyn-blue-medium/20 focus:border-gyn-blue-medium transition-all dark:text-white" />
-                        <Icon name="SearchIcon" className="w-4 h-4 text-gray-400 absolute right-3 top-2.5" />
+                        <input type="text" placeholder="Search messages..." className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-[10px] w-48 focus:outline-none focus:ring-2 focus:ring-gyn-blue-medium/20 focus:border-gyn-blue-medium transition-all dark:text-white" />
+                        <Icon name="SearchIcon" className="w-3 h-3 text-gray-400 absolute right-2 top-2" />
                     </div>
                 </div>
 

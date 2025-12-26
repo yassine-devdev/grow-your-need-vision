@@ -55,7 +55,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                         <Select 
                             value={formData.type} 
-                            onChange={(e) => setFormData({...formData, type: e.target.value as any})}
+                            onChange={(e) => setFormData({...formData, type: e.target.value as Campaign['type']})}
                         >
                             <option value="Social">Social Media</option>
                             <option value="Email">Email Blast</option>
@@ -67,7 +67,7 @@ export const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({ isOpen
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
                         <Select 
                             value={formData.status} 
-                            onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+                            onChange={(e) => setFormData({...formData, status: e.target.value as Campaign['status']})}
                         >
                             <option value="Draft">Draft</option>
                             <option value="Scheduled">Scheduled</option>

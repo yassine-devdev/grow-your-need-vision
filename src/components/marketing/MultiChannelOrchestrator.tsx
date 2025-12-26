@@ -8,6 +8,17 @@ import {
 import { cn } from '../../lib/utils';
 import { marketingService } from '../../services/marketingService';
 
+interface ChannelData {
+  channel: string;
+  enabled: boolean;
+  reach: number;
+  engagement: number;
+  conversions: number;
+  cost: number;
+  roi: number;
+  lastSync?: string;
+}
+
 interface Channel {
   id: string;
   name: string;
@@ -103,7 +114,7 @@ export const MultiChannelOrchestrator: React.FC = () => {
       ]);
       
       // Transform channel data to match interface
-      const transformedChannels: Channel[] = channelData.map((ch: any, idx: number) => ({
+      const transformedChannels: Channel[] = channelData.map((ch: ChannelData, idx: number) => ({
         id: `channel-${idx}`,
         name: ch.channel.charAt(0).toUpperCase() + ch.channel.slice(1),
         type: ch.channel as Channel['type'],

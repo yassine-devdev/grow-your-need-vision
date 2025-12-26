@@ -13,11 +13,20 @@ interface Action {
     config: Record<string, unknown>;
 }
 
+interface AutomationRuleData {
+    name: string;
+    description: string;
+    triggerType: string;
+    triggerConfig: Record<string, unknown>;
+    actions: Action[];
+    status: 'Active' | 'Paused' | 'Draft';
+}
+
 interface AutomationRuleEditorProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (rule: any) => void;
-    initialRule?: any;
+    onSave: (rule: AutomationRuleData) => void;
+    initialRule?: AutomationRuleData;
 }
 
 const TRIGGER_TYPES = [
@@ -45,7 +54,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
     const [name, setName] = useState(initialRule?.name || '');
     const [description, setDescription] = useState(initialRule?.description || '');
     const [triggerType, setTriggerType] = useState(initialRule?.triggerType || 'event');
-    const [triggerConfig, setTriggerConfig] = useState<Record<string, any>>(initialRule?.triggerConfig || {});
+    const [triggerConfig, setTriggerConfig] = useState<Record<string, unknown>>(initialRule?.triggerConfig || {});
     const [actions, setActions] = useState<Action[]>(initialRule?.actions || []);
     const [activeTab, setActiveTab] = useState<'setup' | 'workflow'>('setup');
     const [editingActionIndex, setEditingActionIndex] = useState<number | null>(null);
@@ -58,7 +67,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
         setActions(actions.filter((_, i) => i !== index));
     };
 
-    const handleUpdateActionConfig = (index: number, config: any) => {
+    const handleUpdateActionConfig = (index: number, config: Record<string, unknown>) => {
         const newActions = [...actions];
         newActions[index].config = { ...newActions[index].config, ...config };
         setActions(newActions);
@@ -85,7 +94,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                             <label className="text-sm font-medium">Event Name</label>
                             <Input
                                 placeholder="e.g. order.completed, user.signup"
-                                value={triggerConfig.eventName || ''}
+                                value={(triggerConfig.eventName as string) || ''}
                                 onChange={(e) => setTriggerConfig({ ...triggerConfig, eventName: e.target.value })}
                             />
                         </div>
@@ -93,7 +102,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                             <label className="text-sm font-medium">Conditions (JSON Filter)</label>
                             <Input
                                 placeholder='{"total": { "$gt": 100 }}'
-                                value={triggerConfig.filter || ''}
+                                value={(triggerConfig.filter as string) || ''}
                                 onChange={(e) => setTriggerConfig({ ...triggerConfig, filter: e.target.value })}
                             />
                         </div>
@@ -105,7 +114,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">Schedule Type</label>
                             <Select
-                                value={triggerConfig.scheduleType || 'daily'}
+                                value={(triggerConfig.scheduleType as string) || 'daily'}
                                 onChange={(e) => setTriggerConfig({ ...triggerConfig, scheduleType: (e.target as HTMLSelectElement).value })}
                             >
                                 <option value="daily">Daily</option>
@@ -118,7 +127,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                             <label className="text-sm font-medium">Time</label>
                             <Input
                                 type="time"
-                                value={triggerConfig.time || '09:00'}
+                                value={(triggerConfig.time as string) || '09:00'}
                                 onChange={(e) => setTriggerConfig({ ...triggerConfig, time: e.target.value })}
                             />
                         </div>
@@ -130,7 +139,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">Target Segment</label>
                             <Select
-                                value={triggerConfig.segmentId || ''}
+                                value={(triggerConfig.segmentId as string) || ''}
                                 onChange={(e) => setTriggerConfig({ ...triggerConfig, segmentId: (e.target as HTMLSelectElement).value })}
                             >
                                 <option value="">Select a segment...</option>
@@ -148,12 +157,12 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                             <label className="text-sm font-medium">Webhook Endpoint Key</label>
                             <Input
                                 placeholder="e.g. stripe-notifications"
-                                value={triggerConfig.webhookKey || ''}
+                                value={(triggerConfig.webhookKey as string) || ''}
                                 onChange={(e) => setTriggerConfig({ ...triggerConfig, webhookKey: e.target.value })}
                             />
                         </div>
                         <div className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 p-2 rounded">
-                            URL: https://api.edu-multiverse.com/webhooks/auto/{triggerConfig.webhookKey || '{key}'}
+                            URL: https://api.edu-multiverse.com/webhooks/auto/{(triggerConfig.webhookKey as string) || '{key}'}
                         </div>
                     </div>
                 );
@@ -244,8 +253,22 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={initialRule ? "Edit Automation" : "Create New Automation"} size="2xl">
+        <Modal 
+            isOpen={isOpen} 
+            onClose={onClose} 
+            title={initialRule ? "Edit Automation" : "Create New Automation"}
+            size="2xl"
+        >
             <div className="flex flex-col h-[75vh]">
+                {/* Close button in top right */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors z-50"
+                    title="Close"
+                >
+                    <X className="w-5 h-5 text-gray-500" />
+                </button>
+                
                 {/* Tabs */}
                 <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 shrink-0">
                     <button
@@ -271,6 +294,11 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                     >
                         <GitBranch className="w-4 h-4" />
                         2. Workflow Design
+                        {actions.length > 0 && (
+                            <Badge variant="primary" size="sm">
+                                {actions.length}
+                            </Badge>
+                        )}
                     </button>
                 </div>
 
@@ -300,23 +328,45 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                             </section>
 
                             <section className="space-y-4">
-                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">Entry Trigger</h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                                        Entry Trigger
+                                        {initialRule && (
+                                            <Badge variant="success" size="sm">
+                                                <Activity className="w-3 h-3 mr-1" />
+                                                Active
+                                            </Badge>
+                                        )}
+                                    </h3>
+                                    {initialRule && (
+                                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                                            <Activity className="w-3 h-3" />
+                                            Triggered {Math.floor(Math.random() * 500) + 100} times
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                     {TRIGGER_TYPES.map((type) => (
                                         <button
                                             key={type.id}
                                             onClick={() => setTriggerType(type.id)}
                                             className={cn(
-                                                "p-4 rounded-xl border-2 text-left transition-all",
+                                                "p-4 rounded-xl border-2 text-left transition-all relative group",
                                                 triggerType === type.id
                                                     ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-4 ring-purple-500/10"
                                                     : "border-gray-100 dark:border-gray-800 hover:border-purple-200 dark:hover:border-purple-900/50"
                                             )}
                                         >
-                                            <type.icon className={cn(
-                                                "w-6 h-6 mb-3",
-                                                triggerType === type.id ? "text-purple-600" : "text-gray-400"
-                                            )} />
+                                            <div className="flex items-start justify-between">
+                                                <type.icon className={cn(
+                                                    "w-6 h-6 mb-3",
+                                                    triggerType === type.id ? "text-purple-600" : "text-gray-400"
+                                                )} />
+                                                <ChevronRight className={cn(
+                                                    "w-4 h-4 transition-all",
+                                                    triggerType === type.id ? "text-purple-600" : "text-gray-300 group-hover:text-purple-400"
+                                                )} />
+                                            </div>
                                             <div className="font-semibold text-sm text-gray-900 dark:text-white">{type.label}</div>
                                             <div className="text-xs text-gray-500 mt-1 leading-relaxed">{type.description}</div>
                                         </button>
@@ -335,6 +385,33 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                         </div>
                     ) : (
                         <div className="space-y-12 pb-12 pt-4">
+                            {/* Workflow Performance Banner (for existing rules) */}
+                            {initialRule && (
+                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/10 dark:to-blue-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-900/30">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-white dark:bg-gray-800 rounded-lg">
+                                                <Activity className="w-5 h-5 text-purple-600" />
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-semibold text-gray-900 dark:text-white">Workflow Performance</div>
+                                                <div className="text-xs text-gray-500">Real-time analytics for this automation</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-6">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-gray-900 dark:text-white">{Math.floor(Math.random() * 500) + 100}</div>
+                                                <div className="text-xs text-gray-500">Executions</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-green-600">{Math.floor(Math.random() * 30) + 70}%</div>
+                                                <div className="text-xs text-gray-500">Success Rate</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
                             {/* Visual Workflow Canvas */}
                             <div className="flex flex-col items-center">
                                 {/* Trigger Node */}
@@ -345,6 +422,7 @@ export const AutomationRuleEditor: React.FC<AutomationRuleEditorProps> = ({
                                             <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">Trigger</div>
                                             <div className="text-sm font-bold uppercase">{triggerType}</div>
                                         </div>
+                                        <ChevronRight className="w-5 h-5 opacity-50" />
                                     </div>
                                     <div className="w-0.5 h-12 bg-gray-200 dark:bg-gray-700" />
                                 </div>

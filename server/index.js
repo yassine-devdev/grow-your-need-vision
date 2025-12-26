@@ -6,6 +6,18 @@ import dotenv from 'dotenv';
 import Stripe from 'stripe';
 import { logAudit, auditMiddleware, getAuditStats, flushAuditBuffer } from './auditLogger.js';
 import { storeReceipt } from './receiptService.js';
+import billingRetryService from './billingRetryService.js';
+import prorationService from './prorationService.js';
+import analyticsService from './analyticsService.js';
+import trialManagementService from './trialManagementService.js';
+import couponService from './couponService.js';
+import { churnPredictionService } from './churnPredictionService.js';
+import reportBuilderService from './reportBuilderService.js';
+import schedulerService from './schedulerService.js';
+import * as revenueAnalysisService from './revenueAnalysisService.js';
+import * as customerHealthService from './customerHealthService.js';
+import * as subscriptionLifecycleService from './subscriptionLifecycleService.js';
+import * as exportCenterService from './exportCenterService.js';
 import PDFDocument from 'pdfkit';
 import { randomUUID } from 'crypto';
 import * as Sentry from '@sentry/node';
@@ -108,7 +120,7 @@ const paymentLimiter = rateLimit({
 });
 app.use('/api/payments/create', paymentLimiter);
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 const serviceApiKey = process.env.SERVICE_API_KEY;
 const requireApiKey = (req, res, next) => {
     if (!serviceApiKey) {
@@ -1274,8 +1286,27 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                         await pbUpdate('payment_intents', paymentIntent.id, {
                             status: 'succeeded',
                             amount_received: paymentIntent.amount_received,
+                            charges: paymentIntent.charges?.data?.map(c => c.id),
+                            receipt_email: paymentIntent.receipt_email,
                             updated: new Date().toISOString()
                         });
+
+                        // Create receipt record
+                        const receiptData = {
+                            payment_intent: paymentIntent.id,
+                            customer: paymentIntent.customer,
+                            amount: paymentIntent.amount_received,
+                            currency: paymentIntent.currency,
+                            payment_method: paymentIntent.payment_method,
+                            receipt_email: paymentIntent.receipt_email,
+                            description: paymentIntent.description || 'Payment',
+                            metadata: JSON.stringify(paymentIntent.metadata || {}),
+                            created_at: new Date(paymentIntent.created * 1000).toISOString(),
+                            tenantId: paymentIntent.metadata?.tenantId || 'unknown'
+                        };
+
+                        await pbCreate('receipts', receiptData);
+                        console.log('Receipt created for payment:', paymentIntent.id);
                     } catch (dbError) {
                         console.error('Failed to update payment intent in database:', dbError);
                         throw dbError; // Trigger retry
@@ -1291,7 +1322,9 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                     metadata: {
                         amount: paymentIntent.amount_received,
                         currency: paymentIntent.currency,
-                        customer: paymentIntent.customer
+                        customer: paymentIntent.customer,
+                        payment_method: paymentIntent.payment_method,
+                        description: paymentIntent.description
                     },
                     severity: 'low'
                 });
@@ -1312,6 +1345,17 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                     } catch (dbError) {
                         console.error('Failed to update invoice in database:', dbError);
                         throw dbError; // Trigger retry
+                    }
+                }
+
+                // Reset retry counter on successful payment
+                if (invoice.subscription) {
+                    try {
+                        await billingRetryService.resetRetryCounter(invoice.subscription);
+                        console.log(`Retry counter reset for subscription ${invoice.subscription}`);
+                    } catch (retryError) {
+                        console.error('Failed to reset retry counter:', retryError);
+                        // Non-critical - continue processing
                     }
                 }
 
@@ -1375,6 +1419,61 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                 });
                 break;
 
+            case 'invoice.payment_failed':
+                const failedInvoice = event.data.object;
+                console.error('Invoice payment failed:', failedInvoice.id, failedInvoice.last_finalization_error?.message);
+
+                // Update invoice status in database
+                if (PB_URL && PB_TOKEN) {
+                    try {
+                        await pbUpdate('invoices', failedInvoice.id, {
+                            status: 'payment_failed',
+                            attempt_count: failedInvoice.attempt_count || 0,
+                            next_payment_attempt: failedInvoice.next_payment_attempt 
+                                ? new Date(failedInvoice.next_payment_attempt * 1000).toISOString() 
+                                : null,
+                            updated: new Date().toISOString()
+                        });
+                    } catch (dbError) {
+                        console.error('Failed to update invoice in database:', dbError);
+                    }
+                }
+
+                // Use billing retry service for intelligent retry scheduling
+                try {
+                    const retryResult = await billingRetryService.schedulePaymentRetry(failedInvoice);
+                    
+                    if (retryResult.success) {
+                        console.log(`Retry scheduled: Attempt ${retryResult.attemptCount}, Next retry: ${retryResult.nextRetryDate}`);
+                    } else {
+                        console.error(`Retry failed: ${retryResult.reason}, Action: ${retryResult.action}`);
+                    }
+                } catch (retryError) {
+                    console.error('Error in billing retry service:', retryError);
+                    // Continue execution - retry service failure shouldn't block webhook processing
+                }
+
+                // Log failed payment with retry info
+                await logAudit({
+                    action: 'webhook.invoice.payment_failed',
+                    resourceType: 'invoice',
+                    resourceId: failedInvoice.id,
+                    tenantId: failedInvoice.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        error: failedInvoice.last_finalization_error?.message,
+                        amount: failedInvoice.amount_due,
+                        currency: failedInvoice.currency,
+                        attempt_count: failedInvoice.attempt_count,
+                        customer: failedInvoice.customer,
+                        subscription: failedInvoice.subscription,
+                        next_retry: failedInvoice.next_payment_attempt 
+                            ? new Date(failedInvoice.next_payment_attempt * 1000).toISOString() 
+                            : 'none'
+                    },
+                    severity: 'high'
+                });
+                break;
+
             case 'payment_intent.payment_failed':
                 const failedPayment = event.data.object;
                 console.error('Payment failed:', failedPayment.id, failedPayment.last_payment_error?.message);
@@ -1391,6 +1490,85 @@ async function processWebhookWithRetry(event, retryCount = 0) {
                         currency: failedPayment.currency
                     },
                     severity: 'high'
+                });
+                break;
+
+            case 'customer.subscription.trial_will_end':
+                const trialSubscription = event.data.object;
+                const trialEndDate = new Date(trialSubscription.trial_end * 1000);
+                console.log(`Trial ending soon for subscription ${trialSubscription.id}:`, trialEndDate);
+
+                // Update subscription metadata
+                if (PB_URL && PB_TOKEN) {
+                    try {
+                        await pbUpdate('subscriptions', trialSubscription.id, {
+                            trial_end: trialEndDate.toISOString(),
+                            trial_ending_soon: true,
+                            updated: new Date().toISOString()
+                        });
+                    } catch (dbError) {
+                        console.error('Failed to update subscription trial status:', dbError);
+                    }
+                }
+
+                // Log trial ending notification
+                await logAudit({
+                    action: 'webhook.subscription.trial_will_end',
+                    resourceType: 'subscription',
+                    resourceId: trialSubscription.id,
+                    tenantId: trialSubscription.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        trial_end: trialEndDate.toISOString(),
+                        customer: trialSubscription.customer,
+                        plan: trialSubscription.items?.data?.[0]?.price?.id,
+                        days_until_end: Math.ceil((trialEndDate - new Date()) / (1000 * 60 * 60 * 24))
+                    },
+                    severity: 'medium'
+                });
+                break;
+
+            case 'invoice.upcoming':
+                const upcomingInvoice = event.data.object;
+                const dueDate = new Date(upcomingInvoice.period_end * 1000);
+                console.log(`Upcoming invoice for customer ${upcomingInvoice.customer}:`, upcomingInvoice.amount_due);
+
+                // Log upcoming invoice for proactive notifications
+                await logAudit({
+                    action: 'webhook.invoice.upcoming',
+                    resourceType: 'invoice',
+                    resourceId: upcomingInvoice.id || 'upcoming',
+                    tenantId: upcomingInvoice.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        customer: upcomingInvoice.customer,
+                        amount_due: upcomingInvoice.amount_due,
+                        currency: upcomingInvoice.currency,
+                        due_date: dueDate.toISOString(),
+                        subscription: upcomingInvoice.subscription,
+                        days_until_due: Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24))
+                    },
+                    severity: 'low'
+                });
+                break;
+
+            case 'charge.succeeded':
+                const charge = event.data.object;
+                console.log('Charge succeeded:', charge.id, charge.amount);
+
+                // Log successful charge for transaction history
+                await logAudit({
+                    action: 'webhook.charge.succeeded',
+                    resourceType: 'charge',
+                    resourceId: charge.id,
+                    tenantId: charge.metadata?.tenantId || 'unknown',
+                    metadata: {
+                        amount: charge.amount,
+                        currency: charge.currency,
+                        customer: charge.customer,
+                        payment_method: charge.payment_method,
+                        receipt_url: charge.receipt_url,
+                        invoice: charge.invoice
+                    },
+                    severity: 'low'
                 });
                 break;
 
@@ -1459,6 +1637,1025 @@ async function processWebhookWithRetry(event, retryCount = 0) {
         throw error;
     }
 }
+
+// ==========================================
+// BILLING RETRY MANAGEMENT API
+// ==========================================
+
+/**
+ * Manual retry of failed invoice
+ * POST /api/billing/retry/:invoiceId
+ */
+app.post('/api/billing/retry/:invoiceId', requireApiKey, async (req, res) => {
+    try {
+        const { invoiceId } = req.params;
+        
+        const result = await billingRetryService.retryInvoicePayment(invoiceId);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: result.message,
+                invoice: result.invoice
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: result.message,
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error('Error in manual retry endpoint:', error);
+        res.status(500).json({
+            message: 'Failed to retry invoice payment',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Update payment method and retry failed invoices
+ * POST /api/billing/update-payment-method
+ * Body: { customerId, paymentMethodId }
+ */
+app.post('/api/billing/update-payment-method', requireApiKey, async (req, res) => {
+    try {
+        const { customerId, paymentMethodId } = req.body;
+        
+        if (!customerId || !paymentMethodId) {
+            return res.status(400).json({
+                message: 'customerId and paymentMethodId are required'
+            });
+        }
+        
+        const result = await billingRetryService.updatePaymentMethodAndRetry(customerId, paymentMethodId);
+        
+        res.json({
+            success: true,
+            ...result
+        });
+    } catch (error) {
+        console.error('Error updating payment method:', error);
+        res.status(500).json({
+            message: 'Failed to update payment method',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get retry status for subscription
+ * GET /api/billing/retry-status/:subscriptionId
+ */
+app.get('/api/billing/retry-status/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        
+        const status = await billingRetryService.getRetryStatus(subscriptionId);
+        
+        res.json({
+            success: true,
+            ...status
+        });
+    } catch (error) {
+        console.error('Error getting retry status:', error);
+        res.status(500).json({
+            message: 'Failed to get retry status',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get billing retry configuration
+ * GET /api/billing/retry-config
+ */
+app.get('/api/billing/retry-config', requireApiKey, async (req, res) => {
+    try {
+        res.json({
+            success: true,
+            config: billingRetryService.RETRY_CONFIG
+        });
+    } catch (error) {
+        console.error('Error getting retry config:', error);
+        res.status(500).json({
+            message: 'Failed to get retry configuration',
+            error: error.message
+        });
+    }
+});
+
+// ==========================================
+// PRORATION MANAGEMENT API
+// ==========================================
+
+/**
+ * Calculate proration for plan change preview
+ * POST /api/billing/proration/calculate
+ * Body: { subscriptionId, newPriceId, prorationDate?, billingCycleAnchor? }
+ */
+app.post('/api/billing/proration/calculate', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId, newPriceId, prorationDate, billingCycleAnchor } = req.body;
+        
+        if (!subscriptionId || !newPriceId) {
+            return res.status(400).json({
+                message: 'subscriptionId and newPriceId are required'
+            });
+        }
+        
+        const result = await prorationService.calculateProration(subscriptionId, newPriceId, {
+            prorationDate,
+            billingCycleAnchor
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error calculating proration:', error);
+        res.status(500).json({
+            message: 'Failed to calculate proration',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Apply plan change with proration
+ * POST /api/billing/proration/apply
+ * Body: { subscriptionId, newPriceId, prorationBehavior?, paymentBehavior? }
+ */
+app.post('/api/billing/proration/apply', requireApiKey, requireTenant, async (req, res) => {
+    try {
+        const { subscriptionId, newPriceId, prorationBehavior, paymentBehavior, prorationDate, billingCycleAnchor } = req.body;
+        
+        if (!subscriptionId || !newPriceId) {
+            return res.status(400).json({
+                message: 'subscriptionId and newPriceId are required'
+            });
+        }
+        
+        const result = await prorationService.applyPlanChange(subscriptionId, newPriceId, {
+            prorationBehavior,
+            paymentBehavior,
+            prorationDate,
+            billingCycleAnchor
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error applying plan change:', error);
+        res.status(500).json({
+            message: 'Failed to apply plan change',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Schedule plan change at period end (no proration)
+ * POST /api/billing/proration/schedule
+ * Body: { subscriptionId, newPriceId }
+ */
+app.post('/api/billing/proration/schedule', requireApiKey, requireTenant, async (req, res) => {
+    try {
+        const { subscriptionId, newPriceId } = req.body;
+        
+        if (!subscriptionId || !newPriceId) {
+            return res.status(400).json({
+                message: 'subscriptionId and newPriceId are required'
+            });
+        }
+        
+        const result = await prorationService.schedulePlanChangeAtPeriodEnd(subscriptionId, newPriceId);
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error scheduling plan change:', error);
+        res.status(500).json({
+            message: 'Failed to schedule plan change',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Add proration credit to customer
+ * POST /api/billing/proration/credit
+ * Body: { customerId, amount, description }
+ */
+app.post('/api/billing/proration/credit', requireApiKey, async (req, res) => {
+    try {
+        const { customerId, amount, description } = req.body;
+        
+        if (!customerId || !amount) {
+            return res.status(400).json({
+                message: 'customerId and amount are required'
+            });
+        }
+        
+        const result = await prorationService.addProrationCredit(customerId, amount, description);
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error adding proration credit:', error);
+        res.status(500).json({
+            message: 'Failed to add proration credit',
+            error: error.message
+        });
+    }
+});
+
+// ==========================================
+// ANALYTICS API
+// ==========================================
+
+/**
+ * Get cohort analysis
+ * GET /api/analytics/cohorts
+ * Query: startDate, endDate, cohortBy (day|week|month), metric (retention|revenue|activity)
+ */
+app.get('/api/analytics/cohorts', requireApiKey, async (req, res) => {
+    try {
+        const { startDate, endDate, cohortBy, metric } = req.query;
+        
+        const result = await analyticsService.calculateCohortAnalysis({
+            startDate,
+            endDate,
+            cohortBy: cohortBy || 'month',
+            metric: metric || 'retention'
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error calculating cohort analysis:', error);
+        res.status(500).json({
+            message: 'Failed to calculate cohort analysis',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get retention curve
+ * GET /api/analytics/retention
+ * Query: startDate, period (day|week|month), maxPeriods
+ */
+app.get('/api/analytics/retention', requireApiKey, async (req, res) => {
+    try {
+        const { startDate, period, maxPeriods } = req.query;
+        
+        const result = await analyticsService.calculateRetentionCurve({
+            startDate,
+            period: period || 'month',
+            maxPeriods: maxPeriods ? parseInt(maxPeriods) : 12
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error calculating retention curve:', error);
+        res.status(500).json({
+            message: 'Failed to calculate retention curve',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get funnel analytics
+ * POST /api/analytics/funnel
+ * Body: { steps: [{ name, collection, filter }] }
+ */
+app.post('/api/analytics/funnel', requireApiKey, async (req, res) => {
+    try {
+        const { steps } = req.body;
+        
+        if (!steps || !Array.isArray(steps)) {
+            return res.status(400).json({
+                message: 'steps array is required'
+            });
+        }
+        
+        const result = await analyticsService.calculateFunnelAnalytics(steps);
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error calculating funnel analytics:', error);
+        res.status(500).json({
+            message: 'Failed to calculate funnel analytics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get MRR metrics
+ * GET /api/analytics/mrr
+ * Query: startDate, endDate
+ */
+app.get('/api/analytics/mrr', requireApiKey, async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        
+        const result = await analyticsService.calculateMRRMetrics({
+            startDate,
+            endDate
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error calculating MRR metrics:', error);
+        res.status(500).json({
+            message: 'Failed to calculate MRR metrics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get LTV metrics
+ * GET /api/analytics/ltv
+ */
+app.get('/api/analytics/ltv', requireApiKey, async (req, res) => {
+    try {
+        const result = await analyticsService.calculateLTVMetrics();
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error calculating LTV metrics:', error);
+        res.status(500).json({
+            message: 'Failed to calculate LTV metrics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Export analytics report (PDF/Excel)
+ * POST /api/analytics/export
+ * Body: { type: 'cohorts'|'retention'|'mrr'|'ltv', format: 'pdf'|'excel', options: {...} }
+ */
+app.post('/api/analytics/export', requireApiKey, async (req, res) => {
+    try {
+        const { type, format, options } = req.body;
+        
+        if (!type || !format) {
+            return res.status(400).json({
+                message: 'type and format are required'
+            });
+        }
+        
+        let data;
+        let filename;
+        
+        // Get analytics data based on type
+        switch (type) {
+            case 'cohorts':
+                data = await analyticsService.calculateCohortAnalysis(options || {});
+                filename = `cohort-analysis-${new Date().toISOString().split('T')[0]}`;
+                break;
+            case 'retention':
+                data = await analyticsService.calculateRetentionCurve(options || {});
+                filename = `retention-curve-${new Date().toISOString().split('T')[0]}`;
+                break;
+            case 'mrr':
+                data = await analyticsService.calculateMRRMetrics(options || {});
+                filename = `mrr-report-${new Date().toISOString().split('T')[0]}`;
+                break;
+            case 'ltv':
+                data = await analyticsService.calculateLTVMetrics(options || {});
+                filename = `ltv-report-${new Date().toISOString().split('T')[0]}`;
+                break;
+            default:
+                return res.status(400).json({
+                    message: 'Invalid report type'
+                });
+        }
+        
+        if (format === 'pdf') {
+            // Generate PDF
+            const doc = new PDFDocument({ margin: 50 });
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+            doc.pipe(res);
+            
+            // PDF Header
+            doc.fontSize(20).text(`${type.toUpperCase()} Report`, { align: 'center' });
+            doc.moveDown();
+            doc.fontSize(10).text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+            doc.moveDown(2);
+            
+            // PDF Content based on report type
+            if (type === 'cohorts' && data.cohorts) {
+                doc.fontSize(14).text('Cohort Analysis', { underline: true });
+                doc.moveDown();
+                
+                data.cohorts.forEach((cohort, index) => {
+                    if (index > 0) doc.moveDown();
+                    doc.fontSize(12).text(`Cohort: ${cohort.cohort}`, { bold: true });
+                    doc.fontSize(10)
+                        .text(`Size: ${cohort.size} users`)
+                        .text(`Revenue: $${cohort.revenue.toFixed(2)}`)
+                        .text(`Avg LTV: $${cohort.avgLifetimeValue.toFixed(2)}`);
+                    
+                    if (cohort.retention && cohort.retention.length > 0) {
+                        doc.moveDown(0.5);
+                        doc.text('Retention by Period:');
+                        cohort.retention.slice(0, 6).forEach(r => {
+                            doc.text(`  Period ${r.period}: ${r.retentionRate.toFixed(1)}%`);
+                        });
+                    }
+                });
+            } else if (type === 'retention' && data.curve) {
+                doc.fontSize(14).text('Retention Curve', { underline: true });
+                doc.moveDown();
+                doc.fontSize(10).text(`Total Users: ${data.totalUsers}`);
+                doc.moveDown();
+                
+                data.curve.forEach(point => {
+                    doc.text(`${point.periodLabel}: ${point.retentionRate.toFixed(1)}% retained (${point.retainedUsers} users)`);
+                });
+            } else if (type === 'mrr' && data.current) {
+                doc.fontSize(14).text('MRR Report', { underline: true });
+                doc.moveDown();
+                
+                doc.fontSize(12).text('Current Metrics:', { bold: true });
+                doc.fontSize(10)
+                    .text(`MRR: $${data.current.mrr.toLocaleString()}`)
+                    .text(`ARR: $${data.current.arr.toLocaleString()}`)
+                    .text(`Active Subscriptions: ${data.current.activeSubscriptions}`)
+                    .text(`ARPU: $${data.current.avgRevenuePerUser.toFixed(2)}`);
+                
+                doc.moveDown();
+                doc.fontSize(12).text('Growth:', { bold: true });
+                doc.fontSize(10)
+                    .text(`MRR Growth: $${data.growth.mrrGrowth.toLocaleString()}`)
+                    .text(`Growth Rate: ${data.growth.mrrGrowthRate.toFixed(2)}%`);
+                
+                doc.moveDown();
+                doc.fontSize(12).text('Churn:', { bold: true });
+                doc.fontSize(10)
+                    .text(`Churned MRR: $${data.churn.churnedMRR.toLocaleString()}`)
+                    .text(`Churn Rate: ${data.churn.churnRate.toFixed(2)}%`);
+            } else if (type === 'ltv' && data.overall) {
+                doc.fontSize(14).text('LTV Report', { underline: true });
+                doc.moveDown();
+                
+                doc.fontSize(12).text('Overall Metrics:', { bold: true });
+                doc.fontSize(10)
+                    .text(`Avg LTV: $${data.overall.avgLTV.toFixed(2)}`)
+                    .text(`Avg Lifetime: ${data.overall.avgLifetimeMonths.toFixed(1)} months`)
+                    .text(`Avg Monthly Value: $${data.overall.avgMonthlyValue.toFixed(2)}`)
+                    .text(`Total Customers: ${data.overall.totalCustomers}`);
+                
+                if (data.byPlan && data.byPlan.length > 0) {
+                    doc.moveDown();
+                    doc.fontSize(12).text('By Plan:', { bold: true });
+                    data.byPlan.forEach(plan => {
+                        doc.fontSize(10).text(`${plan.plan}: $${plan.avgLTV.toFixed(2)} LTV (${plan.customers} customers)`);
+                    });
+                }
+            }
+            
+            doc.end();
+        } else if (format === 'excel') {
+            // For Excel, return JSON data that frontend can convert
+            res.json({
+                success: true,
+                filename: `${filename}.xlsx`,
+                data,
+                format: 'excel'
+            });
+        } else {
+            res.status(400).json({
+                message: 'Invalid format. Use pdf or excel'
+            });
+        }
+    } catch (error) {
+        console.error('Error exporting analytics:', error);
+        res.status(500).json({
+            message: 'Failed to export analytics',
+            error: error.message
+        });
+    }
+});
+
+// ==========================================
+// TRIAL MANAGEMENT API
+// ==========================================
+
+/**
+ * Create trial subscription
+ * POST /api/trial/create
+ * Body: { customerId, priceId, trialDays }
+ */
+app.post('/api/trial/create', requireApiKey, async (req, res) => {
+    try {
+        const { customerId, priceId, trialDays } = req.body;
+        
+        if (!customerId || !priceId) {
+            return res.status(400).json({
+                message: 'customerId and priceId are required'
+            });
+        }
+        
+        const subscription = await trialManagementService.createTrialSubscription(
+            customerId,
+            priceId,
+            trialDays || 14
+        );
+        
+        res.json({
+            success: true,
+            subscription
+        });
+    } catch (error) {
+        console.error('Error creating trial subscription:', error);
+        res.status(500).json({
+            message: 'Failed to create trial subscription',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get all active trials
+ * GET /api/trial/active
+ */
+app.get('/api/trial/active', requireApiKey, async (req, res) => {
+    try {
+        const trials = await trialManagementService.getActiveTrials();
+        
+        res.json({
+            success: true,
+            count: trials.length,
+            trials
+        });
+    } catch (error) {
+        console.error('Error fetching active trials:', error);
+        res.status(500).json({
+            message: 'Failed to fetch active trials',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get trials expiring soon
+ * GET /api/trial/expiring
+ * Query: daysThreshold (default: 3)
+ */
+app.get('/api/trial/expiring', requireApiKey, async (req, res) => {
+    try {
+        const daysThreshold = parseInt(req.query.daysThreshold) || 3;
+        const trials = await trialManagementService.getExpiringTrials(daysThreshold);
+        
+        res.json({
+            success: true,
+            daysThreshold,
+            count: trials.length,
+            trials
+        });
+    } catch (error) {
+        console.error('Error fetching expiring trials:', error);
+        res.status(500).json({
+            message: 'Failed to fetch expiring trials',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Convert trial to paid subscription
+ * POST /api/trial/convert/:subscriptionId
+ */
+app.post('/api/trial/convert/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        
+        const subscription = await trialManagementService.convertTrialToPaid(subscriptionId);
+        
+        res.json({
+            success: true,
+            subscription
+        });
+    } catch (error) {
+        console.error('Error converting trial:', error);
+        res.status(500).json({
+            message: 'Failed to convert trial',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Extend trial period
+ * POST /api/trial/extend/:subscriptionId
+ * Body: { additionalDays }
+ */
+app.post('/api/trial/extend/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        const { additionalDays } = req.body;
+        
+        const subscription = await trialManagementService.extendTrial(
+            subscriptionId,
+            additionalDays || 7
+        );
+        
+        res.json({
+            success: true,
+            subscription
+        });
+    } catch (error) {
+        console.error('Error extending trial:', error);
+        res.status(500).json({
+            message: 'Failed to extend trial',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Cancel trial subscription
+ * POST /api/trial/cancel/:subscriptionId
+ * Body: { reason }
+ */
+app.post('/api/trial/cancel/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        const { reason } = req.body;
+        
+        const subscription = await trialManagementService.cancelTrial(
+            subscriptionId,
+            reason || 'customer_request'
+        );
+        
+        res.json({
+            success: true,
+            subscription
+        });
+    } catch (error) {
+        console.error('Error cancelling trial:', error);
+        res.status(500).json({
+            message: 'Failed to cancel trial',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get trial conversion metrics
+ * GET /api/trial/metrics
+ * Query: startDate, endDate
+ */
+app.get('/api/trial/metrics', requireApiKey, async (req, res) => {
+    try {
+        const startDate = req.query.startDate ? new Date(req.query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+        
+        const metrics = await trialManagementService.getConversionMetrics(startDate, endDate);
+        
+        res.json({
+            success: true,
+            metrics
+        });
+    } catch (error) {
+        console.error('Error fetching trial metrics:', error);
+        res.status(500).json({
+            message: 'Failed to fetch trial metrics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Send trial reminders (manual trigger)
+ * POST /api/trial/send-reminders
+ */
+app.post('/api/trial/send-reminders', requireApiKey, async (req, res) => {
+    try {
+        const result = await trialManagementService.sendTrialReminders();
+        
+        res.json({
+            success: true,
+            ...result
+        });
+    } catch (error) {
+        console.error('Error sending trial reminders:', error);
+        res.status(500).json({
+            message: 'Failed to send trial reminders',
+            error: error.message
+        });
+    }
+});
+
+// ==========================================
+// COUPON & DISCOUNT CODE API
+// ==========================================
+
+/**
+ * Create a coupon
+ * POST /api/coupons/create
+ * Body: { code, percentOff?, amountOff?, currency?, duration, durationInMonths?, maxRedemptions?, redeemBy?, metadata? }
+ */
+app.post('/api/coupons/create', requireApiKey, async (req, res) => {
+    try {
+        const coupon = await couponService.createCoupon(req.body);
+        
+        res.json({
+            success: true,
+            coupon
+        });
+    } catch (error) {
+        console.error('Error creating coupon:', error);
+        res.status(500).json({
+            message: 'Failed to create coupon',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Create a promotion code
+ * POST /api/coupons/promo/create
+ * Body: { couponId, code, active?, maxRedemptions?, firstTimeTransaction?, minimumAmount?, expiresAt?, metadata? }
+ */
+app.post('/api/coupons/promo/create', requireApiKey, async (req, res) => {
+    try {
+        const promotionCode = await couponService.createPromotionCode(req.body);
+        
+        res.json({
+            success: true,
+            promotionCode
+        });
+    } catch (error) {
+        console.error('Error creating promotion code:', error);
+        res.status(500).json({
+            message: 'Failed to create promotion code',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get all coupons
+ * GET /api/coupons
+ */
+app.get('/api/coupons', requireApiKey, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 100;
+        const coupons = await couponService.getAllCoupons(limit);
+        
+        res.json({
+            success: true,
+            count: coupons.length,
+            coupons
+        });
+    } catch (error) {
+        console.error('Error fetching coupons:', error);
+        res.status(500).json({
+            message: 'Failed to fetch coupons',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get all promotion codes
+ * GET /api/coupons/promo
+ * Query: active (true|false), limit
+ */
+app.get('/api/coupons/promo', requireApiKey, async (req, res) => {
+    try {
+        const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : null;
+        const limit = parseInt(req.query.limit) || 100;
+        
+        const promotionCodes = await couponService.getAllPromotionCodes(active, limit);
+        
+        res.json({
+            success: true,
+            count: promotionCodes.length,
+            promotionCodes
+        });
+    } catch (error) {
+        console.error('Error fetching promotion codes:', error);
+        res.status(500).json({
+            message: 'Failed to fetch promotion codes',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Validate a promotion code
+ * POST /api/coupons/validate
+ * Body: { code, customerId? }
+ */
+app.post('/api/coupons/validate', async (req, res) => {
+    try {
+        const { code, customerId } = req.body;
+        
+        if (!code) {
+            return res.status(400).json({
+                message: 'code is required'
+            });
+        }
+        
+        const result = await couponService.validatePromotionCode(code, customerId);
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error validating promotion code:', error);
+        res.status(500).json({
+            message: 'Failed to validate promotion code',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Apply promotion code to subscription
+ * POST /api/coupons/apply/:subscriptionId
+ * Body: { promotionCodeId }
+ */
+app.post('/api/coupons/apply/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        const { promotionCodeId } = req.body;
+        
+        if (!promotionCodeId) {
+            return res.status(400).json({
+                message: 'promotionCodeId is required'
+            });
+        }
+        
+        const subscription = await couponService.applyToSubscription(subscriptionId, promotionCodeId);
+        
+        res.json({
+            success: true,
+            subscription
+        });
+    } catch (error) {
+        console.error('Error applying promotion code:', error);
+        res.status(500).json({
+            message: 'Failed to apply promotion code',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Remove discount from subscription
+ * DELETE /api/coupons/remove/:subscriptionId
+ */
+app.delete('/api/coupons/remove/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        
+        const subscription = await couponService.removeFromSubscription(subscriptionId);
+        
+        res.json({
+            success: true,
+            subscription
+        });
+    } catch (error) {
+        console.error('Error removing discount:', error);
+        res.status(500).json({
+            message: 'Failed to remove discount',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Deactivate a promotion code
+ * POST /api/coupons/promo/deactivate/:promotionCodeId
+ */
+app.post('/api/coupons/promo/deactivate/:promotionCodeId', requireApiKey, async (req, res) => {
+    try {
+        const { promotionCodeId } = req.params;
+        
+        const promotionCode = await couponService.deactivatePromotionCode(promotionCodeId);
+        
+        res.json({
+            success: true,
+            promotionCode
+        });
+    } catch (error) {
+        console.error('Error deactivating promotion code:', error);
+        res.status(500).json({
+            message: 'Failed to deactivate promotion code',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Delete a coupon
+ * DELETE /api/coupons/:couponId
+ */
+app.delete('/api/coupons/:couponId', requireApiKey, async (req, res) => {
+    try {
+        const { couponId } = req.params;
+        
+        const result = await couponService.deleteCoupon(couponId);
+        
+        res.json({
+            success: true,
+            deleted: result.deleted
+        });
+    } catch (error) {
+        console.error('Error deleting coupon:', error);
+        res.status(500).json({
+            message: 'Failed to delete coupon',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Get coupon usage statistics
+ * GET /api/coupons/stats/:couponId
+ */
+app.get('/api/coupons/stats/:couponId', requireApiKey, async (req, res) => {
+    try {
+        const { couponId } = req.params;
+        
+        const stats = await couponService.getCouponStats(couponId);
+        
+        res.json({
+            success: true,
+            stats
+        });
+    } catch (error) {
+        console.error('Error fetching coupon stats:', error);
+        res.status(500).json({
+            message: 'Failed to fetch coupon stats',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Create bulk promotion codes
+ * POST /api/coupons/promo/bulk
+ * Body: { couponId, prefix, count, expiresAt?, maxRedemptionsPerCode?, metadata? }
+ */
+app.post('/api/coupons/promo/bulk', requireApiKey, async (req, res) => {
+    try {
+        const result = await couponService.createBulkPromotionCodes(req.body);
+        
+        res.json({
+            success: true,
+            ...result
+        });
+    } catch (error) {
+        console.error('Error creating bulk promotion codes:', error);
+        res.status(500).json({
+            message: 'Failed to create bulk promotion codes',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Send promotion code via email
+ * POST /api/coupons/send-email
+ * Body: { email, customerName, code }
+ */
+app.post('/api/coupons/send-email', requireApiKey, async (req, res) => {
+    try {
+        const { email, customerName, code } = req.body;
+        
+        if (!email || !code) {
+            return res.status(400).json({
+                message: 'email and code are required'
+            });
+        }
+        
+        // Validate and get coupon details
+        const validation = await couponService.validatePromotionCode(code);
+        if (!validation.valid) {
+            return res.status(400).json({
+                message: validation.error
+            });
+        }
+        
+        await couponService.sendPromotionEmail(email, customerName, code, validation.coupon);
+        
+        res.json({
+            success: true,
+            message: 'Promotion email sent'
+        });
+    } catch (error) {
+        console.error('Error sending promotion email:', error);
+        res.status(500).json({
+            message: 'Failed to send promotion email',
+            error: error.message
+        });
+    }
+});
 
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -1529,14 +2726,745 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({
+// ============================================
+// Churn Prediction API Endpoints
+// ============================================
+
+// Calculate churn risk for a specific customer
+app.post('/api/churn/analyze/:customerId', requireApiKey, async (req, res) => {
+    try {
+        const { customerId } = req.params;
+        const analysis = await churnPredictionService.calculateChurnRisk(customerId);
+        
+        logAudit({
+            action: 'churn_risk_calculated',
+            customerId,
+            riskScore: analysis.riskScore,
+            riskLevel: analysis.riskLevel
+        });
+        
+        res.json(analysis);
+    } catch (error) {
+        console.error('Error calculating churn risk:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all at-risk customers
+app.get('/api/churn/at-risk', requireApiKey, async (req, res) => {
+    try {
+        const minRiskScore = parseInt(req.query.minRiskScore) || 50;
+        const limit = parseInt(req.query.limit) || 100;
+        
+        const atRiskCustomers = await churnPredictionService.getAtRiskCustomers(minRiskScore, limit);
+        
+        res.json({
+            minRiskScore,
+            count: atRiskCustomers.length,
+            customers: atRiskCustomers
+        });
+    } catch (error) {
+        console.error('Error fetching at-risk customers:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Generate full churn report
+app.get('/api/churn/report', requireApiKey, async (req, res) => {
+    try {
+        const report = await churnPredictionService.generateChurnReport();
+        
+        logAudit({
+            action: 'churn_report_generated',
+            totalCustomers: report.totalCustomers,
+            atRiskCount: report.atRiskCount
+        });
+        
+        res.json(report);
+    } catch (error) {
+        console.error('Error generating churn report:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Execute retention actions for a customer
+app.post('/api/churn/retention/:customerId', requireApiKey, async (req, res) => {
+    try {
+        const { customerId } = req.params;
+        const result = await churnPredictionService.executeRetentionActions(customerId);
+        
+        logAudit({
+            action: 'retention_actions_executed',
+            customerId,
+            actionsCount: result.actions.length
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Error executing retention actions:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cohort churn analysis
+app.get('/api/churn/cohort-analysis', requireApiKey, async (req, res) => {
+    try {
+        const { startDate, endDate, cohortBy = 'month' } = req.query;
+        
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate and endDate are required' });
+        }
+        
+        const analysis = await churnPredictionService.analyzeCohortChurn(
+            new Date(startDate),
+            new Date(endDate),
+            cohortBy
+        );
+        
+        res.json(analysis);
+    } catch (error) {
+        console.error('Error analyzing cohort churn:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================
+// Custom Report Builder API Endpoints
+// ============================================
+
+// Build custom report
+app.post('/api/reports/build', requireApiKey, async (req, res) => {
+    try {
+        const reportSpec = req.body;
+        const report = await reportBuilderService.buildReport(reportSpec);
+        
+        logAudit({
+            action: 'report_built',
+            reportType: reportSpec.type,
+            recordCount: report.totalRecords
+        });
+        
+        res.json(report);
+    } catch (error) {
+        console.error('Error building report:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export report to PDF
+app.post('/api/reports/export/pdf', requireApiKey, async (req, res) => {
+    try {
+        const reportData = req.body;
+        const pdfBuffer = await reportBuilderService.exportToPDF(reportData, 'report.pdf');
+        
+        logAudit({
+            action: 'report_exported_pdf',
+            reportType: reportData.type
+        });
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=report.pdf');
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Error exporting to PDF:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export report to Excel
+app.post('/api/reports/export/excel', requireApiKey, async (req, res) => {
+    try {
+        const reportData = req.body;
+        const excelBuffer = await reportBuilderService.exportToExcel(reportData, 'report.xlsx');
+        
+        logAudit({
+            action: 'report_exported_excel',
+            reportType: reportData.type
+        });
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=report.xlsx');
+        res.send(excelBuffer);
+    } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Save report template
+app.post('/api/reports/templates', requireApiKey, async (req, res) => {
+    try {
+        const { name, spec, description } = req.body;
+        const template = await reportBuilderService.saveTemplate(name, spec, description);
+        
+        logAudit({
+            action: 'report_template_saved',
+            templateName: name
+        });
+        
+        res.json(template);
+    } catch (error) {
+        console.error('Error saving report template:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all report templates
+app.get('/api/reports/templates', requireApiKey, async (req, res) => {
+    try {
+        const templates = await reportBuilderService.getTemplates();
+        res.json({ templates });
+    } catch (error) {
+        console.error('Error fetching report templates:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================
+// Scheduler API Endpoints
+// ============================================
+
+// Get scheduler status and all jobs
+app.get('/api/scheduler/status', requireApiKey, async (req, res) => {
+    try {
+        const status = schedulerService.getJobsStatus();
+        res.json(status);
+    } catch (error) {
+        console.error('Error getting scheduler status:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Start the scheduler
+app.post('/api/scheduler/start', requireApiKey, async (req, res) => {
+    try {
+        schedulerService.start();
+        res.json({ 
+            success: true, 
+            message: 'Scheduler started',
+            status: schedulerService.getJobsStatus()
+        });
+    } catch (error) {
+        console.error('Error starting scheduler:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Stop the scheduler
+app.post('/api/scheduler/stop', requireApiKey, async (req, res) => {
+    try {
+        schedulerService.stop();
+        res.json({ 
+            success: true, 
+            message: 'Scheduler stopped'
+        });
+    } catch (error) {
+        console.error('Error stopping scheduler:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Manually trigger a specific job
+app.post('/api/scheduler/trigger/:jobName', requireApiKey, async (req, res) => {
+    try {
+        const { jobName } = req.params;
+        await schedulerService.triggerJob(jobName);
+        
+        logAudit({
+            action: 'scheduler_job_triggered',
+            jobName
+        });
+        
+        res.json({ 
+            success: true, 
+            message: `Job ${jobName} triggered successfully`
+        });
+    } catch (error) {
+        console.error('Error triggering job:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== REVENUE ANALYSIS ENDPOINTS =====
+
+// Get comprehensive revenue dashboard
+app.get('/api/revenue/dashboard', requireApiKey, async (req, res) => {
+    try {
+        const dashboard = await revenueAnalysisService.getRevenueDashboard();
+        res.json(dashboard);
+    } catch (error) {
+        console.error('Error fetching revenue dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get MRR calculation
+app.get('/api/revenue/mrr', requireApiKey, async (req, res) => {
+    try {
+        const mrr = await revenueAnalysisService.calculateMRR();
+        res.json(mrr);
+    } catch (error) {
+        console.error('Error calculating MRR:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get revenue growth
+app.get('/api/revenue/growth', requireApiKey, async (req, res) => {
+    try {
+        const months = parseInt(req.query.months) || 12;
+        const growth = await revenueAnalysisService.getRevenueGrowth(months);
+        res.json(growth);
+    } catch (error) {
+        console.error('Error fetching revenue growth:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get cohort analysis
+app.get('/api/revenue/cohorts', requireApiKey, async (req, res) => {
+    try {
+        const cohorts = await revenueAnalysisService.getCohortAnalysis();
+        res.json(cohorts);
+    } catch (error) {
+        console.error('Error analyzing cohorts:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get revenue forecast
+app.get('/api/revenue/forecast', requireApiKey, async (req, res) => {
+    try {
+        const monthsAhead = parseInt(req.query.months) || 6;
+        const forecast = await revenueAnalysisService.forecastRevenue(monthsAhead);
+        res.json(forecast);
+    } catch (error) {
+        console.error('Error forecasting revenue:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get churn impact analysis
+app.get('/api/revenue/churn-impact', requireApiKey, async (req, res) => {
+    try {
+        const impact = await revenueAnalysisService.analyzeChurnImpact();
+        res.json(impact);
+    } catch (error) {
+        console.error('Error analyzing churn impact:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================================
+// Customer Health API Endpoints
+// ============================================================================
+
+// Get customer health dashboard
+app.get('/api/customer-health/dashboard', requireApiKey, async (req, res) => {
+    try {
+        const dashboard = await customerHealthService.getCustomerHealthDashboard();
+        res.json(dashboard);
+    } catch (error) {
+        console.error('Error fetching customer health dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get customer health scores
+app.get('/api/customer-health/scores', requireApiKey, async (req, res) => {
+    try {
+        const customerId = req.query.customerId;
+        if (!customerId) {
+            return res.status(400).json({ error: 'customerId is required' });
+        }
+        const score = await customerHealthService.calculateHealthScore(customerId);
+        res.json(score);
+    } catch (error) {
+        console.error('Error calculating health score:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get engagement metrics
+app.get('/api/customer-health/engagement', requireApiKey, async (req, res) => {
+    try {
+        const engagement = await customerHealthService.getEngagementMetrics();
+        res.json(engagement);
+    } catch (error) {
+        console.error('Error fetching engagement metrics:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get usage patterns
+app.get('/api/customer-health/usage', requireApiKey, async (req, res) => {
+    try {
+        const usage = await customerHealthService.analyzeUsagePatterns();
+        res.json(usage);
+    } catch (error) {
+        console.error('Error analyzing usage patterns:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get churn risk analysis
+app.get('/api/customer-health/risk-analysis', requireApiKey, async (req, res) => {
+    try {
+        const risk = await customerHealthService.predictChurnRisk();
+        res.json(risk);
+    } catch (error) {
+        console.error('Error predicting churn risk:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get customer segments
+app.get('/api/customer-health/segments', requireApiKey, async (req, res) => {
+    try {
+        const segments = await customerHealthService.getCustomerSegments();
+        res.json(segments);
+    } catch (error) {
+        console.error('Error fetching customer segments:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get health trends
+app.get('/api/customer-health/trends', requireApiKey, async (req, res) => {
+    try {
+        const months = parseInt(req.query.months) || 6;
+        const trends = await customerHealthService.getHealthTrends(months);
+        res.json(trends);
+    } catch (error) {
+        console.error('Error fetching health trends:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================================
+// Subscription Lifecycle API Endpoints
+// ============================================================================
+
+// Get lifecycle dashboard
+app.get('/api/subscription-lifecycle/dashboard', requireApiKey, async (req, res) => {
+    try {
+        const dashboard = await subscriptionLifecycleService.getLifecycleDashboard();
+        res.json(dashboard);
+    } catch (error) {
+        console.error('Error fetching lifecycle dashboard:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get subscription statuses
+app.get('/api/subscription-lifecycle/statuses', requireApiKey, async (req, res) => {
+    try {
+        const status = req.query.status || null;
+        const statuses = await subscriptionLifecycleService.getSubscriptionStatuses(status);
+        res.json(statuses);
+    } catch (error) {
+        console.error('Error fetching subscription statuses:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Upgrade subscription
+app.post('/api/subscription-lifecycle/upgrade', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId, newPriceId } = req.body;
+        if (!subscriptionId || !newPriceId) {
+            return res.status(400).json({ error: 'subscriptionId and newPriceId are required' });
+        }
+        const result = await subscriptionLifecycleService.upgradeSubscription(subscriptionId, newPriceId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error upgrading subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Downgrade subscription
+app.post('/api/subscription-lifecycle/downgrade', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId, newPriceId } = req.body;
+        if (!subscriptionId || !newPriceId) {
+            return res.status(400).json({ error: 'subscriptionId and newPriceId are required' });
+        }
+        const result = await subscriptionLifecycleService.downgradeSubscription(subscriptionId, newPriceId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error downgrading subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cancel subscription
+app.post('/api/subscription-lifecycle/cancel', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId, immediately, reason, feedback } = req.body;
+        if (!subscriptionId) {
+            return res.status(400).json({ error: 'subscriptionId is required' });
+        }
+        const result = await subscriptionLifecycleService.cancelSubscription(subscriptionId, {
+            immediately: immediately || false,
+            reason,
+            feedback
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Error canceling subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Reactivate subscription
+app.post('/api/subscription-lifecycle/reactivate', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.body;
+        if (!subscriptionId) {
+            return res.status(400).json({ error: 'subscriptionId is required' });
+        }
+        const result = await subscriptionLifecycleService.reactivateSubscription(subscriptionId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error reactivating subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Pause subscription
+app.post('/api/subscription-lifecycle/pause', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId, resumeAt } = req.body;
+        if (!subscriptionId) {
+            return res.status(400).json({ error: 'subscriptionId is required' });
+        }
+        const result = await subscriptionLifecycleService.pauseSubscription(subscriptionId, resumeAt);
+        res.json(result);
+    } catch (error) {
+        console.error('Error pausing subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Resume subscription
+app.post('/api/subscription-lifecycle/resume', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.body;
+        if (!subscriptionId) {
+            return res.status(400).json({ error: 'subscriptionId is required' });
+        }
+        const result = await subscriptionLifecycleService.resumeSubscription(subscriptionId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error resuming subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get subscription history
+app.get('/api/subscription-lifecycle/history/:subscriptionId', requireApiKey, async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+        const history = await subscriptionLifecycleService.getSubscriptionHistory(subscriptionId);
+        res.json(history);
+    } catch (error) {
+        console.error('Error fetching subscription history:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get available plans
+app.get('/api/subscription-lifecycle/plans', requireApiKey, async (req, res) => {
+    try {
+        const plans = await subscriptionLifecycleService.getAvailablePlans();
+        res.json(plans);
+    } catch (error) {
+        console.error('Error fetching available plans:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================================
+// Export Center API Endpoints
+// ============================================================================
+
+// Get export history
+app.get('/api/export-center/history', requireApiKey, async (req, res) => {
+    try {
+        const history = await exportCenterService.getExportHistory();
+        res.json(history);
+    } catch (error) {
+        console.error('Error fetching export history:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export subscriptions to CSV
+app.post('/api/export-center/subscriptions-csv', requireApiKey, async (req, res) => {
+    try {
+        const result = await exportCenterService.exportSubscriptionsCSV();
+        res.json(result);
+    } catch (error) {
+        console.error('Error exporting subscriptions to CSV:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export revenue to Excel
+app.post('/api/export-center/revenue-excel', requireApiKey, async (req, res) => {
+    try {
+        const months = parseInt(req.body.months) || 12;
+        const result = await exportCenterService.exportRevenueExcel(months);
+        res.json(result);
+    } catch (error) {
+        console.error('Error exporting revenue to Excel:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export customer health to Excel
+app.post('/api/export-center/customer-health-excel', requireApiKey, async (req, res) => {
+    try {
+        const result = await exportCenterService.exportCustomerHealthExcel();
+        res.json(result);
+    } catch (error) {
+        console.error('Error exporting customer health to Excel:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export churn analysis to PDF
+app.post('/api/export-center/churn-pdf', requireApiKey, async (req, res) => {
+    try {
+        const result = await exportCenterService.exportChurnAnalysisPDF();
+        res.json(result);
+    } catch (error) {
+        console.error('Error exporting churn analysis to PDF:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export trial conversions to JSON
+app.post('/api/export-center/trial-json', requireApiKey, async (req, res) => {
+    try {
+        const result = await exportCenterService.exportTrialConversionsJSON();
+        res.json(result);
+    } catch (error) {
+        console.error('Error exporting trial conversions to JSON:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Export all data
+app.post('/api/export-center/all-data', requireApiKey, async (req, res) => {
+    try {
+        const result = await exportCenterService.exportAllData();
+        res.json(result);
+    } catch (error) {
+        console.error('Error exporting all data:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Download export file
+app.get('/api/export-center/download/:filename', requireApiKey, async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filepath = path.join(__dirname, 'exports', filename);
+        
+        // Check if file exists
+        await promises.access(filepath);
+        
+        res.download(filepath, filename);
+    } catch (error) {
+        console.error('Error downloading export:', error);
+        res.status(404).json({ error: 'File not found' });
+    }
+});
+
+// Delete export
+app.delete('/api/export-center/delete/:filename', requireApiKey, async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const result = await exportCenterService.deleteExport(filename);
+        res.json(result);
+    } catch (error) {
+        console.error('Error deleting export:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get revenue by date range
+app.get('/api/revenue/range', requireApiKey, async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate and endDate are required' });
+        }
+        const revenue = await revenueAnalysisService.getRevenueByDateRange(startDate, endDate);
+        res.json(revenue);
+    } catch (error) {
+        console.error('Error fetching revenue by date range:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Health check endpoint with comprehensive service checks
+app.get('/health', async (req, res) => {
+    const health = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development'
-    });
+        environment: process.env.NODE_ENV || 'development',
+        services: {}
+    };
+
+    try {
+        // Check Stripe connectivity
+        try {
+            await stripe.paymentIntents.list({ limit: 1 });
+            health.services.stripe = { status: 'connected', latency: 0 };
+        } catch (error) {
+            health.services.stripe = { status: 'error', error: error.message };
+            health.status = 'degraded';
+        }
+
+        // Check scheduler status
+        const schedulerStatus = schedulerService.getJobsStatus();
+        health.services.scheduler = {
+            status: schedulerStatus.isRunning ? 'running' : 'stopped',
+            jobCount: schedulerStatus.jobCount,
+            jobs: schedulerStatus.jobs.map(j => ({
+                name: j.name,
+                status: j.status,
+                lastRun: j.lastRun
+            }))
+        };
+
+        // Check memory usage
+        const memUsage = process.memoryUsage();
+        health.memory = {
+            heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+            heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+            rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`
+        };
+
+        // Check if memory usage is critical (>80% of heap)
+        const heapUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+        if (heapUsagePercent > 80) {
+            health.status = 'degraded';
+            health.memory.warning = 'High memory usage';
+        }
+
+        res.json(health);
+    } catch (error) {
+        res.status(500).json({
+            status: 'unhealthy',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
 });
 
 if (process.env.SENTRY_DSN) {
@@ -1546,4 +3474,7 @@ if (process.env.SENTRY_DSN) {
 // Start server
 app.listen(port, () => {
     console.log(`Payment server running at http://localhost:${port}`);
+    
+    // Start automated scheduler
+    schedulerService.start();
 });

@@ -243,10 +243,10 @@ export const AudienceManager: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             {/* Header */}
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Audience Segments</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Audience Segments</h2>
                 <div className="flex gap-2">
                     <Button variant="secondary" icon="ArrowPathIcon" onClick={loadAudiences}>
                         Refresh
@@ -269,38 +269,38 @@ export const AudienceManager: React.FC = () => {
             )}
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="p-4 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800">
-                    <div className="text-sm text-blue-600 font-bold uppercase mb-1">Total Contacts</div>
-                    <div className="text-3xl font-black text-gray-900 dark:text-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <Card className="p-2 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800">
+                    <div className="text-[8px] text-blue-600 font-bold uppercase mb-0.5">Total Contacts</div>
+                    <div className="text-base font-black text-gray-900 dark:text-white">
                         {totalSize.toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Across {audiences.length} audiences</div>
+                    <div className="text-[7px] text-gray-500 mt-0.5">Across {audiences.length} audiences</div>
                 </Card>
-                <Card className="p-4">
-                    <div className="text-sm text-gray-500 font-bold uppercase mb-1">Active Audiences</div>
-                    <div className="text-3xl font-black text-gray-900 dark:text-white">{readyCount}</div>
-                    <div className="text-xs text-green-600 flex items-center mt-1">
-                        <Icon name="CheckCircleIcon" className="w-3 h-3 mr-1" /> Ready to use
+                <Card className="p-2">
+                    <div className="text-[8px] text-gray-500 font-bold uppercase mb-0.5">Active Audiences</div>
+                    <div className="text-base font-black text-gray-900 dark:text-white">{readyCount}</div>
+                    <div className="text-[7px] text-green-600 flex items-center mt-0.5">
+                        <Icon name="CheckCircleIcon" className="w-2 h-2 mr-0.5" /> Ready to use
                     </div>
                 </Card>
-                <Card className="p-4">
-                    <div className="text-sm text-gray-500 font-bold uppercase mb-1">Building/Syncing</div>
-                    <div className="text-3xl font-black text-gray-900 dark:text-white">{buildingCount}</div>
-                    <div className="text-xs text-yellow-600 flex items-center mt-1">
-                        <Icon name="ClockIcon" className="w-3 h-3 mr-1" /> In progress
+                <Card className="p-2">
+                    <div className="text-[8px] text-gray-500 font-bold uppercase mb-0.5">Building/Syncing</div>
+                    <div className="text-base font-black text-gray-900 dark:text-white">{buildingCount}</div>
+                    <div className="text-[7px] text-yellow-600 flex items-center mt-0.5">
+                        <Icon name="ClockIcon" className="w-2 h-2 mr-0.5" /> In progress
                     </div>
                 </Card>
-                <Card className="p-4">
-                    <div className="text-sm text-gray-500 font-bold uppercase mb-1">Audience Types</div>
-                    <div className="text-3xl font-black text-gray-900 dark:text-white">4</div>
-                    <div className="text-xs text-gray-400 mt-1">Custom, Lookalike, Retargeting, Behavioral</div>
+                <Card className="p-2">
+                    <div className="text-[8px] text-gray-500 font-bold uppercase mb-0.5">Audience Types</div>
+                    <div className="text-base font-black text-gray-900 dark:text-white">4</div>
+                    <div className="text-[7px] text-gray-400 mt-0.5">Custom, Lookalike, Retargeting, Behavioral</div>
                 </Card>
             </div>
 
             {/* Filters */}
-            <Card className="p-4">
-                <div className="flex flex-wrap gap-4">
+            <Card className="p-2">
+                <div className="flex flex-wrap gap-2">
                     <div className="flex-1 min-w-[200px]">
                         <Input
                             placeholder="Search audiences..."
@@ -323,41 +323,41 @@ export const AudienceManager: React.FC = () => {
             </Card>
 
             {/* Audience Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {filteredAudiences.map((audience) => (
-                    <Card key={audience.id} className="p-5 hover:shadow-lg transition-shadow">
-                        <div className="flex justify-between items-start mb-3">
+                    <Card key={audience.id} className="p-2.5 hover:shadow-lg transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
                             <div>
-                                <h3 className="font-bold text-gray-900 dark:text-white text-lg">{audience.name}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{audience.description}</p>
+                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">{audience.name}</h3>
+                                <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">{audience.description}</p>
                             </div>
                             {getStatusBadge(audience.status)}
                         </div>
 
-                        <div className="space-y-3 mb-4">
+                        <div className="space-y-1.5 mb-2">
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-500">Type</span>
+                                <span className="text-[9px] text-gray-500">Type</span>
                                 {getTypeBadge(audience.type)}
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-500">Size</span>
-                                <span className="font-bold text-gray-900 dark:text-white">
+                                <span className="text-[9px] text-gray-500">Size</span>
+                                <span className="font-bold text-[10px] text-gray-900 dark:text-white">
                                     {audience.size.toLocaleString()}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-500">Source</span>
-                                <span className="text-sm text-gray-700 dark:text-gray-300">{audience.source}</span>
+                                <span className="text-[9px] text-gray-500">Source</span>
+                                <span className="text-[9px] text-gray-700 dark:text-gray-300">{audience.source}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-500">Last Synced</span>
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                <span className="text-[9px] text-gray-500">Last Synced</span>
+                                <span className="text-[9px] text-gray-700 dark:text-gray-300">
                                     {formatDate(audience.last_synced)}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex gap-1 pt-1.5 border-t border-gray-100 dark:border-gray-700">
                             <Button 
                                 size="sm" 
                                 variant="ghost" 

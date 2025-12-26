@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Server, Database, Clock, Activity, Shield, Globe,
   CheckCircle, AlertTriangle, XCircle, RefreshCw,
-  Cpu, HardDrive, MemoryStick, Wifi
+  Cpu, HardDrive, MemoryStick, Wifi, TrendingUp, TrendingDown,
+  Minus, Zap, Users
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { ownerService } from '../../services/ownerService';
+import { monitoringService } from '../../services/monitoringService';
+import { RecordModel } from 'pocketbase';
 
 interface ServiceStatus {
   name: string;
@@ -27,34 +31,76 @@ const SystemOverview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [services, setServices] = useState<ServiceStatus[]>([]);
+  const [realTimeStats, setRealTimeStats] = useState({
+    activeUsers: 0,
+    requestsPerMin: 0,
+    avgResponseTime: 0,
+    dbConnections: 0,
+    queriesPerSec: 0,
+    blockedAttacks: 0
+  });
+  const [performanceTrend, setPerformanceTrend] = useState<'up' | 'down' | 'stable'>('stable');
 
-  // Mock service statuses (would come from real monitoring in production)
-  const [services] = useState<ServiceStatus[]>([
-    { name: 'API Server', status: 'operational', latency: 45, uptime: 99.98, lastCheck: new Date() },
-    { name: 'Database', status: 'operational', latency: 12, uptime: 99.99, lastCheck: new Date() },
-    { name: 'Authentication', status: 'operational', latency: 28, uptime: 99.95, lastCheck: new Date() },
-    { name: 'Storage', status: 'operational', latency: 85, uptime: 99.92, lastCheck: new Date() },
-    { name: 'AI Service', status: 'operational', latency: 150, uptime: 99.85, lastCheck: new Date() },
-    { name: 'Email Service', status: 'operational', latency: 220, uptime: 99.90, lastCheck: new Date() },
-  ]);
-
-  const [metrics] = useState<SystemMetric[]>([
+  const [metrics, setMetrics] = useState<SystemMetric[]>([
     { name: 'CPU Usage', current: 42, max: 100, unit: '%', status: 'good' },
     { name: 'Memory', current: 6.2, max: 16, unit: 'GB', status: 'good' },
     { name: 'Storage', current: 245, max: 500, unit: 'GB', status: 'good' },
     { name: 'Bandwidth', current: 2.4, max: 10, unit: 'TB', status: 'good' },
   ]);
 
+  const fetchSystemHealth = useCallback(async () => {
+    try {
+      setLoading(true);
+      const healthData = await ownerService.getSystemHealth();
+      
+      const formattedServices: ServiceStatus[] = healthData.map((record: RecordModel) => ({
+        name: record.service_name || 'Unknown Service',
+        status: (record.status as 'operational' | 'degraded' | 'down') || 'operational',
+        latency: record.latency_ms || 0,
+        uptime: record.uptime_percentage || 0,
+        lastCheck: new Date(record.last_check || record.updated)
+      }));
+
+      setServices(formattedServices);
+      
+      // Fetch real-time stats
+      const stats = await monitoringService.getSystemStats();
+      setRealTimeStats(stats);
+      
+      // Update metrics with real values
+      setMetrics(prev => prev.map(metric => {
+        if (metric.name === 'CPU Usage') {
+          const cpuUsage = stats.cpuUsage || metric.current;
+          return { ...metric, current: cpuUsage, status: cpuUsage > 80 ? 'critical' : cpuUsage > 60 ? 'warning' : 'good' };
+        }
+        if (metric.name === 'Memory') {
+          const memUsage = stats.memoryUsage || metric.current;
+          return { ...metric, current: memUsage, status: memUsage > 14 ? 'critical' : memUsage > 10 ? 'warning' : 'good' };
+        }
+        return metric;
+      }));
+      
+      // Calculate performance trend
+      const avgLatency = formattedServices.reduce((sum, s) => sum + (s.latency || 0), 0) / formattedServices.length;
+      setPerformanceTrend(avgLatency < 100 ? 'up' : avgLatency > 200 ? 'down' : 'stable');
+      
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Error fetching system health:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
+    fetchSystemHealth();
   }, []);
 
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      setLastRefresh(new Date());
+      fetchSystemHealth();
     }, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, [autoRefresh]);
@@ -329,11 +375,19 @@ const SystemOverview: React.FC = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Connections</span>
-                <span className="font-medium text-gray-900 dark:text-white">142 / 500</span>
+                <span className={cn(
+                  "font-medium",
+                  realTimeStats.dbConnections > 400 ? 'text-red-500' :
+                  realTimeStats.dbConnections > 300 ? 'text-yellow-500' : 'text-gray-900 dark:text-white'
+                )}>
+                  {realTimeStats.dbConnections} / 500
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Queries/sec</span>
-                <span className="font-medium text-gray-900 dark:text-white">2,847</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {realTimeStats.queriesPerSec.toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Size</span>
@@ -348,24 +402,47 @@ const SystemOverview: React.FC = () => {
             transition={{ delay: 0.1 }}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <Globe className="w-5 h-5 text-purple-500" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-purple-500" />
+                </div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Traffic</h3>
               </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Traffic</h3>
+              <div className="flex items-center gap-1">
+                {performanceTrend === 'up' && <TrendingUp className="w-4 h-4 text-green-500" />}
+                {performanceTrend === 'down' && <TrendingDown className="w-4 h-4 text-red-500" />}
+                {performanceTrend === 'stable' && <Minus className="w-4 h-4 text-gray-400" />}
+              </div>
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Active Users</span>
-                <span className="font-medium text-gray-900 dark:text-white">1,247</span>
+                <span className="text-gray-500 flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  Active Users
+                </span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {realTimeStats.activeUsers.toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Requests/min</span>
-                <span className="font-medium text-gray-900 dark:text-white">8,432</span>
+                <span className="text-gray-500 flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  Requests/min
+                </span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {realTimeStats.requestsPerMin.toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Avg Response</span>
-                <span className="font-medium text-gray-900 dark:text-white">124ms</span>
+                <span className={cn(
+                  "font-medium",
+                  realTimeStats.avgResponseTime < 150 ? 'text-green-500' :
+                  realTimeStats.avgResponseTime < 300 ? 'text-yellow-500' : 'text-red-500'
+                )}>
+                  {realTimeStats.avgResponseTime}ms
+                </span>
               </div>
             </div>
           </motion.div>
@@ -384,12 +461,21 @@ const SystemOverview: React.FC = () => {
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Blocked Attacks</span>
-                <span className="font-medium text-gray-900 dark:text-white">2,847</span>
+                <span className="text-gray-500">Blocked Attacks (24h)</span>
+                <span className={cn(
+                  "font-medium",
+                  realTimeStats.blockedAttacks > 1000 ? 'text-red-500' :
+                  realTimeStats.blockedAttacks > 500 ? 'text-yellow-500' : 'text-gray-900 dark:text-white'
+                )}>
+                  {realTimeStats.blockedAttacks.toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">SSL Status</span>
-                <span className="font-medium text-green-500">Active</span>
+                <span className="font-medium text-green-500 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Active
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Last Scan</span>

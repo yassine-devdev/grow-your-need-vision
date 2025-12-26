@@ -980,20 +980,42 @@ export const marketingService = {
         return await pb.collection('marketing_roi').create(data);
     },
 
-    async getCampaignAnalytics(): Promise<any> {
+    async getCampaignAnalytics(): Promise<Campaign[]> {
         if (isMockEnv()) {
-            return {
-                totalCampaigns: 12,
-                activeCampaigns: 5,
-                avgOpenRate: 25.5,
-                avgClickRate: 8.3,
-                totalRevenue: 45000
-            };
+            return MOCK_CAMPAIGNS;
         }
-        return await pb.collection('campaign_analytics').getFirstListItem('', { requestKey: null });
+        return await pb.collection('campaigns').getFullList<Campaign>({ requestKey: null });
     },
 
-    async getLeads(): Promise<any[]> {
+    async createCampaign(data: Partial<Campaign>): Promise<Campaign> {
+        if (isMockEnv()) {
+            return { 
+                ...data, 
+                id: `mock-${Date.now()}`, 
+                created: new Date().toISOString(), 
+                updated: new Date().toISOString(), 
+                collectionId: 'campaigns', 
+                collectionName: 'campaigns' 
+            } as Campaign;
+        }
+        return await pb.collection('campaigns').create<Campaign>(data);
+    },
+
+    async recalculateAllScores(): Promise<void> {
+        if (isMockEnv()) {
+            return Promise.resolve();
+        }
+        // In production, this would trigger a background job
+        // For now, update all lead scores timestamps
+        const scores = await pb.collection('lead_scores').getFullList();
+        await Promise.all(scores.map(score => 
+            pb.collection('lead_scores').update(score.id, { 
+                last_updated: new Date().toISOString() 
+            })
+        ));
+    },
+
+    async getLeads(): Promise<Lead[]> {
         if (isMockEnv()) {
             return [
                 { id: '1', name: 'John Doe', email: 'john@example.com', score: 85, status: 'hot' },

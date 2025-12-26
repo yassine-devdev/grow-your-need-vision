@@ -106,6 +106,16 @@ export const NAV_CONFIG: Record<string, { label: string, icon: string, tabs: str
             'All Users': ['Directory', 'Roles']
         }
     },
+    business_intelligence: {
+        label: 'Business Intelligence',
+        icon: 'ChartBar',
+        tabs: ['Operations', 'Analytics', 'Reports'],
+        subnav: {
+            'Operations': ['Trial Management', 'Subscription Lifecycle', 'Automated Tasks'],
+            'Analytics': ['Churn Prediction', 'Revenue Analysis', 'Customer Health'],
+            'Reports': ['Report Builder', 'Export Center', 'Scheduled Reports']
+        }
+    },
     settings: {
         label: 'Platform Settings',
         icon: 'Cog6Tooth',

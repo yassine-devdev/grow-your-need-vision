@@ -30,7 +30,7 @@ export default {
           'ultra-violet': '#6b00ff',
         },
         // Legacy colors for Landing/Login
-        deepBlue: '#005A9C',
+        deepBlue: '#0b0850ff',
         vibrantTeal: '#00A99D',
         energeticOrange: '#F37021',
         darkTitanium: '#252A34',

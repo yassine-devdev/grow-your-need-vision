@@ -41,7 +41,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ activeSu
     };
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-2 animate-fadeIn">
             {renderContent()}
         </div>
     );

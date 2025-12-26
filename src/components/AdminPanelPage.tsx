@@ -25,6 +25,17 @@ const AdminPanelPage: React.FC = () => {
   // Use Global OS Context
   const { activeOverlayApp, closeOverlay, launchApp, sidebarExpanded, toggleSidebar } = useOS();
 
+  // Close overlay on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeOverlayApp) {
+        closeOverlay();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [activeOverlayApp, closeOverlay]);
+
   useEffect(() => {
     const moduleConfig = NAV_CONFIG[activeModule];
     if (moduleConfig) {

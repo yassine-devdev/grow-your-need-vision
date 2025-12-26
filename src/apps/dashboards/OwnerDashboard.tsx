@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Icon, Badge } from '../../components/shared/ui/CommonUI';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnalyticsDashboard } from '../owner/AnalyticsDashboard';
 import { BroadcastMessageModal } from '../../components/shared/modals/BroadcastMessageModal';
+import { PlatformBilling } from '../school/PlatformBilling';
 import { motion } from 'framer-motion';
 import { useOwnerDashboard } from '../../hooks/useOwnerDashboard';
+import { ownerService } from '../../services/ownerService';
 
 interface OwnerDashboardProps {
     activeTab?: string;
@@ -14,6 +16,25 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
     const navigate = useNavigate();
     const { data: dashboardData, loading, error, refresh } = useOwnerDashboard();
     const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+    const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false);
+    const [systemUptime, setSystemUptime] = useState<number>(99.9);
+
+    // Fetch real system uptime from system_health collection
+    useEffect(() => {
+        const fetchSystemUptime = async () => {
+            try {
+                const uptime = await ownerService.getSystemUptime();
+                setSystemUptime(uptime);
+            } catch (error) {
+                console.error('Error fetching system uptime:', error);
+            }
+        };
+
+        fetchSystemUptime();
+        // Refresh every 5 minutes
+        const interval = setInterval(fetchSystemUptime, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     const modules = [
         {
@@ -51,7 +72,6 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
             return (
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center">
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.35em] mb-2">OWNER CONTROL</p>
                         <Icon name="ArrowPathIcon" className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
                         <p className="text-gray-500">Loading dashboard data...</p>
                     </div>
@@ -72,23 +92,58 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
         }
 
         const activeTenants = dashboardData?.kpis.activeTenants.value?.toString() || '0';
-        const systemUptime = '99.9%'; // TODO: Get from system_health collection
         const mrrValue = dashboardData?.kpis.mrr.value || 42000;
 
-        return (
-            <div className="h-full flex flex-col gap-4 overflow-hidden p-2">
-                {/* Header - Compact & Stylish */}
-                <div className="flex items-center justify-between shrink-0 px-2">
-                    <div>
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.35em]">OWNER CONTROL</p>
-                        <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">
-                            Super Admin Control Center
-                        </h1>
-                        <p className="text-xs md:text-sm text-gray-500 font-medium tracking-wide uppercase">
-                            System Overview & Administration
-                        </p>
+        // If showing subscription plans, render that component instead
+        if (showSubscriptionPlans) {
+            return (
+                <div className="h-full flex flex-col gap-4 overflow-hidden p-2">
+                    {/* Back to Overview Button */}
+                    <div className="flex items-center gap-3 pb-3 border-b border-gray-200 dark:border-gray-800">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSubscriptionPlans(false)}
+                            className="flex items-center gap-2"
+                        >
+                            <Icon name="ArrowLeftIcon" className="w-4 h-4" />
+                            Back to Overview
+                        </Button>
+                        <div className="text-sm text-gray-500">
+                            <Icon name="ChevronRight" className="w-4 h-4 inline" />
+                        </div>
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Subscription Plans</h2>
                     </div>
-                    <div className="flex items-center gap-3">
+                    
+                    {/* Platform Billing Component */}
+                    <div className="flex-1 overflow-auto">
+                        <PlatformBilling activeSubNav="Plans" />
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="h-full flex flex-col gap-1.5 overflow-hidden p-1.5">
+                {/* Floating Header with Glassmorphism */}
+                <div className="flex items-center justify-between shrink-0 px-2.5 py-1.5 rounded-lg backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border border-white/20 shadow-lg shadow-blue-500/5">
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 blur-md opacity-30 animate-pulse" />
+                            <div className="relative p-1 rounded-md bg-gradient-to-br from-blue-500 to-purple-600">
+                                <Icon name="CommandLineIcon" className="w-4 h-4 text-white" />
+                            </div>
+                        </div>
+                        <div>
+                            <h1 className="text-sm md:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 tracking-tight">
+                                Command Center
+                            </h1>
+                            <p className="text-[8px] text-gray-500 dark:text-gray-400 font-semibold tracking-wider">
+                                REAL-TIME OVERVIEW
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
                         <Button
                             variant="outline"
                             size="sm"
@@ -102,233 +157,263 @@ const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ activeTab = 'Overview' 
                                 a.download = 'owner_dashboard_export.csv';
                                 a.click();
                             }}
-                            className="hidden md:flex items-center gap-2"
+                            className="hidden lg:flex items-center gap-0.5 px-2 py-1 rounded-md bg-white/50 dark:bg-gray-800/50 backdrop-blur border-white/20 hover:bg-white/80 transition-all text-[10px] font-semibold"
                         >
-                            <Icon name="ArrowDownTrayIcon" className="w-4 h-4" />
+                            <Icon name="ArrowDownTrayIcon" className="w-2.5 h-2.5" />
                             Export
                         </Button>
                         <Button
                             variant="primary"
                             size="sm"
                             onClick={() => setIsBroadcastModalOpen(true)}
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                            className="hidden md:flex items-center gap-0.5 px-2 py-1 rounded-md bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md shadow-blue-500/30 text-[10px] font-semibold"
                         >
-                            <Icon name="MegaphoneIcon" className="w-4 h-4" />
+                            <Icon name="MegaphoneIcon" className="w-2.5 h-2.5" />
                             Broadcast
                         </Button>
                         <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => navigate('/admin/school/billing')}
-                            className="flex items-center gap-2"
+                            onClick={() => setShowSubscriptionPlans(true)}
+                            className="flex items-center gap-0.5 px-2 py-1 rounded-md backdrop-blur bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-300/20 hover:border-purple-300/40 transition-all text-[10px] font-semibold"
                         >
-                            <Icon name="CreditCardIcon" className="w-4 h-4" />
-                            Manage Subscription Plans
+                            <Icon name="CreditCardIcon" className="w-2.5 h-2.5 text-purple-600" />
+                            <span className="text-purple-700 dark:text-purple-300">Plans</span>
                         </Button>
-                        <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-500/5 border border-emerald-500/20 rounded-full">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[10px] font-bold text-emerald-600 tracking-wider">SYSTEM ONLINE</span>
+                        <div className="hidden xl:flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-400/30 rounded-md backdrop-blur">
+                            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse shadow-md shadow-emerald-500/50" />
+                            <span className="text-[7px] font-black text-emerald-600 dark:text-emerald-400 tracking-wider">ONLINE</span>
                         </div>
                     </div>
                 </div>
 
-                {/* KPI Bar */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
-                    <Card className="p-4 bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-md">
-                        <div className="text-xs font-bold uppercase opacity-80">Monthly Recurring Revenue</div>
-                        <div className="text-3xl font-black mt-2">${mrrValue.toLocaleString()}</div>
-                        <div className="text-[11px] mt-1 opacity-80">Growth engine for the platform</div>
+                {/* Compact KPI Cards with Glassmorphism - Single Row */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 shrink-0">
+                    <Card className="relative overflow-hidden p-2 rounded-lg backdrop-blur-xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 border border-blue-400/20 shadow-lg shadow-blue-500/20 group hover:scale-[1.01] transition-transform">
+                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay" />
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-lg" />
+                        <div className="relative">
+                            <div className="text-[7px] font-black uppercase text-blue-100 tracking-wider mb-0.5">MRR</div>
+                            <div className="text-base md:text-lg font-black text-white tracking-tight">${mrrValue.toLocaleString()}</div>
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                                <Icon name="TrendingUpIcon" className="w-2 h-2 text-emerald-300" />
+                                <span className="text-[8px] font-bold text-emerald-300">+12.4%</span>
+                            </div>
+                        </div>
                     </Card>
-                    <Card className="p-4 shadow-sm">
-                        <div className="text-xs font-bold uppercase text-gray-500">Active Tenants</div>
-                        <div className="text-3xl font-black text-gray-900">{activeTenants}</div>
-                        <div className="text-[11px] text-emerald-600 font-bold">+12 new this month</div>
+                    
+                    <Card className="relative overflow-hidden p-2 rounded-lg backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 shadow-lg group hover:scale-[1.01] transition-transform">
+                        <div className="absolute -right-3 -bottom-3 w-12 h-12 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-lg" />
+                        <div className="relative">
+                            <div className="text-[7px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider mb-0.5">Active Tenants</div>
+                            <div className="text-base md:text-lg font-black text-gray-900 dark:text-white">{activeTenants}</div>
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                                <div className="px-1 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                                    <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400">+12</span>
+                                </div>
+                            </div>
+                        </div>
                     </Card>
-                    <Card className="p-4 shadow-sm">
-                        <div className="text-xs font-bold uppercase text-gray-500">Growth Rate (%)</div>
-                        <div className="text-3xl font-black text-gray-900">+18%</div>
-                        <div className="text-[11px] text-gray-500">vs last month</div>
+                    
+                    <Card className="relative overflow-hidden p-2 rounded-lg backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 shadow-lg group hover:scale-[1.01] transition-transform">
+                        <div className="absolute -left-3 -top-3 w-12 h-12 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full blur-lg" />
+                        <div className="relative">
+                            <div className="text-[7px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider mb-0.5">Growth Rate</div>
+                            <div className="text-base md:text-lg font-black text-gray-900 dark:text-white">+18%</div>
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                                <span className="text-[8px] font-bold text-orange-500">vs last month</span>
+                            </div>
+                        </div>
                     </Card>
-                    <Card className="p-4 shadow-sm">
-                        <div className="text-xs font-bold uppercase text-gray-500">New Tenant Acquisition</div>
-                        <div className="text-3xl font-black text-gray-900">42</div>
-                        <div className="text-[11px] text-gray-500">Awaiting onboarding</div>
+                    
+                    <Card className="relative overflow-hidden p-2 rounded-lg backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 shadow-lg group hover:scale-[1.01] transition-transform">
+                        <div className="absolute -right-3 -top-3 w-12 h-12 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-lg" />
+                        <div className="relative">
+                            <div className="text-[7px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider mb-0.5">Pipeline</div>
+                            <div className="text-base md:text-lg font-black text-gray-900 dark:text-white">42</div>
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                                <span className="text-[8px] font-bold text-blue-500">onboarding</span>
+                            </div>
+                        </div>
                     </Card>
                 </div>
 
-                {/* Main Bento Grid - Fixed Height, No Scroll */}
-                <div className="flex-1 min-h-0 grid grid-cols-2 md:grid-cols-4 grid-rows-6 md:grid-rows-3 gap-3 md:gap-4">
+                {/* Optimized Bento Grid - Perfect Fit for Desktop/Tablet */}
+                <div className="flex-1 min-h-0 grid grid-cols-6 grid-rows-2 gap-1.5">
 
-                    {/* 1. Tenant Management (Top Left - Large) */}
-                    <Link to="/admin/school" className="col-span-2 row-span-2 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-xl transition-all duration-500">
-                        {/* Fancy Background */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-transparent to-purple-600/5 group-hover:opacity-100 transition-opacity" />
-                        <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-500" />
-
-                        <div className="relative h-full p-6 flex flex-col justify-between z-10">
+                    {/* 1. Tenant Management - Large Feature Card */}
+                    <Link to="/admin/school" className="col-span-6 md:col-span-3 row-span-1 group relative overflow-hidden rounded-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-gradient-to-br from-blue-50/90 via-purple-50/80 to-pink-50/70 dark:from-gray-800/90 dark:via-gray-800/80 dark:to-gray-800/70 shadow-lg hover:shadow-blue-500/10 transition-all duration-300">
+                        {/* Animated Background Orbs */}
+                        <div className="absolute -right-8 -top-8 w-24 h-24 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+                        <div className="absolute -left-6 -bottom-6 w-20 h-20 bg-gradient-to-tr from-purple-500/20 to-pink-500/20 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+                        
+                        <div className="relative h-full p-3 flex flex-col justify-between">
                             <div className="flex justify-between items-start">
-                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
-                                    <Icon name="BuildingOfficeIcon" className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                                    <div className="relative p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg border border-white/20 shadow-md">
+                                        <Icon name="BuildingOfficeIcon" className="w-4 h-4 text-white" />
+                                    </div>
                                 </div>
-                                <div className="px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{activeTenants} Active</span>
+                                <div className="px-2 py-0.5 rounded-md backdrop-blur-xl bg-white/40 dark:bg-gray-900/40 border border-white/30 shadow-md">
+                                    <span className="text-[10px] font-black text-gray-800 dark:text-gray-100">{activeTenants} Active</span>
                                 </div>
                             </div>
 
-                            <div>
-                                <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Tenant Management</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[80%] leading-relaxed">
-                                    Manage school instances, subscriptions, domains, and onboarding pipelines.
+                            <div className="mt-auto">
+                                <h3 className="text-sm md:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 mb-0.5 tracking-tight leading-tight">
+                                    Tenant Management
+                                </h3>
+                                <p className="text-[9px] text-gray-700 dark:text-gray-300 font-medium max-w-[90%] leading-snug">
+                                    Manage schools & subscriptions
                                 </p>
-                            </div>
-
-                            {/* Mini List or Stats */}
-                            <div className="grid grid-cols-2 gap-2 mt-4">
-                                <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                                    <div className="text-xs text-gray-400 uppercase font-bold">New (Month)</div>
-                                    <div className="text-lg font-black text-blue-600">{dashboardData?.kpis.activeTenants.change || 0}</div>
-                                </div>
-                                <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                                    <div className="text-xs text-gray-400 uppercase font-bold">Churn Rate</div>
-                                    <div className="text-lg font-black text-purple-600">{dashboardData?.kpis.churn.value || '0%'}</div>
+                                
+                                {/* Mini Stats Grid */}
+                                <div className="grid grid-cols-2 gap-1 mt-1.5">
+                                    <div className="p-1.5 rounded-md backdrop-blur-xl bg-white/50 dark:bg-gray-900/50 border border-white/30">
+                                        <div className="text-[7px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-wider">New</div>
+                                        <div className="text-sm font-black text-blue-600 dark:text-blue-400">{dashboardData?.kpis.activeTenants.change || 0}</div>
+                                    </div>
+                                    <div className="p-1.5 rounded-md backdrop-blur-xl bg-white/50 dark:bg-gray-900/50 border border-white/30">
+                                        <div className="text-[7px] text-gray-500 dark:text-gray-400 uppercase font-black tracking-wider">Churn</div>
+                                        <div className="text-sm font-black text-purple-600 dark:text-purple-400">{dashboardData?.kpis.churn.value || '0%'}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </Link>
 
-                    {/* 2. Analytics (Top Middle - Tall) */}
-                    <Link to="/admin/dashboard/Analytics" className="col-span-1 md:col-span-1 row-span-2 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-xl transition-all duration-500">
-                        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent" />
-                        <div className="relative h-full p-5 flex flex-col z-10">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-                                    <Icon name="ChartBarIcon" className="w-5 h-5 text-emerald-600" />
+                    {/* 2. Analytics - Vertical Card with Live Chart */}
+                    <Link to="/admin/dashboard/Analytics" className="col-span-3 md:col-span-2 row-span-1 group relative overflow-hidden rounded-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-gradient-to-b from-emerald-50/90 to-green-50/80 dark:from-gray-800/90 dark:to-gray-800/80 shadow-lg hover:shadow-emerald-500/10 transition-all duration-300">
+                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 mix-blend-overlay" />
+                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-gradient-to-br from-emerald-500/30 to-green-500/30 rounded-full blur-xl group-hover:scale-110 transition-transform duration-500" />
+                        
+                        <div className="relative h-full p-2.5 flex flex-col">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="p-1 bg-gradient-to-br from-emerald-500 to-green-600 rounded-md shadow-md">
+                                    <Icon name="ChartBarIcon" className="w-3.5 h-3.5 text-white" />
                                 </div>
-                                <Icon name="ArrowUpRightIcon" className="w-4 h-4 text-gray-400 group-hover:text-emerald-500 transition-colors" />
+                                <Icon name="ArrowUpRightIcon" className="w-3 h-3 text-gray-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight mb-1">Analytics</h3>
-                            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-auto">+24.5% Growth</p>
+                            
+                            <h3 className="text-xs md:text-sm font-black text-gray-900 dark:text-white mb-0.5">Analytics</h3>
+                            <div className="flex items-center gap-0.5 mb-auto">
+                                <Icon name="TrendingUpIcon" className="w-2.5 h-2.5 text-emerald-500" />
+                                <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">+24.5%</span>
+                            </div>
 
-                            {/* Visual Chart Representation */}
-                            <div className="h-32 flex items-end justify-between gap-1 mt-4">
-                                {[40, 70, 45, 90, 60, 80].map((h, i) => (
-                                    <div key={i} className="w-full bg-gray-100 dark:bg-gray-800 rounded-t-md relative overflow-hidden group-hover:bg-emerald-500/10 transition-colors">
-                                        <div style={{ height: `${h}%` }} className="absolute bottom-0 w-full bg-emerald-500 rounded-t-md opacity-80 group-hover:opacity-100 transition-all duration-500" />
+                            {/* Live Chart Visualization */}
+                            <div className="h-12 flex items-end justify-between gap-0.5 mt-1.5">
+                                {[40, 70, 45, 90, 60, 80, 95].map((h, i) => (
+                                    <div key={i} className="w-full relative overflow-hidden rounded-t-md bg-gradient-to-t from-gray-200/30 to-gray-100/30 dark:from-gray-700/30 dark:to-gray-600/30">
+                                        <div 
+                                            style={{ height: `${h}%` }} 
+                                            className="absolute bottom-0 w-full bg-gradient-to-t from-emerald-500 to-green-400 rounded-t-md opacity-90 group-hover:opacity-100 transition-all duration-300 shadow-md shadow-emerald-500/30"
+                                        />
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </Link>
 
-                    {/* 3. System Health (Top Right - Compact) */}
-                    <div className="col-span-1 md:col-span-1 row-span-1 relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 shadow-inner">
-                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light" />
-                        <div className="relative h-full p-5 flex flex-col justify-center">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">System Status</span>
+                    {/* 3. System Health - Status Card */}
+                    <div className="col-span-3 md:col-span-1 row-span-1 relative overflow-hidden rounded-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-gradient-to-br from-gray-50/90 to-slate-50/80 dark:from-gray-800/90 dark:to-gray-800/80 shadow-lg">
+                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 mix-blend-overlay" />
+                        <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-gradient-to-tl from-green-500/20 to-emerald-500/20 rounded-full blur-lg" />
+                        
+                        <div className="relative h-full p-2.5 flex flex-col justify-center">
+                            <div className="flex items-center gap-1 mb-1">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-green-500 blur-sm opacity-50 animate-pulse" />
+                                    <div className="relative w-1 h-1 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
+                                </div>
+                                <span className="text-[7px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider">System</span>
                             </div>
-                            <div className="text-2xl font-black text-gray-900 dark:text-white font-mono">{systemUptime}</div>
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mt-3 overflow-hidden">
-                                <div className="bg-green-500 h-full rounded-full" style={{ width: systemUptime }} />
+                            <div className="text-sm md:text-base font-black text-gray-900 dark:text-white font-mono mb-1">{systemUptime.toFixed(2)}%</div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 h-0.5 rounded-full overflow-hidden backdrop-blur">
+                                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-full rounded-full shadow-sm shadow-green-500/30 transition-all duration-1000" style={{ width: `${systemUptime}%` }} />
                             </div>
                         </div>
                     </div>
 
-                    {/* System Alerts */}
-                    <div className="col-span-2 md:col-span-1 row-span-1 relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
-                        <div className="p-5 h-full flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">System Alerts</div>
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">High API Error Rate</div>
+                    {/* 4. Revenue Growth Chart */}
+                    <Card className="col-span-3 md:col-span-2 row-span-1 relative overflow-hidden rounded-xl p-2.5 backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 shadow-lg">
+                        <div className="absolute -left-4 -top-4 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-xl" />
+                        <div className="relative">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1">
+                                    <div className="p-0.5 rounded-sm bg-gradient-to-br from-blue-500 to-cyan-600">
+                                        <Icon name="ChartBarIcon" className="w-3 h-3 text-white" />
+                                    </div>
+                                    <h3 className="text-[10px] font-black text-gray-800 dark:text-white">Revenue Growth</h3>
                                 </div>
-                                <Badge variant="danger">Critical</Badge>
+                                <Badge variant="success" className="backdrop-blur bg-emerald-500/10 border-emerald-500/20 text-[8px] px-1 py-0.5">
+                                    <div className="w-0.5 h-0.5 rounded-full bg-emerald-500 animate-pulse mr-0.5" />
+                                    Live
+                                </Badge>
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Investigate API latency and error spikes across regions.</p>
-                        </div>
-                    </div>
-
-                    {/* Simple Charts */}
-                    <Card className="col-span-2 md:col-span-2 row-span-1 p-5 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-gray-800">Revenue Growth</h3>
-                            <Badge variant="success">Live</Badge>
-                        </div>
-                        <div className="flex items-end gap-2 h-24">
-                            {[30,45,60,55,80,90].map((v,i)=> (
-                                <div key={i} className="flex-1 bg-blue-100 rounded-t-md relative">
-                                    <div className="absolute bottom-0 left-0 right-0 bg-blue-600 rounded-t-md" style={{height: `${v}%`}}></div>
-                                </div>
-                            ))}
+                            <div className="flex items-end gap-0.5 h-12">
+                                {[30,45,60,55,80,90,95].map((v,i)=> (
+                                    <div key={i} className="flex-1 relative overflow-hidden rounded-t-md bg-gradient-to-t from-blue-100/50 to-blue-50/30 dark:from-blue-900/30 dark:to-blue-800/20">
+                                        <div 
+                                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-600 to-cyan-500 rounded-t-md shadow-md shadow-blue-500/20 transition-all duration-300 hover:from-blue-700 hover:to-cyan-600" 
+                                            style={{height: `${v}%`}}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </Card>
 
-                    <Card className="col-span-2 md:col-span-2 row-span-1 p-5 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-gray-800">Tenant Acquisition Pipeline</h3>
-                            <Badge variant="neutral">Monthly</Badge>
-                        </div>
-                        <div className="grid grid-cols-4 gap-3 text-sm text-gray-600">
-                            {['Q1','Q2','Q3','Q4'].map((label,i)=>(
-                                <div key={label} className="p-3 rounded-xl border border-gray-100 bg-gray-50">
-                                    <div className="text-xs text-gray-400">{label}</div>
-                                    <div className="font-black text-gray-800">{[12,18,24,30][i]}</div>
-                                    <div className="text-[11px] text-emerald-600">+{[3,4,5,6][i]} new</div>
+                    {/* 5. Tenant Pipeline */}
+                    <Card className="col-span-3 md:col-span-2 row-span-1 relative overflow-hidden rounded-xl p-2.5 backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 shadow-lg">
+                        <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-gradient-to-tl from-purple-500/10 to-pink-500/10 rounded-full blur-xl" />
+                        <div className="relative">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1">
+                                    <div className="p-0.5 rounded-sm bg-gradient-to-br from-purple-500 to-pink-600">
+                                        <Icon name="UsersIcon" className="w-3 h-3 text-white" />
+                                    </div>
+                                    <h3 className="text-[10px] font-black text-gray-800 dark:text-white">Acquisition Pipeline</h3>
                                 </div>
-                            ))}
+                                <Badge variant="neutral" className="backdrop-blur text-[8px] px-1 py-0.5">Monthly</Badge>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1">
+                                {['Q1','Q2','Q3','Q4'].map((label,i)=>(
+                                    <div key={label} className="p-1.5 rounded-md backdrop-blur-xl bg-gradient-to-br from-white/50 to-gray-50/50 dark:from-gray-700/50 dark:to-gray-800/50 border border-white/30 dark:border-gray-600/30 hover:scale-[1.03] transition-transform">
+                                        <div className="text-[7px] text-gray-500 dark:text-gray-400 font-black tracking-wider">{label}</div>
+                                        <div className="text-sm md:text-base font-black text-gray-900 dark:text-white">{[12,18,24,30][i]}</div>
+                                        <div className="text-[7px] font-bold text-emerald-600 dark:text-emerald-400">+{[3,4,5,6][i]}</div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </Card>
 
-                    {/* 4. Support (Middle Right - Compact) */}
-                    <Link to="/owner/support" className="col-span-1 md:col-span-1 row-span-1 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:border-purple-500/50 transition-all">
-                        <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all" />
-                        <div className="relative h-full p-5 flex flex-col justify-between">
-                            <div className="flex justify-between items-start">
-                                <Icon name="LifebuoyIcon" className="w-6 h-6 text-purple-500" />
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">5</span>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Support</h3>
-                                <p className="text-[10px] text-gray-500">Pending Tickets</p>
-                            </div>
-                        </div>
-                    </Link>
-
-                    {/* 5. Overlay Apps (Bottom Left - Wide) */}
-                    <Link to="/owner/overlay-apps" className="col-span-2 md:col-span-2 row-span-1 group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm hover:shadow-lg transition-all">
+                    {/* 6. Overlay Apps */}
+                    <Link to="/owner/overlay-apps" className="col-span-3 md:col-span-2 row-span-1 group relative overflow-hidden rounded-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl bg-gradient-to-r from-orange-50/90 to-amber-50/80 dark:from-gray-800/90 dark:to-gray-800/80 shadow-lg hover:shadow-orange-500/10 transition-all duration-300">
                         <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative h-full p-5 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl">
-                                    <Icon name="Squares2X2Icon" className="w-6 h-6 text-orange-500" />
+                        <div className="absolute -right-6 -bottom-6 w-20 h-20 bg-gradient-to-tl from-orange-500/20 to-amber-500/20 rounded-full blur-xl" />
+                        
+                        <div className="relative h-full p-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg shadow-md">
+                                    <Icon name="Squares2X2Icon" className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overlay Apps</h3>
-                                    <p className="text-xs text-gray-500">Manage global app registry & versions</p>
+                                    <h3 className="text-xs md:text-sm font-black text-gray-900 dark:text-white leading-tight">Overlay Apps</h3>
+                                    <p className="text-[8px] text-gray-600 dark:text-gray-400 font-semibold">Global registry</p>
                                 </div>
                             </div>
-                            <div className="hidden md:flex -space-x-2">
+                            <div className="hidden md:flex -space-x-1">
                                 {[1, 2, 3].map(i => (
-                                    <div key={i} className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white dark:border-gray-900 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                    <div key={i} className="w-6 h-6 rounded-full backdrop-blur-xl bg-white/60 dark:bg-gray-700/60 border border-white dark:border-gray-800 flex items-center justify-center text-[8px] font-black text-gray-600 dark:text-gray-300 shadow-sm">
                                         v{i}
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </Link>
-
-                    {/* 6. Quick Actions (Bottom Right - Wide) */}
-                    <div className="col-span-2 md:col-span-2 row-span-1 grid grid-cols-2 gap-3">
-                        <button onClick={() => navigate('/admin/school')} className="group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 transition-all flex flex-col items-center justify-center gap-2">
-                            <Icon name="PlusCircleIcon" className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-gray-600">Add Tenant</span>
-                        </button>
-                        <button className="group relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:bg-gray-50 transition-all flex flex-col items-center justify-center gap-2">
-                            <Icon name="MegaphoneIcon" className="w-6 h-6 text-pink-500 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-gray-600">Broadcast</span>
-                        </button>
-                    </div>
 
                 </div>
             </div>

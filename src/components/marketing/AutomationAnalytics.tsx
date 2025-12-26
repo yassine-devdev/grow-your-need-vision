@@ -22,6 +22,20 @@ interface AnalyticsData {
 export const AutomationAnalytics: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnalyticsData | null>(null);
+    const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
+
+    const getChannelIcon = (channel: string): React.ElementType => {
+        const channelLower = channel.toLowerCase();
+        if (channelLower.includes('email')) return Mail;
+        if (channelLower.includes('sms')) return MessageSquare;
+        if (channelLower.includes('push')) return Bell;
+        if (channelLower.includes('webhook')) return MousePointer;
+        return Target;
+    };
+
+    const formatPercentage = (value: number): string => {
+        return `${Math.round(value)}%`;
+    };
 
     const fetchData = useCallback(async () => {
         setLoading(true);

@@ -1,4 +1,4 @@
-import React, { Suspense, useLayoutEffect } from 'react';
+import React, { Suspense, useLayoutEffect, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
 // Providers
@@ -40,6 +40,8 @@ const TenantDashboard = React.lazy(() => import('./apps/owner/TenantDashboard').
 const AnalyticsDashboard = React.lazy(() => import('./apps/owner/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
 const SupportDashboard = React.lazy(() => import('./apps/owner/SupportDashboard').then(module => ({ default: module.SupportDashboard })));
 const OverlayAppsManager = React.lazy(() => import('./apps/owner/OverlayAppsManager').then(module => ({ default: module.OverlayAppsManager })));
+const ChurnPrediction = React.lazy(() => import('./apps/owner/ChurnPrediction'));
+const ReportBuilder = React.lazy(() => import('./apps/owner/ReportBuilder'));
 import TenantMgt from './apps/TenantMgt';
 import { PlatformBilling } from './apps/school/PlatformBilling';
 
@@ -64,6 +66,17 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   useKeyboardShortcuts();
+
+  // Close overlay on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeOverlayApp) {
+        closeOverlay();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [activeOverlayApp, closeOverlay]);
 
   // Throttled mouse tracking to reduce performance impact
   useLayoutEffect(() => {
@@ -111,12 +124,6 @@ const AppContent: React.FC = () => {
 
   return (
     <div className={`min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-gyn-blue-medium/30 ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
-
-      {showOwnerBadge && (
-        <div className="fixed top-2 left-2 z-[120] text-[10px] font-black text-gray-600 bg-white/90 border border-gray-200 px-3 py-1 rounded uppercase tracking-[0.35em] shadow-sm">
-          OWNER CONTROL
-        </div>
-      )}
 
       {/* Always-on helper greetings for e2e flows */}
       {user?.role === 'Teacher' && (
@@ -183,6 +190,16 @@ const AppContent: React.FC = () => {
             <Route path="/owner/overlay-apps" element={
               <ProtectedRoute allowedRoles={['Owner']}>
                 <OverlayAppsManager />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/churn-prediction" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <ChurnPrediction />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/report-builder" element={
+              <ProtectedRoute allowedRoles={['Owner']}>
+                <ReportBuilder />
               </ProtectedRoute>
             } />
 

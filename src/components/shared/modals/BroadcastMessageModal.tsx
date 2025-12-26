@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Card, Icon, Badge, Button } from '../ui/CommonUI';
 import { useSendBroadcast } from '../../../hooks/usePhase2Data';
 import pb from '../../../lib/pocketbase';
+import { emailService } from '../../../services/emailService';
+import { tenantService } from '../../../services/tenantService';
 
 interface BroadcastMessageModalProps {
     isOpen: boolean;
@@ -27,22 +29,74 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({ is
         }
 
         try {
-            await sendMutation.mutateAsync({
-                subject,
-                message,
-                target_audience: targetAudience,
-                priority,
-                channels: { email: sendEmail, inApp: sendInApp, sms: sendSMS },
-                sent_by: pb.authStore.model?.email || 'owner@growyourneed.com'
-            });
+            // Get tenant emails based on target audience
+            const tenants = await tenantService.getTenants();
+            let targetEmails: string[] = [];
 
-            alert(`Broadcast sent successfully to ${getEstimatedCount()} ${targetAudience} tenants!`);
+            switch (targetAudience) {
+                case 'all':
+                    targetEmails = tenants.map(t => t.admin_email).filter(Boolean);
+                    break;
+                case 'schools':
+                    targetEmails = tenants.filter(t => t.type === 'school').map(t => t.admin_email).filter(Boolean);
+                    break;
+                case 'individuals':
+                    targetEmails = tenants.filter(t => t.type === 'individual').map(t => t.admin_email).filter(Boolean);
+                    break;
+                case 'active':
+                    targetEmails = tenants.filter(t => t.subscription_status === 'active').map(t => t.admin_email).filter(Boolean);
+                    break;
+                case 'trial':
+                    targetEmails = tenants.filter(t => t.subscription_status === 'trial').map(t => t.admin_email).filter(Boolean);
+                    break;
+            }
+
+            // Send emails if email channel is selected
+            if (sendEmail && targetEmails.length > 0) {
+                const htmlBody = `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <div style="background: linear-gradient(to right, #3b82f6, #8b5cf6); padding: 20px; border-radius: 8px 8px 0 0;">
+                            <h1 style="color: white; margin: 0;">Grow Your Need</h1>
+                            <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0;">Platform Announcement</p>
+                        </div>
+                        <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
+                            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <h2 style="color: #1f2937; margin-top: 0;">${subject}</h2>
+                                <div style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</div>
+                                ${priority === 'urgent' ? '<div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; margin-top: 20px; border-radius: 4px;"><strong style="color: #dc2626;">⚠️ URGENT:</strong> <span style="color: #991b1b;">This message requires immediate attention.</span></div>' : ''}
+                            </div>
+                            <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px; text-align: center;">
+                                <a href="${window.location.origin}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Go to Dashboard</a>
+                            </div>
+                            <div style="margin-top: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+                                <p>This is an automated message from Grow Your Need platform.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                await emailService.sendBulkEmail(targetEmails, subject, htmlBody, message);
+            }
+
+            // Send in-app notifications if selected
+            if (sendInApp) {
+                await sendMutation.mutateAsync({
+                    subject,
+                    message,
+                    target_audience: targetAudience,
+                    priority,
+                    channels: { email: sendEmail, inApp: sendInApp, sms: sendSMS },
+                    sent_by: pb.authStore.model?.email || 'owner@growyourneed.com'
+                });
+            }
+
+            alert(`✅ Broadcast sent successfully to ${targetEmails.length} recipients!\n\n${sendEmail ? '📧 Email: Sent\n' : ''}${sendInApp ? '🔔 In-App: Sent\n' : ''}${sendSMS ? '📱 SMS: Queued' : ''}`);
             onClose();
             setSubject('');
             setMessage('');
         } catch (error) {
             console.error('Failed to send broadcast:', error);
-            alert('Failed to send broadcast message');
+            alert('❌ Failed to send broadcast message. Please try again.');
         }
     };
 

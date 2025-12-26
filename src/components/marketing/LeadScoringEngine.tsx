@@ -94,6 +94,19 @@ export const LeadScoringEngine: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
+  const handleRecalculateAll = async () => {
+    setLoading(true);
+    try {
+      // Recalculate all lead scores
+      await marketingService.recalculateAllScores();
+      await fetchData();
+    } catch (error) {
+      console.error('Error recalculating scores:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRecalculate = async () => {
     setLoading(true);
     try {

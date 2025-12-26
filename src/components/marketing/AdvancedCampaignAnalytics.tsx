@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3, TrendingUp, TrendingDown, Target, Users, DollarSign,
   Eye, MousePointer, ShoppingCart, ArrowUpRight, Calendar, Filter,
-  Download, RefreshCw, Layers, Zap, Award, PieChart
+  Download, RefreshCw, Layers, Zap, Award, PieChart, X, Info,
+  Clock, CheckCircle, AlertCircle, Pause, Play
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { marketingService } from '../../services/marketingService';
+import { marketingService, Campaign } from '../../services/marketingService';
 import { marketingExportService } from '../../services/marketingExportService';
+import { useAuth } from '../../context/AuthContext';
 
 interface CampaignMetric {
   id: string;
@@ -24,6 +26,9 @@ interface CampaignMetric {
   cvr: number;
   cpa: number;
   trend: 'up' | 'down' | 'stable';
+  budget?: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 interface FunnelStage {
@@ -42,13 +47,60 @@ interface ChannelPerformance {
   trend: number;
 }
 
+interface AnalyticsData {
+  campaigns: CampaignMetric[];
+  totals: {
+    totalSpend: number;
+    totalRevenue: number;
+    totalConversions: number;
+    avgROI: number;
+    avgCTR: number;
+    avgCVR: number;
+  };
+  channelPerformance: Array<{
+    channel: string;
+    spend: number;
+    revenue: number;
+    roi: number;
+    conversions: number;
+  }>;
+  funnelData: {
+    impressions: number;
+    clicks: number;
+    leads: number;
+    conversions: number;
+  };
+}
+
+type SortField = 'name' | 'spend' | 'revenue' | 'roi' | 'conversions' | 'impressions' | 'clicks';
+type SortDirection = 'asc' | 'desc';
+
+interface FilterState {
+  status: string;
+  channel: string;
+  minROI: number;
+  maxSpend: number;
+}
+
 export const AdvancedCampaignAnalytics: React.FC = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'custom'>('30d');
-  const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignMetric | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [campaigns, setCampaigns] = useState<CampaignMetric[]>([]);
   const [channelPerformance, setChannelPerformance] = useState<ChannelPerformance[]>([]);
   const [funnel, setFunnel] = useState<FunnelStage[]>([]);
+  const [sortField, setSortField] = useState<SortField>('roi');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [filters, setFilters] = useState<FilterState>({
+    status: 'all',
+    channel: 'all',
+    minROI: 0,
+    maxSpend: Infinity
+  });
   const [overallStats, setOverallStats] = useState({
     totalSpend: 0,
     totalRevenue: 0,
@@ -60,34 +112,132 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const data = await marketingService.getCampaignAnalytics();
-      setCampaigns(data.campaigns);
-      setOverallStats({
-        totalSpend: data.totals.totalSpend,
-        totalRevenue: data.totals.totalRevenue,
-        totalConversions: data.totals.totalConversions,
-        avgROI: data.totals.avgROI,
-        avgCTR: data.totals.avgCTR,
-        avgCVR: data.totals.avgCVR,
-      });
-      // Add computed trend to channel performance based on ROI
-      const avgROI = data.totals.avgROI;
-      setChannelPerformance(data.channelPerformance.map((cp: any) => ({
-        ...cp,
-        trend: Math.round((cp.roi - avgROI) / Math.max(avgROI, 1) * 100 * 10) / 10,
-      })));
+      // Fetch real campaigns from service
+      const campaignsData = await marketingService.getCampaigns();
       
-      // Build funnel from data
-      const totalImpressions = data.funnelData.impressions;
+      // Transform campaigns to metrics format
+      const metrics: CampaignMetric[] = campaignsData.map((c: Campaign) => {
+        const ctr = c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0;
+        const cvr = c.clicks > 0 ? (c.conversions / c.clicks) * 100 : 0;
+        const cpa = c.conversions > 0 ? c.spent / c.conversions : 0;
+        const revenue = c.conversions * 100; // Mock: assume $100 per conversion
+        const roi = c.spent > 0 ? ((revenue - c.spent) / c.spent) * 100 : 0;
+        
+        return {
+          id: c.id,
+          name: c.name,
+          channel: c.type,
+          status: c.status,
+          impressions: c.impressions,
+          clicks: c.clicks,
+          conversions: c.conversions,
+          spend: c.spent,
+          revenue,
+          roi,
+          ctr,
+          cvr,
+          cpa,
+          trend: roi > 150 ? 'up' : roi < 50 ? 'down' : 'stable',
+          budget: c.budget,
+          start_date: c.start_date,
+          end_date: c.end_date
+        };
+      });
+
+      setCampaigns(metrics);
+
+      // Calculate overall stats
+      const totalSpend = metrics.reduce((sum, c) => sum + c.spend, 0);
+      const totalRevenue = metrics.reduce((sum, c) => sum + c.revenue, 0);
+      const totalConversions = metrics.reduce((sum, c) => sum + c.conversions, 0);
+      const avgROI = metrics.length > 0 
+        ? metrics.reduce((sum, c) => sum + c.roi, 0) / metrics.length 
+        : 0;
+      const avgCTR = metrics.length > 0
+        ? metrics.reduce((sum, c) => sum + c.ctr, 0) / metrics.length
+        : 0;
+      const avgCVR = metrics.length > 0
+        ? metrics.reduce((sum, c) => sum + c.cvr, 0) / metrics.length
+        : 0;
+
+      setOverallStats({
+        totalSpend,
+        totalRevenue,
+        totalConversions,
+        avgROI: Math.round(avgROI),
+        avgCTR: Math.round(avgCTR * 10) / 10,
+        avgCVR: Math.round(avgCVR * 10) / 10,
+      });
+
+      // Calculate channel performance
+      const channelMap = new Map<string, {
+        spend: number;
+        revenue: number;
+        conversions: number;
+      }>();
+
+      metrics.forEach(m => {
+        const existing = channelMap.get(m.channel) || { spend: 0, revenue: 0, conversions: 0 };
+        channelMap.set(m.channel, {
+          spend: existing.spend + m.spend,
+          revenue: existing.revenue + m.revenue,
+          conversions: existing.conversions + m.conversions
+        });
+      });
+
+      const channelPerf: ChannelPerformance[] = Array.from(channelMap.entries()).map(([channel, data]) => {
+        const roi = data.spend > 0 ? ((data.revenue - data.spend) / data.spend) * 100 : 0;
+        const trend = Math.round((roi - avgROI) / Math.max(avgROI, 1) * 100 * 10) / 10;
+        return {
+          channel,
+          spend: data.spend,
+          revenue: data.revenue,
+          roi: Math.round(roi),
+          conversions: data.conversions,
+          trend
+        };
+      });
+
+      setChannelPerformance(channelPerf);
+      
+      // Build funnel from aggregated data
+      const totalImpressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
+      const totalClicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
+      const totalLeads = Math.round(totalClicks * 0.4); // Mock: 40% of clicks become leads
+      const totalConv = metrics.reduce((sum, m) => sum + m.conversions, 0);
+
       setFunnel([
-        { name: 'Impressions', value: data.funnelData.impressions, percentage: 100, color: 'bg-blue-500' },
-        { name: 'Clicks', value: data.funnelData.clicks, percentage: totalImpressions > 0 ? (data.funnelData.clicks / totalImpressions) * 100 : 0, color: 'bg-indigo-500' },
-        { name: 'Leads', value: data.funnelData.leads, percentage: totalImpressions > 0 ? (data.funnelData.leads / totalImpressions) * 100 : 0, color: 'bg-purple-500' },
-        { name: 'Conversions', value: data.funnelData.conversions, percentage: totalImpressions > 0 ? (data.funnelData.conversions / totalImpressions) * 100 : 0, color: 'bg-green-500' },
+        { 
+          name: 'Impressions', 
+          value: totalImpressions, 
+          percentage: 100, 
+          color: 'bg-blue-500' 
+        },
+        { 
+          name: 'Clicks', 
+          value: totalClicks, 
+          percentage: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0, 
+          color: 'bg-indigo-500' 
+        },
+        { 
+          name: 'Leads', 
+          value: totalLeads, 
+          percentage: totalImpressions > 0 ? (totalLeads / totalImpressions) * 100 : 0, 
+          color: 'bg-purple-500' 
+        },
+        { 
+          name: 'Conversions', 
+          value: totalConv, 
+          percentage: totalImpressions > 0 ? (totalConv / totalImpressions) * 100 : 0, 
+          color: 'bg-green-500' 
+        },
       ]);
-    } catch (error) {
-      console.error('Error fetching campaign analytics:', error);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load analytics data';
+      setError(errorMessage);
+      console.error('Error fetching campaign analytics:', err);
     } finally {
       setLoading(false);
     }
@@ -97,22 +247,69 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
     fetchData();
   }, [fetchData, dateRange]);
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const handleCampaignClick = (campaign: CampaignMetric) => {
+    setSelectedCampaign(campaign);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setTimeout(() => setSelectedCampaign(null), 300);
+  };
+
+  const getFilteredAndSortedCampaigns = () => {
+    let filtered = campaigns.filter(campaign => {
+      if (filters.status !== 'all' && campaign.status !== filters.status) return false;
+      if (filters.channel !== 'all' && campaign.channel !== filters.channel) return false;
+      if (campaign.roi < filters.minROI) return false;
+      if (campaign.spend > filters.maxSpend) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return aVal.localeCompare(bVal) * direction;
+      }
+      return ((aVal as number) - (bVal as number)) * direction;
+    });
+
+    return filtered;
+  };
+
   const handleExport = () => {
-    const exportData = campaigns.map(c => ({
-      Name: c.name,
-      Channel: c.channel,
-      Status: c.status,
-      Impressions: c.impressions,
-      Clicks: c.clicks,
-      Conversions: c.conversions,
-      Spend: c.spend,
-      Revenue: c.revenue,
-      ROI: `${c.roi.toFixed(1)}%`,
-      CTR: `${c.ctr.toFixed(2)}%`,
-      CVR: `${c.cvr.toFixed(2)}%`,
-      CPA: c.cpa.toFixed(2),
-    }));
-    marketingExportService.exportROIToExcel(exportData);
+    try {
+      const exportData = getFilteredAndSortedCampaigns().map(c => ({
+        Name: c.name,
+        Channel: c.channel,
+        Status: c.status,
+        Impressions: c.impressions,
+        Clicks: c.clicks,
+        Conversions: c.conversions,
+        Spend: c.spend,
+        Revenue: c.revenue,
+        ROI: `${c.roi.toFixed(1)}%`,
+        CTR: `${c.ctr.toFixed(2)}%`,
+        CVR: `${c.cvr.toFixed(2)}%`,
+        CPA: c.cpa.toFixed(2),
+      }));
+      marketingExportService.exportROIToExcel(exportData);
+    } catch (err) {
+      console.error('Export failed:', err);
+      setError('Failed to export data');
+    }
   };
 
   const formatCurrency = (value: number) => 
@@ -138,10 +335,33 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-[600px] flex items-center justify-center">
-        <div className="text-gray-500">Loading analytics...</div>
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-indigo-500 animate-spin mx-auto mb-4" />
+          <div className="text-gray-500">Loading analytics...</div>
+        </div>
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="min-h-[600px] flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <div className="text-gray-700 dark:text-gray-300 mb-2">Failed to load analytics</div>
+          <div className="text-sm text-gray-500 mb-4">{error}</div>
+          <button
+            onClick={fetchData}
+            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredCampaigns = getFilteredAndSortedCampaigns();
 
   return (
     <div className="space-y-6">
@@ -322,8 +542,19 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {campaigns.map((campaign) => (
-                <tr key={campaign.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer">
+              {filteredCampaigns.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-gray-500">
+                    No campaigns match the current filters
+                  </td>
+                </tr>
+              ) : (
+                filteredCampaigns.map((campaign) => (
+                  <tr 
+                    key={campaign.id} 
+                    onClick={() => handleCampaignClick(campaign)}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
+                  >
                   <td className="py-4 px-4">
                     <span className="font-medium text-gray-900 dark:text-white">{campaign.name}</span>
                   </td>
@@ -359,11 +590,186 @@ export const AdvancedCampaignAnalytics: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
       </motion.div>
+
+      {/* Campaign Detail Modal */}
+      <AnimatePresence>
+        {showDetailModal && selectedCampaign && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={handleCloseDetail}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between z-10">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedCampaign.name}</h2>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className={cn("px-3 py-1 rounded-full text-xs font-medium", getChannelColor(selectedCampaign.channel))}>
+                      {selectedCampaign.channel}
+                    </span>
+                    <span className="flex items-center gap-1 text-sm text-gray-500">
+                      {selectedCampaign.status === 'Active' ? (
+                        <><Play className="w-4 h-4 text-green-500" /> Active</>
+                      ) : selectedCampaign.status === 'Paused' ? (
+                        <><Pause className="w-4 h-4 text-yellow-500" /> Paused</>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4 text-gray-500" /> {selectedCampaign.status}</>
+                      )}
+                    </span>
+                    {selectedCampaign.start_date && (
+                      <span className="flex items-center gap-1 text-sm text-gray-500">
+                        <Calendar className="w-4 h-4" />
+                        {new Date(selectedCampaign.start_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseDetail}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Key Metrics Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4">
+                    <Eye className="w-8 h-8 text-blue-600 mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(selectedCampaign.impressions)}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Impressions</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4">
+                    <MousePointer className="w-8 h-8 text-purple-600 mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(selectedCampaign.clicks)}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Clicks ({selectedCampaign.ctr.toFixed(2)}%)</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4">
+                    <ShoppingCart className="w-8 h-8 text-green-600 mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(selectedCampaign.conversions)}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">Conversions ({selectedCampaign.cvr.toFixed(2)}%)</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl p-4">
+                    <Award className="w-8 h-8 text-orange-600 mb-2" />
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{selectedCampaign.roi.toFixed(0)}%</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">ROI</div>
+                  </div>
+                </div>
+
+                {/* Financial Overview */}
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-500" />
+                    Financial Overview
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {selectedCampaign.budget && (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">Budget</div>
+                        <div className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(selectedCampaign.budget)}</div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Spend</div>
+                      <div className="text-xl font-bold text-red-600">{formatCurrency(selectedCampaign.spend)}</div>
+                      {selectedCampaign.budget && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {((selectedCampaign.spend / selectedCampaign.budget) * 100).toFixed(1)}% of budget
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Revenue</div>
+                      <div className="text-xl font-bold text-green-600">{formatCurrency(selectedCampaign.revenue)}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">CPA</div>
+                      <div className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(selectedCampaign.cpa)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Performance Indicator */}
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Performance Trend</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        This campaign is performing {selectedCampaign.trend === 'up' ? 'above' : selectedCampaign.trend === 'down' ? 'below' : 'at'} expectations
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      {selectedCampaign.trend === 'up' ? (
+                        <TrendingUp className="w-16 h-16 text-green-500 mx-auto mb-2" />
+                      ) : selectedCampaign.trend === 'down' ? (
+                        <TrendingDown className="w-16 h-16 text-red-500 mx-auto mb-2" />
+                      ) : (
+                        <Target className="w-16 h-16 text-blue-500 mx-auto mb-2" />
+                      )}
+                      <span className={cn(
+                        "text-sm font-medium",
+                        selectedCampaign.trend === 'up' ? 'text-green-600' : selectedCampaign.trend === 'down' ? 'text-red-600' : 'text-blue-600'
+                      )}>
+                        {selectedCampaign.trend === 'up' ? 'Trending Up' : selectedCampaign.trend === 'down' ? 'Trending Down' : 'Stable'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={handleCloseDetail}
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      const exportData = [selectedCampaign].map(c => ({
+                        Name: c.name,
+                        Channel: c.channel,
+                        Status: c.status,
+                        Impressions: c.impressions,
+                        Clicks: c.clicks,
+                        Conversions: c.conversions,
+                        Spend: c.spend,
+                        Revenue: c.revenue,
+                        ROI: `${c.roi.toFixed(1)}%`,
+                        CTR: `${c.ctr.toFixed(2)}%`,
+                        CVR: `${c.cvr.toFixed(2)}%`,
+                        CPA: c.cpa.toFixed(2),
+                      }));
+                      marketingExportService.exportROIToExcel(exportData);
+                    }}
+                    className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Details
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

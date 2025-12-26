@@ -641,6 +641,57 @@ export const OwnerIcon: React.FC<IconProps> = ({ className, name }) => {
     // Dashboard Icons
     MegaphoneIcon: <path d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.996.912 2.168 1.92 3.186a2.25 2.25 0 002.699.563l3.948-2.297c.95-.553 1.06-1.757.47-2.512-.41-.527-.62-1.164-.62-1.81v-1.54c0-.646.21-1.283.62-1.81.59-.755.48-1.959-.47-2.512l-3.948-2.297a2.25 2.25 0 00-2.699.563c-1.008 1.018-1.667 2.19-1.92 3.186m0 9.18l-2.133 2.133a2.25 2.25 0 01-3.182-3.182l2.133-2.133" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
     Squares2X2Icon: <path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25A2.25 2.25 0 0113.5 8.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // ==========================================
+    // NEW MISSING ICONS (Added Dec 2024)
+    // ==========================================
+    
+    // Activity visualization - line graph pattern
+    Activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Drag handle - vertical grip dots
+    GripVertical: (
+      <g>
+        <circle cx="9" cy="5" r="1" fill="currentColor" />
+        <circle cx="9" cy="12" r="1" fill="currentColor" />
+        <circle cx="9" cy="19" r="1" fill="currentColor" />
+        <circle cx="15" cy="5" r="1" fill="currentColor" />
+        <circle cx="15" cy="12" r="1" fill="currentColor" />
+        <circle cx="15" cy="19" r="1" fill="currentColor" />
+      </g>
+    ),
+    
+    // Tag/Label icon
+    TagIcon: <path d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Inbox/Empty state icon
+    InboxIcon: <path d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5 0c0-3.866 3.582-7 8-7s8 3.134 8 7m-16 0v5.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V13.5m-16 0h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Document with checkmark
+    DocumentCheckIcon: (
+      <g>
+        <path d="M6 2 H14 L18 6 V22 H6 Z M14 2 V6 H18" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M9 12 L11 14 L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    ),
+    
+    // Trending up arrow
+    TrendingUpIcon: <path d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Expand arrows (fullscreen)
+    ArrowsExpandIcon: <path d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    
+    // Aliases for naming consistency
+    DownloadIcon: <path d="M12 3 V15 M12 15 L8 11 M12 15 L16 11 M4 17 V19 H20 V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, // Same as ArrowDownTrayIcon
+    CheckBadgeIcon: <path d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, // Same as ShieldCheckIcon
+    ArrowTrendingUpIcon: <path d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, // Same as TrendingUpIcon
+    RefreshCw: <path d="M4 12 A8 8 0 1 1 12 20 A8 8 0 0 1 12 4 M12 8 V12 L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />, // Same as ArrowPathIcon
+    Eye: <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, // Same as EyeIcon
+    QuestionMarkCircle: <path d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />, // Same as QuestionMarkCircleIcon
+    
+    // Trending down (ensure consistency)
+    "trending-down": <path d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
+    "trending-up": <path d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />,
   };
   
   // Smart mapping for generic icons requested in config

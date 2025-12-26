@@ -90,32 +90,32 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
     };
 
     const renderOverview = () => (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[minmax(120px,auto)]">
             {/* Hero Tile */}
-            <div className="md:col-span-2 lg:col-span-2 row-span-2 relative rounded-3xl overflow-hidden group shadow-2xl transition-transform duration-500 hover:scale-[1.01]">
+            <div className="md:col-span-2 lg:col-span-2 row-span-2 relative rounded-xl overflow-hidden group shadow-xl transition-transform duration-500 hover:scale-[1.01]">
                 <div className="absolute inset-0 bg-gradient-to-br from-gyn-blue-dark to-[#0a1142]"></div>
                 <div className="absolute inset-0 opacity-30 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
-                <div className="absolute -top-24 -right-24 w-96 h-96 bg-gyn-blue-medium rounded-full blur-[100px] opacity-60 animate-pulse"></div>
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-gyn-blue-medium rounded-full blur-[50px] opacity-60 animate-pulse"></div>
 
-                <div className="relative z-10 h-full p-8 flex flex-col justify-between">
+                <div className="relative z-10 h-full p-4 flex flex-col justify-between">
                     <div>
-                        <Badge variant="warning" className="mb-4">
-                            <Icon name="BriefcaseIcon" className="w-3 h-3 mr-1" />
+                        <Badge variant="warning" className="mb-2 text-[8px]">
+                            <Icon name="BriefcaseIcon" className="w-2.5 h-2.5 mr-0.5" />
                             Platform Intelligence
                         </Badge>
-                        <h2 className="text-4xl font-black text-white leading-tight max-w-md drop-shadow-lg">
+                        <h2 className="text-lg font-black text-white leading-tight max-w-md drop-shadow-lg">
                             Command Center
                         </h2>
-                        <p className="text-blue-100 mt-4 max-w-sm leading-relaxed opacity-80">
+                        <p className="text-blue-100 mt-2 max-w-sm leading-relaxed opacity-80 text-[9px]">
                             Access deep analytics, configure automated workflows, and monitor real-time performance metrics.
                         </p>
                     </div>
 
-                    <div className="flex gap-4 mt-8">
-                        <Button variant="secondary" leftIcon={<Icon name="BoltIcon" className="w-4 h-4" />}>
+                    <div className="flex gap-2 mt-4">
+                        <Button variant="secondary" leftIcon={<Icon name="BoltIcon" className="w-3 h-3" />} className="text-[10px] px-2 py-1">
                             Launch Console
                         </Button>
-                        <Button variant="ghost" className="text-white hover:bg-white/10 hover:text-white" leftIcon={<Icon name="DocumentTextIcon" className="w-4 h-4" />}>
+                        <Button variant="ghost" className="text-white hover:bg-white/10 hover:text-white text-[10px] px-2 py-1" leftIcon={<Icon name="DocumentTextIcon" className="w-3 h-3" />}>
                             Documentation
                         </Button>
                     </div>
@@ -123,35 +123,35 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
             </div>
 
             {/* Stat Cards */}
-            <Card variant="default" className="p-6 flex flex-col justify-between group hover:shadow-lg">
-                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-gyn-blue-medium shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                    <Icon name="ChartBarIcon" className="w-6 h-6" />
+            <Card variant="default" className="p-3 flex flex-col justify-between group hover:shadow-lg">
+                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center text-gyn-blue-medium shadow-sm mb-2 group-hover:scale-110 transition-transform">
+                    <Icon name="ChartBarIcon" className="w-4 h-4" />
                 </div>
                 <div>
-                    <div className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">{stats.dailyEvents.toLocaleString()}</div>
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-1">Daily Events</div>
+                    <div className="text-lg font-black text-gray-800 dark:text-white tracking-tight">{stats.dailyEvents.toLocaleString()}</div>
+                    <div className="text-[7px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Daily Events</div>
                 </div>
             </Card>
 
-            <Card variant="default" className="p-6 flex flex-col justify-between group hover:shadow-lg">
-                <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-2xl flex items-center justify-center text-green-600 shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                    <Icon name="CurrencyDollarIcon" className="w-6 h-6" />
+            <Card variant="default" className="p-3 flex flex-col justify-between group hover:shadow-lg">
+                <div className="w-8 h-8 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-center text-green-600 shadow-sm mb-2 group-hover:scale-110 transition-transform">
+                    <Icon name="CurrencyDollarIcon" className="w-4 h-4" />
                 </div>
                 <div>
-                    <div className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">${stats.revenue.toLocaleString()}</div>
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-1">Revenue Run Rate</div>
+                    <div className="text-lg font-black text-gray-800 dark:text-white tracking-tight">${stats.revenue.toLocaleString()}</div>
+                    <div className="text-[7px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Revenue Run Rate</div>
                 </div>
             </Card>
 
             {/* Quick Links */}
-            <div className="md:col-span-3 lg:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div className="md:col-span-3 lg:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
                 {['Marketing', 'Finance', 'Business', 'Marketplace'].map((cat) => (
-                    <Card key={cat} variant="flat" className="p-4 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md cursor-pointer transition-all group">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white dark:bg-slate-700 rounded-lg shadow-sm group-hover:bg-gyn-blue-medium group-hover:text-white transition-colors">
-                                <Icon name={cat === 'Marketing' ? 'ShareIcon' : cat === 'Finance' ? 'CurrencyDollarIcon' : 'BriefcaseIcon'} className="w-5 h-5" />
+                    <Card key={cat} variant="flat" className="p-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md cursor-pointer transition-all group">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-white dark:bg-slate-700 rounded-md shadow-sm group-hover:bg-gyn-blue-medium group-hover:text-white transition-colors">
+                                <Icon name={cat === 'Marketing' ? 'ShareIcon' : cat === 'Finance' ? 'CurrencyDollarIcon' : 'BriefcaseIcon'} className="w-3 h-3" />
                             </div>
-                            <span className="font-bold text-gray-700 dark:text-gray-200">{cat}</span>
+                            <span className="font-bold text-gray-700 dark:text-gray-200 text-[10px]">{cat}</span>
                         </div>
                     </Card>
                 ))}
@@ -160,42 +160,42 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
     );
 
     const renderToolGrid = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {tools.map((tool) => (
                 <Card
                     key={tool.id}
                     variant="default"
-                    className="group hover:-translate-y-1 hover:shadow-xl cursor-pointer relative overflow-hidden"
+                    className="group hover:-translate-y-1 hover:shadow-xl cursor-pointer relative overflow-hidden p-3"
                     onClick={() => handleToolClick(tool)}
                 >
-                    <div className="absolute top-0 right-0 p-2">
-                        <Badge variant={tool.status === 'active' ? 'success' : 'warning'} size="sm">
+                    <div className="absolute top-0 right-0 p-1">
+                        <Badge variant={tool.status === 'active' ? 'success' : 'warning'} size="sm" className="text-[7px]">
                             {tool.status}
                         </Badge>
                     </div>
 
-                    <div className="flex items-start gap-4 mb-4">
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shadow-inner">
-                            <Icon name={tool.icon} className="w-8 h-8 text-gyn-blue-dark dark:text-blue-400" />
+                    <div className="flex items-start gap-2 mb-2">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center shadow-inner">
+                            <Icon name={tool.icon} className="w-5 h-5 text-gyn-blue-dark dark:text-blue-400" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-gyn-blue-medium transition-colors">{tool.name}</h3>
-                            <span className="text-xs text-gray-400 font-mono">{tool.category}</span>
+                            <h3 className="font-bold text-[10px] text-gray-800 dark:text-white group-hover:text-gyn-blue-medium transition-colors">{tool.name}</h3>
+                            <span className="text-[7px] text-gray-400 font-mono">{tool.category}</span>
                         </div>
                     </div>
 
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 line-clamp-2">
+                    <p className="text-[9px] text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
                         {tool.description}
                     </p>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700">
-                        <div className="flex -space-x-2">
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-slate-700">
+                        <div className="flex -space-x-1">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-600 border-2 border-white dark:border-slate-800"></div>
+                                <div key={i} className="w-4 h-4 rounded-full bg-gray-200 dark:bg-slate-600 border border-white dark:border-slate-800"></div>
                             ))}
                         </div>
-                        <span className="text-xs font-bold text-gyn-blue-medium flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                            Open Tool <Icon name="ArrowRightIcon" className="w-3 h-3" />
+                        <span className="text-[8px] font-bold text-gyn-blue-medium flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                            Open Tool <Icon name="ArrowRightIcon" className="w-2.5 h-2.5" />
                         </span>
                     </div>
                 </Card>
@@ -204,14 +204,14 @@ const ToolPlatform: React.FC<ToolPlatformProps> = ({ activeTab, activeSubNav }) 
     );
 
     return (
-        <div className="w-full max-w-7xl mx-auto space-y-8 animate-fadeIn pb-20">
-            <div className="flex justify-between items-end mb-8">
+        <div className="w-full max-w-7xl mx-auto space-y-2 animate-fadeIn pb-4">
+            <div className="flex justify-between items-end mb-2">
                 <div>
-                    <h1 className="text-4xl font-black text-gyn-blue-dark dark:text-white tracking-tight">Platform Tools</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Integrated Marketing, Finance, & Business Logic</p>
+                    <h1 className="text-sm md:text-base font-black text-gyn-blue-dark dark:text-white tracking-tight">Platform Tools</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-0.5 font-medium text-[8px]">Integrated Marketing, Finance, & Business Logic</p>
                 </div>
                 {activeTab !== 'Overview' && (
-                    <Button variant="primary" leftIcon={<Icon name="PlusCircleIcon" className="w-5 h-5" />}>
+                    <Button variant="primary" leftIcon={<Icon name="PlusCircleIcon" className="w-3 h-3" />} className="text-[10px] px-2 py-1">
                         New {activeTab} Tool
                     </Button>
                 )}

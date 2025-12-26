@@ -63,31 +63,31 @@ export const EmailTemplateManager: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-2 animate-fadeIn">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">Email Templates</h2>
+                <h2 className="text-sm font-bold text-gray-800 dark:text-white">Email Templates</h2>
                 <Button variant="primary" icon="PlusIcon" onClick={handleCreate}>New Template</Button>
             </div>
 
             {loading ? (
                 <div className="text-center py-8 text-gray-500">Loading templates...</div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {templates.map(template => (
                         <Card key={template.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
-                            <div className="h-32 bg-gray-100 dark:bg-gray-800 p-4 flex items-center justify-center relative">
+                            <div className="h-20 bg-gray-100 dark:bg-gray-800 p-2 flex items-center justify-center relative">
                                 <div className="text-center">
-                                    <div className="text-xs font-bold text-gray-400 uppercase mb-1">{template.category}</div>
-                                    <div className="font-serif text-gray-600 dark:text-gray-300 text-sm line-clamp-2">{template.subject}</div>
+                                    <div className="text-[8px] font-bold text-gray-400 uppercase mb-0.5">{template.category}</div>
+                                    <div className="font-serif text-gray-600 dark:text-gray-300 text-[10px] line-clamp-2">{template.subject}</div>
                                 </div>
                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button size="sm" variant="secondary" onClick={() => handleEdit(template)}>Edit</Button>
                                     <Button size="sm" variant="danger" onClick={() => handleDelete(template.id)}>Delete</Button>
                                 </div>
                             </div>
-                            <div className="p-4">
-                                <h3 className="font-bold text-gray-800 dark:text-white">{template.name}</h3>
-                                <div className="flex flex-wrap gap-1 mt-2">
+                            <div className="p-2">
+                                <h3 className="font-bold text-[10px] text-gray-800 dark:text-white">{template.name}</h3>
+                                <div className="flex flex-wrap gap-0.5 mt-1">
                                     {template.variables.map(v => (
                                         <span key={v} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] rounded-full font-mono">{v}</span>
                                     ))}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Icon, Badge, Modal, Input, Select } from '../shared/ui/CommonUI';
 import { aiService } from '../../services/aiService';
+import { marketingService } from '../../services/marketingService';
 
 interface GeneratedCampaign {
     name: string;
@@ -130,28 +131,50 @@ export const AICampaignGenerator: React.FC = () => {
         };
     };
 
-    const handleUseCampaign = () => {
-        // This would integrate with the campaign creation flow
-        alert('Campaign template applied! You can now customize and launch.');
-        setShowResults(false);
+    const handleUseCampaign = async () => {
+        if (!generatedCampaign) return;
+        
+        try {
+            // Create actual campaign from AI-generated template
+            await marketingService.createCampaign({
+                name: generatedCampaign.name,
+                status: 'Draft',
+                type: 'Social',
+                budget: generatedCampaign.budget.recommended,
+                start_date: new Date().toISOString().split('T')[0],
+                end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                spent: 0,
+                performance_score: 0,
+                impressions: 0,
+                clicks: 0,
+                conversions: 0
+            });
+            alert('Campaign created successfully! Check Campaigns Dashboard to launch it.');
+            setShowResults(false);
+            setPrompt('');
+            setGeneratedCampaign(null);
+        } catch (error) {
+            console.error('Failed to create campaign:', error);
+            alert('Failed to create campaign. Please try again.');
+        }
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             {/* Hero Section */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white relative overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 text-white relative overflow-hidden">
                 <div className="relative z-10">
-                    <h2 className="text-3xl font-black mb-4">AI Campaign Generator</h2>
-                    <p className="text-blue-100 max-w-2xl mb-6 text-lg">
+                    <h2 className="text-base font-black mb-2">AI Campaign Generator</h2>
+                    <p className="text-blue-100 max-w-2xl mb-3 text-[10px]">
                         Describe your campaign goal, and let our advanced AI generate a complete multi-channel strategy, including copy, assets, and targeting rules.
                     </p>
                     
                     {/* Options Row */}
-                    <div className="flex gap-4 mb-4">
+                    <div className="flex gap-2 mb-2">
                         <select 
                             value={selectedTone} 
                             onChange={(e) => setSelectedTone(e.target.value)}
-                            className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white text-sm"
+                            className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-[9px]"
                         >
                             <option value="professional">Professional Tone</option>
                             <option value="casual">Casual & Friendly</option>
@@ -162,7 +185,7 @@ export const AICampaignGenerator: React.FC = () => {
                         <select 
                             value={selectedIndustry} 
                             onChange={(e) => setSelectedIndustry(e.target.value)}
-                            className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white text-sm"
+                            className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white text-[9px]"
                         >
                             <option value="ecommerce">E-commerce</option>
                             <option value="saas">SaaS / Tech</option>
@@ -174,14 +197,14 @@ export const AICampaignGenerator: React.FC = () => {
                     </div>
 
                     {/* Input Box */}
-                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-2 flex gap-2 max-w-3xl border border-white/20">
+                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-1 flex gap-1 max-w-3xl border border-white/20">
                         <input
                             type="text"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && generateCampaign()}
                             placeholder="e.g., Launching a new summer collection for Gen Z with a focus on sustainability..."
-                            className="flex-1 bg-transparent border-none text-white placeholder-blue-200 focus:ring-0 text-lg px-4"
+                            className="flex-1 bg-transparent border-none text-white placeholder-blue-200 focus:ring-0 text-[10px] px-2"
                         />
                         <Button 
                             variant="secondary" 
@@ -191,12 +214,12 @@ export const AICampaignGenerator: React.FC = () => {
                         >
                             {loading ? (
                                 <>
-                                    <div className="animate-spin h-5 w-5 border-2 border-purple-600 border-t-transparent rounded-full mr-2"></div>
+                                    <div className="animate-spin h-3 w-3 border-2 border-purple-600 border-t-transparent rounded-full mr-1"></div>
                                     Generating...
                                 </>
                             ) : (
                                 <>
-                                    <Icon name="Sparkles" className="w-5 h-5 mr-2" />
+                                    <Icon name="Sparkles" className="w-3 h-3 mr-1" />
                                     Generate Magic
                                 </>
                             )}
@@ -209,43 +232,43 @@ export const AICampaignGenerator: React.FC = () => {
             </div>
 
             {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="p-6 border-l-4 border-purple-500">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600">
-                            <Icon name="DocumentTextIcon" className="w-6 h-6" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <Card className="p-2 border-l-4 border-purple-500">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600">
+                            <Icon name="DocumentTextIcon" className="w-4 h-4" />
                         </div>
-                        <h3 className="font-bold text-lg">Content Strategy</h3>
+                        <h3 className="font-bold text-[10px]">Content Strategy</h3>
                     </div>
-                    <p className="text-sm text-gray-500 mb-4">AI generates blog posts, social captions, and email newsletters tailored to your voice.</p>
-                    <div className="flex items-center text-xs font-bold text-gray-400">
-                        <Icon name="CheckCircleIcon" className="w-4 h-4 mr-1 text-green-500" /> Auto-Tone Matching
+                    <p className="text-[9px] text-gray-500 mb-2">AI generates blog posts, social captions, and email newsletters tailored to your voice.</p>
+                    <div className="flex items-center text-[8px] font-bold text-gray-400">
+                        <Icon name="CheckCircleIcon" className="w-3 h-3 mr-0.5 text-green-500" /> Auto-Tone Matching
                     </div>
                 </Card>
 
-                <Card className="p-6 border-l-4 border-blue-500">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
-                            <Icon name="PhotoIcon" className="w-6 h-6" />
+                <Card className="p-2 border-l-4 border-blue-500">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
+                            <Icon name="PhotoIcon" className="w-4 h-4" />
                         </div>
-                        <h3 className="font-bold text-lg">Visual Assets</h3>
+                        <h3 className="font-bold text-[10px]">Visual Assets</h3>
                     </div>
-                    <p className="text-sm text-gray-500 mb-4">Generates image prompts and selects stock assets that match your campaign theme.</p>
-                    <div className="flex items-center text-xs font-bold text-gray-400">
-                        <Icon name="CheckCircleIcon" className="w-4 h-4 mr-1 text-green-500" /> DALL-E 3 Integrated
+                    <p className="text-[9px] text-gray-500 mb-2">Generates image prompts and selects stock assets that match your campaign theme.</p>
+                    <div className="flex items-center text-[8px] font-bold text-gray-400">
+                        <Icon name="CheckCircleIcon" className="w-3 h-3 mr-0.5 text-green-500" /> DALL-E 3 Integrated
                     </div>
                 </Card>
 
-                <Card className="p-6 border-l-4 border-pink-500">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-lg text-pink-600">
-                            <Icon name="UserGroupIcon" className="w-6 h-6" />
+                <Card className="p-2 border-l-4 border-pink-500">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1 bg-pink-100 dark:bg-pink-900/30 rounded-lg text-pink-600">
+                            <Icon name="UserGroupIcon" className="w-4 h-4" />
                         </div>
-                        <h3 className="font-bold text-lg">Targeting Rules</h3>
+                        <h3 className="font-bold text-[10px]">Targeting Rules</h3>
                     </div>
-                    <p className="text-sm text-gray-500 mb-4">Suggests audience segments and lookalike audiences based on campaign goals.</p>
-                    <div className="flex items-center text-xs font-bold text-gray-400">
-                        <Icon name="CheckCircleIcon" className="w-4 h-4 mr-1 text-green-500" /> Predictive Scoring
+                    <p className="text-[9px] text-gray-500 mb-2">Suggests audience segments and lookalike audiences based on campaign goals.</p>
+                    <div className="flex items-center text-[8px] font-bold text-gray-400">
+                        <Icon name="CheckCircleIcon" className="w-3 h-3 mr-0.5 text-green-500" /> Predictive Scoring
                     </div>
                 </Card>
             </div>

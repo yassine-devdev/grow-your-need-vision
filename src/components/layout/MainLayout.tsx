@@ -58,6 +58,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ config, renderContent, role = '
   const network = useNetwork();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Close overlay on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeOverlayApp) {
+        closeOverlay();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [activeOverlayApp, closeOverlay]);
+
   // Sync Module with URL
   useEffect(() => {
       const pathSegments = getPathSegments();

@@ -44,7 +44,7 @@ export const CDP: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const filter = searchQuery ? `name ~ "${searchQuery}" || email ~ "${searchQuery}"` : undefined;
+            const filter = searchQuery ? `name ~ "${searchQuery}" || email ~ "${searchQuery}"` : '';
             const [profilesData, statsData] = await Promise.all([
                 marketingService.getCustomerProfiles(page, 10, filter),
                 marketingService.getCDPStats()
@@ -139,10 +139,10 @@ export const CDP: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-2">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Customer Data Platform (CDP)</h2>
+                    <h2 className="text-sm font-bold text-gray-900 dark:text-white">Customer Data Platform (CDP)</h2>
                     {isSubscribed && (
                         <p className="text-xs text-green-500 flex items-center gap-1 mt-1">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -204,11 +204,11 @@ export const CDP: React.FC = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
                 {/* Profiles List */}
-                <Card className="lg:col-span-2 p-6">
-                    <div className="flex justify-between items-start mb-6">
-                        <h3 className="font-bold text-lg text-gray-800 dark:text-white">Customer Profiles</h3>
+                <Card className="lg:col-span-2 p-3">
+                    <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-bold text-sm text-gray-800 dark:text-white">Customer Profiles</h3>
                         <form onSubmit={handleSearch} className="flex gap-2">
                             <Input
                                 type="text"

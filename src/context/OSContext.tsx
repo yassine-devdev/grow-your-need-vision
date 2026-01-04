@@ -85,15 +85,23 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   const closeApp = useCallback((processId: string) => {
-    // Logic for window management
-    setWindows(prev => prev.filter(w => w.id !== processId));
-    
-    // If we are closing by ID, we need to check if it matches the active overlay
-    // But since we don't easily map ID to activeOverlayApp string without lookup:
-    // We'll handle this in the component or improve state sync.
-    // For now, if the closed app was the active one, clear it.
-    // This is a bit tricky because processId is not passed to closeOverlay.
-  }, []);
+    // Remove the window by id and, if appropriate, clear activeOverlayApp.
+    setWindows(prev => {
+      const toClose = prev.find(w => w.id === processId);
+      if (!toClose) return prev;
+
+      const newWindows = prev.filter(w => w.id !== processId);
+
+      // If there are no remaining windows with the same appName and that
+      // app is currently the active overlay, clear the overlay.
+      const stillExists = newWindows.some(w => w.appName === toClose.appName);
+      if (!stillExists && activeOverlayApp === toClose.appName) {
+        setActiveOverlayApp(null);
+      }
+
+      return newWindows;
+    });
+  }, [activeOverlayApp]);
   
   // Helper to close by Name (for legacy overlay)
   const closeAppByName = useCallback((appName: string) => {
